@@ -92,12 +92,50 @@
 }
 
 /* ----------------------------------------------------------------------------
-   Fonts — Inter (latin) + Vazirmatn (farsi), wired through CSS variables so
-   the <html lang> / dir switch picks the right typeface automatically.
+   Fonts — Inter (latin) + Arad (farsi), wired through CSS variables so the
+   <html lang> / dir switch picks the right typeface automatically.
+   Arad by MDarvishi5124 — https://github.com/MDarvishi5124/Arad
+   Served from jsDelivr's GitHub CDN (pinned to v1.0.1v).
 ---------------------------------------------------------------------------- */
+@font-face {
+  font-family: "Arad";
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url("https://cdn.jsdelivr.net/gh/MDarvishi5124/Arad@1.0.1v/Fonts/main/static/webfont/Arad-Regular.woff2") format("woff2");
+}
+@font-face {
+  font-family: "Arad";
+  font-style: normal;
+  font-weight: 500;
+  font-display: swap;
+  src: url("https://cdn.jsdelivr.net/gh/MDarvishi5124/Arad@1.0.1v/Fonts/main/static/webfont/Arad-Medium.woff2") format("woff2");
+}
+@font-face {
+  font-family: "Arad";
+  font-style: normal;
+  font-weight: 600;
+  font-display: swap;
+  src: url("https://cdn.jsdelivr.net/gh/MDarvishi5124/Arad@1.0.1v/Fonts/main/static/webfont/Arad-SemiBold.woff2") format("woff2");
+}
+@font-face {
+  font-family: "Arad";
+  font-style: normal;
+  font-weight: 700;
+  font-display: swap;
+  src: url("https://cdn.jsdelivr.net/gh/MDarvishi5124/Arad@1.0.1v/Fonts/main/static/webfont/Arad-Bold.woff2") format("woff2");
+}
+@font-face {
+  font-family: "Arad";
+  font-style: normal;
+  font-weight: 800;
+  font-display: swap;
+  src: url("https://cdn.jsdelivr.net/gh/MDarvishi5124/Arad@1.0.1v/Fonts/main/static/webfont/Arad-ExtraBold.woff2") format("woff2");
+}
+
 :root {
   --font-latin: "Inter", ui-sans-serif, system-ui, sans-serif;
-  --font-farsi: "Vazirmatn", "Inter", ui-sans-serif, system-ui, sans-serif;
+  --font-farsi: "Arad", "Inter", ui-sans-serif, system-ui, sans-serif;
 }
 
 html {

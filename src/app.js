@@ -30,6 +30,7 @@ const AURORA_I18N = {
         no_configs_hint: "There are no active configs for this account yet.",
         apps: "Recommended apps", add: "Add", download: "Download",
         tap_to_add: "One-tap import", qrcode: "QR code", close: "Close",
+        sub_qr: "Subscription QR", subscription: "Subscription link",
         support: "Get support", switch_lang: "Switch language", switch_theme: "Switch theme",
         powered: "Powered by Claude",
     },
@@ -50,6 +51,7 @@ const AURORA_I18N = {
         no_configs_hint: "هنوز هیچ کانفیگ فعالی برای این حساب وجود ندارد.",
         apps: "اپلیکیشن‌های پیشنهادی", add: "افزودن", download: "دانلود",
         tap_to_add: "افزودن با یک لمس", qrcode: "کد QR", close: "بستن",
+        sub_qr: "کد QR اشتراک", subscription: "لینک اشتراک",
         support: "پشتیبانی", switch_lang: "تغییر زبان", switch_theme: "تغییر پوسته",
         powered: "قدرت‌گرفته از Claude",
     },
@@ -97,6 +99,7 @@ function aurora() {
         apps: [], appsLoaded: false, osList: [], activeOs: "",
         copied: "",
         qrOpen: false, qrText: "", qrTitle: "",
+        themeOpen: false, configsOpen: true, appsOpen: true,
         _copyTimer: null,
 
         /* -------- lifecycle -------- */
@@ -289,6 +292,10 @@ function aurora() {
                 this.$refs.qrModal?.showModal();
             });
         },
+        // QR code of the subscription link itself.
+        showSubQr() {
+            this.showQr({ raw: this.subscriptionUrl, name: this.t("subscription") });
+        },
         renderQr(text) {
             const box = this.$refs.qrBox;
             if (!box || typeof qrcode === "undefined") return;
@@ -350,10 +357,28 @@ function aurora() {
             return I[os] || "";
         },
 
-        /* -------- entrance animation -------- */
+        /* -------- entrance animation (reveal on view, gently staggered) -------- */
         revealAll() {
-            const els = document.querySelectorAll(".reveal");
-            els.forEach((el, i) => setTimeout(() => el.classList.add("shown"), 60 * i));
+            const els = Array.from(document.querySelectorAll(".reveal"));
+            if (!("IntersectionObserver" in window)) {
+                els.forEach((el) => el.classList.add("shown"));
+                return;
+            }
+            const io = new IntersectionObserver((entries) => {
+                entries.forEach((entry) => {
+                    if (!entry.isIntersecting) return;
+                    entry.target.classList.add("shown");
+                    io.unobserve(entry.target);
+                });
+            }, { threshold: 0.06, rootMargin: "0px 0px -32px 0px" });
+
+            els.forEach((el, i) => {
+                // Stagger only the items already on screen at load for a clean cascade.
+                el.style.transitionDelay = Math.min(i * 45, 220) + "ms";
+                io.observe(el);
+            });
+            // Clear the stagger after the initial cascade so scroll reveals feel instant.
+            setTimeout(() => els.forEach((el) => (el.style.transitionDelay = "")), 900);
         },
     };
 }

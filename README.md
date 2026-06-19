@@ -8,6 +8,8 @@ Northern-lights aesthetics · glassmorphism · radial usage rings · one-tap app
 
 Tailwind CSS v4 · DaisyUI v5 · Alpine.js v3 · qrcode-generator
 
+**⚡ Powered by Claude**
+
 </div>
 
 ---
@@ -18,7 +20,7 @@ Tailwind CSS v4 · DaisyUI v5 · Alpine.js v3 · qrcode-generator
 - **Apps section** — recommended clients grouped by OS (iOS / Android / Windows / macOS / Linux) with a **one-tap import** deep link (the subscription URL is injected into each app's URL scheme) and a download link. Driven by `apps.json`.
 - **Configs section** — every config from the subscription with copy-to-clipboard and a **QR-code modal**, plus *copy subscription link* and *copy all configs*.
 - **Theme switcher** — Aurora (dark), Aurora Light, Nord, Dracula, Synthwave. Preference persists via localStorage → cookie → in-memory, and reads `?theme=` / `?lang=` from the URL. Never *requires* storage.
-- **Language switcher** — English / فارسی with full RTL (`dir`, mirrored layout, Vazirmatn font, localized digits).
+- **Language switcher** — English / فارسی with full RTL (`dir`, mirrored layout, [Arad](https://github.com/MDarvishi5124/Arad) font, localized digits).
 - **Edge cases** — expired / limited / disabled banners, empty "no configs" state, and a no-flash (`x-cloak`) load.
 
 Everything ships as **one self-contained `index.html`** (CSS inlined; Alpine + qrcode from pinned CDNs).

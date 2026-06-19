@@ -31,7 +31,7 @@ const AURORA_I18N = {
         apps: "Recommended apps", add: "Add", download: "Download",
         tap_to_add: "One-tap import", qrcode: "QR code", close: "Close",
         support: "Get support", switch_lang: "Switch language", switch_theme: "Switch theme",
-        powered: "Powered by",
+        powered: "Powered by Claude",
     },
     fa: {
         dir: "rtl",
@@ -51,7 +51,7 @@ const AURORA_I18N = {
         apps: "اپلیکیشن‌های پیشنهادی", add: "افزودن", download: "دانلود",
         tap_to_add: "افزودن با یک لمس", qrcode: "کد QR", close: "بستن",
         support: "پشتیبانی", switch_lang: "تغییر زبان", switch_theme: "تغییر پوسته",
-        powered: "قدرت‌گرفته از",
+        powered: "قدرت‌گرفته از Claude",
     },
 };
 

@@ -53,16 +53,22 @@
     <main x-data="aurora()" x-init="init()" x-cloak class="relative mx-auto w-full max-w-3xl px-4 pb-16 pt-5 sm:px-6">
 
         <!-- ============================ TOP BAR ============================ -->
-        <header class="reveal mb-6 flex items-center justify-between gap-3">
+        <header class="reveal relative z-50 mb-6 flex items-center justify-between gap-3">
             <div class="flex items-center gap-2.5">
-                <div class="grid h-10 w-10 place-items-center rounded-2xl bg-gradient-to-br from-primary via-secondary to-accent shadow-lg shadow-primary/20">
-                    <svg viewBox="0 0 24 24" class="h-6 w-6 text-primary-content" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                        <path d="M3 17c3-6 5-6 9 0M3 12c3-6 5-6 9 0M3 7c3-6 5-6 9 0" />
-                        <path d="M21 17c-2-4-3-4-5 0M21 12c-2-4-3-4-5 0" opacity=".6" />
+                <div class="grid h-11 w-11 place-items-center rounded-2xl bg-gradient-to-br from-primary via-secondary to-accent shadow-lg shadow-primary/25 ring-1 ring-white/10">
+                    <svg viewBox="0 0 32 32" class="h-7 w-7 text-primary-content" fill="none">
+                        <!-- moon -->
+                        <circle cx="22.5" cy="9" r="2.3" fill="currentColor" opacity=".95" />
+                        <!-- aurora streaks -->
+                        <path d="M4.5 11.5c3.2-4 6.4 2.2 9.6-0.4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" opacity=".5" />
+                        <path d="M4.5 8c2.6-3 5.2 1.6 7.8-0.3" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" opacity=".3" />
+                        <!-- mountain range -->
+                        <path d="M3.5 24.5 11 13l4.3 6 4.4-7.2 8.3 12.7z" fill="currentColor" />
+                        <path d="M3.5 24.5h25" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" opacity=".55" />
                     </svg>
                 </div>
                 <div class="leading-tight">
-                    <p class="text-lg font-extrabold gradient-text">Aurora</p>
+                    <p class="text-xl font-extrabold tracking-tight gradient-text">Aurora</p>
                     <p class="text-[11px] text-base-content/50" x-text="t('tagline')"></p>
                 </div>
             </div>
@@ -75,15 +81,17 @@
                     <span x-text="lang === 'en' ? 'EN' : 'فا'"></span>
                 </button>
 
-                <!-- Theme switcher -->
-                <div class="dropdown dropdown-end">
-                    <div tabindex="0" role="button" class="btn btn-sm btn-ghost glass" :aria-label="t('switch_theme')">
+                <!-- Theme switcher (Alpine-controlled popover; renders above all cards) -->
+                <div class="relative" @click.outside="themeOpen = false">
+                    <button class="btn btn-sm btn-ghost glass" @click="themeOpen = !themeOpen"
+                        :aria-label="t('switch_theme')" aria-haspopup="true" :aria-expanded="themeOpen">
                         <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg>
-                    </div>
-                    <ul tabindex="0" class="dropdown-content menu glass z-50 mt-2 w-44 gap-0.5 rounded-2xl p-2 shadow-xl">
+                    </button>
+                    <ul x-show="themeOpen" x-cloak x-transition.origin.top
+                        class="menu glass absolute end-0 z-[100] mt-2 w-48 gap-0.5 rounded-2xl p-2 shadow-2xl shadow-black/30">
                         <template x-for="th in themes" :key="th.id">
                             <li>
-                                <button @click="setTheme(th.id)" class="justify-between rounded-xl"
+                                <button @click="setTheme(th.id); themeOpen = false" class="justify-between rounded-xl"
                                     :class="theme === th.id && 'active font-semibold'">
                                     <span class="flex items-center gap-2">
                                         <span class="h-3.5 w-3.5 rounded-full border border-base-content/20" :style="`background:${th.swatch}`"></span>
@@ -185,104 +193,128 @@
         </section>
 
         <!-- ============================ CONFIGS ============================ -->
-        <section class="reveal mb-6">
-            <div class="mb-3 flex items-center justify-between">
-                <h2 class="flex items-center gap-2 text-lg font-bold">
+        <section class="reveal card glass mb-6 overflow-hidden rounded-[1.5rem] border-0 shadow-xl shadow-black/10">
+            <!-- Collapsible header -->
+            <button class="flex w-full items-center justify-between gap-2 p-4 sm:px-5"
+                @click="configsOpen = !configsOpen" :aria-expanded="configsOpen">
+                <span class="flex items-center gap-2 text-lg font-bold">
                     <svg class="h-5 w-5 text-primary" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 6h16M4 12h16M4 18h10"/></svg>
                     <span x-text="t('configs')"></span>
                     <span class="badge badge-sm badge-primary badge-soft" x-text="configs.length"></span>
-                </h2>
-            </div>
+                </span>
+                <svg class="chev h-5 w-5 text-base-content/50" :class="configsOpen && 'open'" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="m6 9 6 6 6-6"/></svg>
+            </button>
 
-            <!-- Bulk actions -->
-            <div class="mb-4 grid grid-cols-2 gap-2">
-                <button class="btn glass lift gap-2 rounded-2xl border-0 font-semibold" @click="copy(subscriptionUrl, 'sub')">
-                    <svg class="h-4 w-4" x-show="copied!=='sub'" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10 13a5 5 0 0 0 7 0l3-3a5 5 0 0 0-7-7l-1 1"/><path d="M14 11a5 5 0 0 0-7 0l-3 3a5 5 0 0 0 7 7l1-1"/></svg>
-                    <svg class="h-4 w-4 text-success" x-show="copied==='sub'" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><path d="M20 6 9 17l-5-5"/></svg>
-                    <span x-text="copied==='sub' ? t('copied') : t('copy_sub')"></span>
-                </button>
-                <button class="btn glass lift gap-2 rounded-2xl border-0 font-semibold" @click="copyAll()" :disabled="!configs.length">
-                    <svg class="h-4 w-4" x-show="copied!=='all'" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
-                    <svg class="h-4 w-4 text-success" x-show="copied==='all'" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><path d="M20 6 9 17l-5-5"/></svg>
-                    <span x-text="copied==='all' ? t('copied') : t('copy_all')"></span>
-                </button>
-            </div>
-
-            <!-- Config list -->
-            <div class="space-y-2.5">
-                <template x-for="(cfg, i) in configs" :key="i">
-                    <div class="group card glass lift rounded-2xl border-0">
-                        <div class="flex items-center gap-3 p-3">
-                            <div class="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-gradient-to-br from-primary/20 to-secondary/20 text-xs font-bold text-primary"
-                                x-text="cfg.protocol"></div>
-                            <div class="min-w-0 flex-1">
-                                <p class="truncate text-sm font-semibold" x-text="cfg.name || (t('config') + ' ' + (i+1))"></p>
-                                <p class="truncate font-mono text-[11px] text-base-content/40" x-text="cfg.raw"></p>
-                            </div>
-                            <button class="btn btn-circle btn-ghost btn-sm" @click="copy(cfg.raw, 'cfg-'+i)" :aria-label="t('copy')">
-                                <svg class="h-4 w-4" x-show="copied!=='cfg-'+i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
-                                <svg class="h-4 w-4 text-success" x-show="copied==='cfg-'+i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><path d="M20 6 9 17l-5-5"/></svg>
+            <div class="collapsey" :class="configsOpen && 'open'">
+                <div class="collapsey-inner">
+                    <div class="px-4 pb-4 sm:px-5 sm:pb-5">
+                        <!-- Bulk actions -->
+                        <div class="mb-4 flex flex-wrap gap-2">
+                            <button class="btn glass lift min-w-[8rem] flex-1 gap-2 rounded-2xl border-0 font-semibold" @click="copy(subscriptionUrl, 'sub')">
+                                <svg class="h-4 w-4" x-show="copied!=='sub'" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10 13a5 5 0 0 0 7 0l3-3a5 5 0 0 0-7-7l-1 1"/><path d="M14 11a5 5 0 0 0-7 0l-3 3a5 5 0 0 0 7 7l1-1"/></svg>
+                                <svg class="h-4 w-4 text-success" x-show="copied==='sub'" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><path d="M20 6 9 17l-5-5"/></svg>
+                                <span x-text="copied==='sub' ? t('copied') : t('copy_sub')"></span>
                             </button>
-                            <button class="btn btn-circle btn-ghost btn-sm" @click="showQr(cfg)" :aria-label="t('qrcode')">
-                                <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><path d="M14 14h3v3M21 21v.01M21 14v.01M14 21v.01M17 17h.01"/></svg>
+                            <button class="btn glass lift min-w-[8rem] flex-1 gap-2 rounded-2xl border-0 font-semibold" @click="copyAll()" :disabled="!configs.length">
+                                <svg class="h-4 w-4" x-show="copied!=='all'" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+                                <svg class="h-4 w-4 text-success" x-show="copied==='all'" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><path d="M20 6 9 17l-5-5"/></svg>
+                                <span x-text="copied==='all' ? t('copied') : t('copy_all')"></span>
+                            </button>
+                            <!-- QR code of the subscription link itself -->
+                            <button class="btn btn-square glass lift rounded-2xl border-0" @click="showSubQr()" :aria-label="t('sub_qr')">
+                                <svg class="h-5 w-5 text-primary" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><path d="M14 14h3v3M21 21v.01M21 14v.01M14 21v.01M17 17h.01"/></svg>
                             </button>
                         </div>
-                    </div>
-                </template>
 
-                <!-- Empty state -->
-                <template x-if="!configs.length">
-                    <div class="card glass rounded-2xl border-0 p-10 text-center">
-                        <svg class="mx-auto h-12 w-12 text-base-content/30" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M9.5 2A2.5 2.5 0 0 0 7 4.5v15A2.5 2.5 0 0 0 9.5 22h5a2.5 2.5 0 0 0 2.5-2.5v-15A2.5 2.5 0 0 0 14.5 2z"/><path d="M12 18h.01"/></svg>
-                        <p class="mt-3 font-semibold" x-text="t('no_configs')"></p>
-                        <p class="mt-1 text-sm text-base-content/50" x-text="t('no_configs_hint')"></p>
+                        <!-- Config list -->
+                        <div class="space-y-2.5">
+                            <template x-for="(cfg, i) in configs" :key="i">
+                                <div class="group card glass lift rounded-2xl border-0">
+                                    <div class="flex items-center gap-3 p-3">
+                                        <div class="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-gradient-to-br from-primary/20 to-secondary/20 text-xs font-bold text-primary"
+                                            x-text="cfg.protocol"></div>
+                                        <div class="min-w-0 flex-1">
+                                            <p class="truncate text-sm font-semibold" x-text="cfg.name || (t('config') + ' ' + (i+1))"></p>
+                                            <p class="truncate font-mono text-[11px] text-base-content/40" x-text="cfg.raw"></p>
+                                        </div>
+                                        <button class="btn btn-circle btn-ghost btn-sm" @click="copy(cfg.raw, 'cfg-'+i)" :aria-label="t('copy')">
+                                            <svg class="h-4 w-4" x-show="copied!=='cfg-'+i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+                                            <svg class="h-4 w-4 text-success" x-show="copied==='cfg-'+i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><path d="M20 6 9 17l-5-5"/></svg>
+                                        </button>
+                                        <button class="btn btn-circle btn-ghost btn-sm" @click="showQr(cfg)" :aria-label="t('qrcode')">
+                                            <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><path d="M14 14h3v3M21 21v.01M21 14v.01M14 21v.01M17 17h.01"/></svg>
+                                        </button>
+                                    </div>
+                                </div>
+                            </template>
+
+                            <!-- Empty state -->
+                            <template x-if="!configs.length">
+                                <div class="card glass rounded-2xl border-0 p-10 text-center">
+                                    <svg class="mx-auto h-12 w-12 text-base-content/30" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M9.5 2A2.5 2.5 0 0 0 7 4.5v15A2.5 2.5 0 0 0 9.5 22h5a2.5 2.5 0 0 0 2.5-2.5v-15A2.5 2.5 0 0 0 14.5 2z"/><path d="M12 18h.01"/></svg>
+                                    <p class="mt-3 font-semibold" x-text="t('no_configs')"></p>
+                                    <p class="mt-1 text-sm text-base-content/50" x-text="t('no_configs_hint')"></p>
+                                </div>
+                            </template>
+                        </div>
                     </div>
-                </template>
+                </div>
             </div>
         </section>
 
         <!-- ============================== APPS ============================== -->
-        <section class="reveal mb-6" x-show="appsLoaded">
-            <h2 class="mb-3 flex items-center gap-2 text-lg font-bold">
-                <svg class="h-5 w-5 text-secondary" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/></svg>
-                <span x-text="t('apps')"></span>
-            </h2>
+        <section class="reveal card glass mb-6 overflow-hidden rounded-[1.5rem] border-0 shadow-xl shadow-black/10" x-show="appsLoaded">
+            <!-- Collapsible header -->
+            <button class="flex w-full items-center justify-between gap-2 p-4 sm:px-5"
+                @click="appsOpen = !appsOpen" :aria-expanded="appsOpen">
+                <span class="flex items-center gap-2 text-lg font-bold">
+                    <svg class="h-5 w-5 text-secondary" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/></svg>
+                    <span x-text="t('apps')"></span>
+                </span>
+                <svg class="chev h-5 w-5 text-base-content/50" :class="appsOpen && 'open'" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="m6 9 6 6 6-6"/></svg>
+            </button>
 
-            <!-- OS tabs -->
-            <div role="tablist" class="tabs tabs-box glass mb-4 rounded-2xl p-1">
-                <template x-for="os in osList" :key="os">
-                    <button role="tab" class="tab gap-1.5 rounded-xl font-semibold transition"
-                        :class="activeOs === os && 'tab-active bg-primary/15 text-primary'"
-                        @click="activeOs = os">
-                        <span x-html="osIcon(os)"></span>
-                        <span x-text="os"></span>
-                    </button>
-                </template>
-            </div>
+            <div class="collapsey" :class="appsOpen && 'open'">
+                <div class="collapsey-inner">
+                    <div class="px-4 pb-4 sm:px-5 sm:pb-5">
+                        <!-- OS tabs -->
+                        <div role="tablist" class="tabs tabs-box glass mb-4 rounded-2xl p-1">
+                            <template x-for="os in osList" :key="os">
+                                <button role="tab" class="tab gap-1.5 rounded-xl font-semibold transition"
+                                    :class="activeOs === os && 'tab-active bg-primary/15 text-primary'"
+                                    @click="activeOs = os">
+                                    <span x-html="osIcon(os)"></span>
+                                    <span x-text="os"></span>
+                                </button>
+                            </template>
+                        </div>
 
-            <!-- App cards -->
-            <div class="grid grid-cols-1 gap-2.5 sm:grid-cols-2">
-                <template x-for="app in appsForOs" :key="app.name">
-                    <div class="card glass lift rounded-2xl border-0">
-                        <div class="flex items-center gap-3 p-3">
-                            <img :src="app.image" :alt="app.name" loading="lazy"
-                                class="h-11 w-11 shrink-0 rounded-xl bg-base-100/50 object-contain p-1"
-                                onerror="this.style.visibility='hidden'" />
-                            <div class="min-w-0 flex-1">
-                                <p class="truncate font-semibold" x-text="app.name"></p>
-                                <p class="text-[11px] text-base-content/50" x-text="t('tap_to_add')"></p>
-                            </div>
-                            <div class="flex items-center gap-1.5">
-                                <a class="btn btn-primary btn-sm rounded-xl font-semibold" :href="deepLink(app)"
-                                    x-text="t('add')"></a>
-                                <a class="btn btn-ghost btn-sm btn-circle" :href="app.download" target="_blank" rel="noopener"
-                                    x-show="app.download" :aria-label="t('download')">
-                                    <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3"/></svg>
-                                </a>
-                            </div>
+                        <!-- App cards -->
+                        <div class="grid grid-cols-1 gap-2.5 sm:grid-cols-2">
+                            <template x-for="app in appsForOs" :key="app.name">
+                                <div class="card glass lift rounded-2xl border-0">
+                                    <div class="flex items-center gap-3 p-3">
+                                        <img :src="app.image" :alt="app.name" loading="lazy"
+                                            class="h-11 w-11 shrink-0 rounded-xl bg-base-100/50 object-contain p-1"
+                                            onerror="this.style.visibility='hidden'" />
+                                        <div class="min-w-0 flex-1">
+                                            <p class="truncate font-semibold" x-text="app.name"></p>
+                                            <p class="text-[11px] text-base-content/50" x-text="t('tap_to_add')"></p>
+                                        </div>
+                                        <div class="flex items-center gap-1.5">
+                                            <a class="btn btn-primary btn-sm rounded-xl font-semibold" :href="deepLink(app)"
+                                                x-text="t('add')"></a>
+                                            <a class="btn btn-ghost btn-sm btn-circle" :href="app.download" target="_blank" rel="noopener"
+                                                x-show="app.download" :aria-label="t('download')">
+                                                <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3"/></svg>
+                                            </a>
+                                        </div>
+                                    </div>
+                                </div>
+                            </template>
                         </div>
                     </div>
-                </template>
+                </div>
             </div>
         </section>
 

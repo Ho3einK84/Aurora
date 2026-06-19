@@ -1,9 +1,23 @@
 [
   {
+    "name": "Happ",
+    "urlScheme": "happ://add/{url}",
+    "image": "https://happ.su/img/logo.png",
+    "link": "https://happ.su/main/download",
+    "os": ["Android", "iOS", "Windows", "Linux"],
+    "downloadLinks": {
+      "Android": "https://play.google.com/store/apps/details?id=com.happproxy",
+      "iOS": "https://apps.apple.com/app/happ-proxy-utility/id6504287215",
+      "Windows": "https://happ.su/main/download",
+      "Linux": "https://happ.su/main/download"
+    },
+    "ShowInMenu": true
+  },
+  {
     "name": "v2rayNG",
     "urlScheme": "v2rayng://install-sub?url={url}",
-    "image": "https://play-lh.googleusercontent.com/example",
-    "link": "https://github.com/2dust/v2rayNG/releases/latest/download/v2rayNG_universal.apk",
+    "image": "https://raw.githubusercontent.com/2dust/v2rayNG/master/V2rayNG/app/src/main/res/mipmap-xxxhdpi/ic_launcher.png",
+    "link": "https://github.com/2dust/v2rayNG/releases/latest",
     "os": ["Android"],
     "downloadLinks": {
       "Android": "https://github.com/2dust/v2rayNG/releases/latest"
@@ -11,17 +25,24 @@
     "ShowInMenu": true
   },
   {
-    "name": "Hiddify",
-    "urlScheme": "hiddify://import/{url}",
-    "image": "https://avatars.githubusercontent.com/u/126562578",
-    "link": "https://github.com/hiddify/hiddify-app/releases/latest",
-    "os": ["Android", "iOS", "Windows", "macOS", "Linux"],
+    "name": "Streisand",
+    "urlScheme": "streisand://import/{url}",
+    "image": "https://is1-ssl.mzstatic.com/image/thumb/Purple211/v4/streisand.png",
+    "link": "https://apps.apple.com/app/streisand/id6450534064",
+    "os": ["iOS"],
     "downloadLinks": {
-      "Android": "https://github.com/hiddify/hiddify-app/releases/latest",
-      "iOS": "https://apps.apple.com/app/hiddify-proxy-vpn/id6596777532",
-      "Windows": "https://github.com/hiddify/hiddify-app/releases/latest",
-      "macOS": "https://github.com/hiddify/hiddify-app/releases/latest",
-      "Linux": "https://github.com/hiddify/hiddify-app/releases/latest"
+      "iOS": "https://apps.apple.com/app/streisand/id6450534064"
+    },
+    "ShowInMenu": true
+  },
+  {
+    "name": "V2Box",
+    "urlScheme": "v2box://install-sub?url={url}",
+    "image": "https://is1-ssl.mzstatic.com/image/thumb/Purple211/v4/v2box.png",
+    "link": "https://apps.apple.com/app/v2box-v2ray-client/id6446814690",
+    "os": ["iOS"],
+    "downloadLinks": {
+      "iOS": "https://apps.apple.com/app/v2box-v2ray-client/id6446814690"
     },
     "ShowInMenu": true
   },
@@ -30,85 +51,10 @@
     "urlScheme": "v2rayn://install-sub?url={url}",
     "image": "https://avatars.githubusercontent.com/u/24232515",
     "link": "https://github.com/2dust/v2rayN/releases/latest",
-    "os": ["Windows", "Linux", "macOS"],
+    "os": ["Windows", "Linux"],
     "downloadLinks": {
       "Windows": "https://github.com/2dust/v2rayN/releases/latest",
-      "Linux": "https://github.com/2dust/v2rayN/releases/latest",
-      "macOS": "https://github.com/2dust/v2rayN/releases/latest"
-    },
-    "ShowInMenu": true
-  },
-  {
-    "name": "Streisand",
-    "urlScheme": "streisand://import/{url}",
-    "image": "https://is1-ssl.mzstatic.com/image/thumb/example/streisand.png",
-    "link": "https://apps.apple.com/app/streisand/id6450534064",
-    "os": ["iOS", "macOS"],
-    "downloadLinks": {
-      "iOS": "https://apps.apple.com/app/streisand/id6450534064",
-      "macOS": "https://apps.apple.com/app/streisand/id6450534064"
-    },
-    "ShowInMenu": true
-  },
-  {
-    "name": "Shadowrocket",
-    "urlScheme": "sub://{url}",
-    "image": "https://is1-ssl.mzstatic.com/image/thumb/example/shadowrocket.png",
-    "link": "https://apps.apple.com/app/shadowrocket/id932747118",
-    "os": ["iOS"],
-    "downloadLinks": {
-      "iOS": "https://apps.apple.com/app/shadowrocket/id932747118"
-    },
-    "ShowInMenu": true
-  },
-  {
-    "name": "FoXray",
-    "urlScheme": "foxray://yiguo.dev/sub/add/{url}",
-    "image": "https://is1-ssl.mzstatic.com/image/thumb/example/foxray.png",
-    "link": "https://apps.apple.com/app/foxray/id6448898396",
-    "os": ["iOS", "macOS"],
-    "downloadLinks": {
-      "iOS": "https://apps.apple.com/app/foxray/id6448898396",
-      "macOS": "https://apps.apple.com/app/foxray/id6448898396"
-    },
-    "ShowInMenu": true
-  },
-  {
-    "name": "sing-box",
-    "urlScheme": "sing-box://import-remote-profile?url={url}",
-    "image": "https://avatars.githubusercontent.com/u/103285556",
-    "link": "https://github.com/SagerNet/sing-box/releases/latest",
-    "os": ["Android", "iOS", "Windows", "macOS", "Linux"],
-    "downloadLinks": {
-      "Android": "https://play.google.com/store/apps/details?id=io.nekohasekai.sfa",
-      "iOS": "https://apps.apple.com/app/sing-box-vt/id6673731168",
-      "Windows": "https://github.com/SagerNet/sing-box/releases/latest",
-      "macOS": "https://apps.apple.com/app/sing-box-vt/id6673731168",
-      "Linux": "https://github.com/SagerNet/sing-box/releases/latest"
-    },
-    "ShowInMenu": true
-  },
-  {
-    "name": "Clash Verge Rev",
-    "urlScheme": "clash://install-config?url={url}",
-    "image": "https://avatars.githubusercontent.com/u/153642667",
-    "link": "https://github.com/clash-verge-rev/clash-verge-rev/releases/latest",
-    "os": ["Windows", "macOS", "Linux"],
-    "downloadLinks": {
-      "Windows": "https://github.com/clash-verge-rev/clash-verge-rev/releases/latest",
-      "macOS": "https://github.com/clash-verge-rev/clash-verge-rev/releases/latest",
-      "Linux": "https://github.com/clash-verge-rev/clash-verge-rev/releases/latest"
-    },
-    "ShowInMenu": true
-  },
-  {
-    "name": "NekoBox",
-    "urlScheme": "sn://subscription?url={url}",
-    "image": "https://avatars.githubusercontent.com/u/103285556",
-    "link": "https://github.com/MatsuriDayo/NekoBoxForAndroid/releases/latest",
-    "os": ["Android"],
-    "downloadLinks": {
-      "Android": "https://github.com/MatsuriDayo/NekoBoxForAndroid/releases/latest"
+      "Linux": "https://github.com/2dust/v2rayN/releases/latest"
     },
     "ShowInMenu": true
   }

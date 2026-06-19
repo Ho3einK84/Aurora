@@ -1,0 +1,18 @@
+{
+  "name": "aurora-rebecca-subscription",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Aurora — a premium subscription page template for the Rebecca panel (dev branch).",
+  "type": "module",
+  "scripts": {
+    "build:css": "tailwindcss -i ./src/input.css -o ./build/app.css --minify",
+    "build:html": "node ./scripts/build.mjs",
+    "build": "npm run build:css && npm run build:html",
+    "dev": "tailwindcss -i ./src/input.css -o ./build/app.css --watch"
+  },
+  "devDependencies": {
+    "@tailwindcss/cli": "^4.1.13",
+    "daisyui": "^5.1.27",
+    "tailwindcss": "^4.1.13"
+  }
+}

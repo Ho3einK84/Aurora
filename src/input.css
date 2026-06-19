@@ -1,0 +1,217 @@
+@import "tailwindcss";
+@source "../src/**/*.{html,js}";
+
+/* DaisyUI v5 — load plugin and select the themes we ship. */
+@plugin "daisyui" {
+  themes: aurora --default, auroralight --prefersdark, nord, dracula, synthwave;
+}
+
+/* ----------------------------------------------------------------------------
+   Aurora — the signature dark theme (northern-lights palette).
+   A deep cosmic navy base lit by teal → cyan → violet → magenta accents.
+---------------------------------------------------------------------------- */
+@plugin "daisyui/theme" {
+  name: "aurora";
+  default: true;
+  prefersdark: true;
+  color-scheme: dark;
+
+  --color-base-100: oklch(20% 0.04 265);
+  --color-base-200: oklch(17% 0.04 266);
+  --color-base-300: oklch(14% 0.04 267);
+  --color-base-content: oklch(94% 0.02 250);
+
+  --color-primary: oklch(72% 0.16 190);
+  --color-primary-content: oklch(15% 0.03 200);
+  --color-secondary: oklch(70% 0.19 320);
+  --color-secondary-content: oklch(15% 0.03 320);
+  --color-accent: oklch(74% 0.18 150);
+  --color-accent-content: oklch(15% 0.03 150);
+  --color-neutral: oklch(26% 0.04 266);
+  --color-neutral-content: oklch(92% 0.02 250);
+
+  --color-info: oklch(72% 0.14 230);
+  --color-info-content: oklch(15% 0.03 230);
+  --color-success: oklch(76% 0.17 150);
+  --color-success-content: oklch(15% 0.03 150);
+  --color-warning: oklch(82% 0.16 80);
+  --color-warning-content: oklch(20% 0.04 80);
+  --color-error: oklch(68% 0.21 18);
+  --color-error-content: oklch(15% 0.03 18);
+
+  --radius-selector: 1.25rem;
+  --radius-field: 0.875rem;
+  --radius-box: 1.5rem;
+  --size-selector: 0.25rem;
+  --size-field: 0.25rem;
+  --border: 1px;
+  --depth: 1;
+  --noise: 0;
+}
+
+/* ----------------------------------------------------------------------------
+   Aurora Light — the daytime counterpart. Soft frosted glass on pale sky.
+---------------------------------------------------------------------------- */
+@plugin "daisyui/theme" {
+  name: "auroralight";
+  default: false;
+  prefersdark: false;
+  color-scheme: light;
+
+  --color-base-100: oklch(98% 0.01 230);
+  --color-base-200: oklch(95% 0.02 235);
+  --color-base-300: oklch(91% 0.03 240);
+  --color-base-content: oklch(25% 0.04 260);
+
+  --color-primary: oklch(58% 0.15 200);
+  --color-primary-content: oklch(98% 0.01 200);
+  --color-secondary: oklch(56% 0.2 320);
+  --color-secondary-content: oklch(98% 0.01 320);
+  --color-accent: oklch(60% 0.17 155);
+  --color-accent-content: oklch(98% 0.01 155);
+  --color-neutral: oklch(35% 0.04 260);
+  --color-neutral-content: oklch(98% 0.01 260);
+
+  --color-info: oklch(60% 0.14 230);
+  --color-info-content: oklch(98% 0.01 230);
+  --color-success: oklch(60% 0.16 150);
+  --color-success-content: oklch(98% 0.01 150);
+  --color-warning: oklch(70% 0.16 75);
+  --color-warning-content: oklch(20% 0.04 75);
+  --color-error: oklch(58% 0.21 20);
+  --color-error-content: oklch(98% 0.01 20);
+
+  --radius-selector: 1.25rem;
+  --radius-field: 0.875rem;
+  --radius-box: 1.5rem;
+  --size-selector: 0.25rem;
+  --size-field: 0.25rem;
+  --border: 1px;
+  --depth: 1;
+  --noise: 0;
+}
+
+/* ----------------------------------------------------------------------------
+   Fonts — Inter (latin) + Vazirmatn (farsi), wired through CSS variables so
+   the <html lang> / dir switch picks the right typeface automatically.
+---------------------------------------------------------------------------- */
+:root {
+  --font-latin: "Inter", ui-sans-serif, system-ui, sans-serif;
+  --font-farsi: "Vazirmatn", "Inter", ui-sans-serif, system-ui, sans-serif;
+}
+
+html {
+  font-family: var(--font-latin);
+}
+
+html[dir="rtl"] {
+  font-family: var(--font-farsi);
+}
+
+@layer base {
+  body {
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+  }
+
+  /* Hide the Alpine-driven UI until the component is ready (no flash). */
+  [x-cloak] {
+    display: none !important;
+  }
+}
+
+/* ----------------------------------------------------------------------------
+   Aurora atmosphere — animated northern-lights backdrop + glass surfaces.
+---------------------------------------------------------------------------- */
+@layer components {
+  .aurora-bg {
+    position: fixed;
+    inset: 0;
+    z-index: -1;
+    overflow: hidden;
+    background:
+      radial-gradient(60% 80% at 15% 10%, color-mix(in oklch, var(--color-primary) 28%, transparent), transparent 60%),
+      radial-gradient(55% 70% at 85% 0%, color-mix(in oklch, var(--color-secondary) 26%, transparent), transparent 60%),
+      radial-gradient(70% 90% at 50% 100%, color-mix(in oklch, var(--color-accent) 22%, transparent), transparent 65%);
+  }
+
+  .aurora-bg::before,
+  .aurora-bg::after {
+    content: "";
+    position: absolute;
+    border-radius: 9999px;
+    filter: blur(90px);
+    opacity: 0.55;
+    will-change: transform;
+  }
+
+  .aurora-bg::before {
+    width: 45rem;
+    height: 45rem;
+    top: -10rem;
+    inset-inline-start: -8rem;
+    background: conic-gradient(from 120deg, var(--color-primary), var(--color-secondary), var(--color-accent), var(--color-primary));
+    animation: aurora-drift 24s ease-in-out infinite alternate;
+  }
+
+  .aurora-bg::after {
+    width: 38rem;
+    height: 38rem;
+    bottom: -12rem;
+    inset-inline-end: -6rem;
+    background: conic-gradient(from 300deg, var(--color-accent), var(--color-primary), var(--color-secondary), var(--color-accent));
+    animation: aurora-drift 30s ease-in-out infinite alternate-reverse;
+  }
+
+  .glass {
+    background: color-mix(in oklch, var(--color-base-100) 70%, transparent);
+    backdrop-filter: blur(18px) saturate(140%);
+    -webkit-backdrop-filter: blur(18px) saturate(140%);
+    border: 1px solid color-mix(in oklch, var(--color-base-content) 12%, transparent);
+  }
+
+  .gradient-text {
+    background: linear-gradient(110deg, var(--color-primary), var(--color-secondary), var(--color-accent));
+    background-clip: text;
+    -webkit-background-clip: text;
+    color: transparent;
+  }
+
+  /* Smooth, tactile feedback for interactive cards/buttons. */
+  .lift {
+    transition: transform 0.25s cubic-bezier(0.22, 1, 0.36, 1), box-shadow 0.25s ease;
+  }
+  .lift:hover {
+    transform: translateY(-2px);
+  }
+}
+
+@keyframes aurora-drift {
+  0% {
+    transform: translate3d(0, 0, 0) rotate(0deg) scale(1);
+  }
+  50% {
+    transform: translate3d(4rem, 2rem, 0) rotate(40deg) scale(1.1);
+  }
+  100% {
+    transform: translate3d(-3rem, -2rem, 0) rotate(-30deg) scale(1.05);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .aurora-bg::before,
+  .aurora-bg::after {
+    animation: none;
+  }
+}
+
+/* Reveal-on-load animation used by Alpine x-init staggering. */
+.reveal {
+  opacity: 0;
+  transform: translateY(12px);
+  transition: opacity 0.5s ease, transform 0.5s cubic-bezier(0.22, 1, 0.36, 1);
+}
+.reveal.shown {
+  opacity: 1;
+  transform: translateY(0);
+}

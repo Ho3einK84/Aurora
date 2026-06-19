@@ -88,11 +88,11 @@ Edit `src/apps.json` and rebuild. Schema (mirrors Ourenus):
 
 ```json
 {
-  "name": "Hiddify",
-  "urlScheme": "hiddify://import/{url}",
-  "image": "https://…/icon.png",
-  "link": "https://…/download",
-  "os": ["Android", "iOS", "Windows", "macOS", "Linux"],
+  "name": "Happ",
+  "urlScheme": "happ://add/{url}",
+  "image": "https://happ.su/img/logo.png",
+  "link": "https://happ.su/main/download",
+  "os": ["Android", "iOS", "Windows", "Linux"],
   "downloadLinks": { "Android": "https://…", "iOS": "https://…" },
   "ShowInMenu": true
 }

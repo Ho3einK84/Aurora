@@ -289,7 +289,8 @@ function aurora() {
             this.qrOpen = true;
             this.$nextTick(() => {
                 this.renderQr(cfg.raw);
-                this.$refs.qrModal?.showModal();
+                const el = this.$refs.qrModal;
+                if (el && !el.open) el.showModal();
             });
         },
         // QR code of the subscription link itself.
@@ -345,6 +346,12 @@ function aurora() {
             const url = encodeURIComponent(this.subscriptionUrl);
             const tpl = app.urlScheme || "";
             return tpl.includes("{url}") ? tpl.replace(/\{url\}/g, url) : tpl + url;
+        },
+        // Resolve the download URL for the active OS, falling back to the
+        // generic "link" field.
+        downloadLink(app) {
+            const byOs = app.downloadLinks && app.downloadLinks[this.activeOs];
+            return byOs || app.link || "";
         },
         osIcon(os) {
             const I = {

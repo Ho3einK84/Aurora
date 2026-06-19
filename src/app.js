@@ -153,16 +153,31 @@ function aurora() {
         },
 
         remarkOf(link) {
-            try {
-                const hash = link.split("#")[1];
-                if (hash) return decodeURIComponent(hash);
-                // vmess:// carries a base64 JSON payload with a "ps" name field.
-                if (/^vmess:\/\//i.test(link)) {
-                    const json = JSON.parse(atob(link.replace(/^vmess:\/\//i, "")));
-                    return json.ps || json.remark || "";
-                }
-            } catch (_) { /* ignore */ }
+            // vmess:// carries a base64-encoded JSON payload whose "ps" field is
+            // the display name (UTF-8 — must be decoded as bytes, not Latin-1).
+            if (/^vmess:\/\//i.test(link)) {
+                try {
+                    const payload = link.replace(/^vmess:\/\//i, "").split("#")[0];
+                    const json = JSON.parse(this.b64ToUtf8(payload));
+                    if (json && (json.ps || json.remark)) return String(json.ps || json.remark);
+                } catch (_) { /* fall through to the URL fragment */ }
+            }
+            // Every other protocol keeps the remark in the URL fragment (#...),
+            // percent-encoded by Rebecca.
+            const hash = link.split("#").slice(1).join("#");
+            if (hash) {
+                try { return decodeURIComponent(hash); }
+                catch (_) { return hash; }
+            }
             return "";
+        },
+
+        // Decode a (possibly URL-safe / unpadded) base64 string as UTF-8.
+        b64ToUtf8(b64) {
+            let s = b64.replace(/-/g, "+").replace(/_/g, "/").trim();
+            while (s.length % 4) s += "=";
+            const bytes = Uint8Array.from(atob(s), (c) => c.charCodeAt(0));
+            return new TextDecoder("utf-8").decode(bytes);
         },
 
         fmtBytes(bytes) {

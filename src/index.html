@@ -304,9 +304,10 @@
                                         <div class="flex items-center gap-1.5">
                                             <a class="btn btn-primary btn-sm rounded-xl font-semibold" :href="deepLink(app)"
                                                 x-text="t('add')"></a>
-                                            <a class="btn btn-ghost btn-sm btn-circle" :href="app.download" target="_blank" rel="noopener"
-                                                x-show="app.download" :aria-label="t('download')">
+                                            <a class="btn btn-ghost btn-sm glass gap-1 rounded-xl font-semibold" :href="downloadLink(app)"
+                                                target="_blank" rel="noopener" x-show="downloadLink(app)" :aria-label="t('download')">
                                                 <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3"/></svg>
+                                                <span class="hidden sm:inline" x-text="t('download')"></span>
                                             </a>
                                         </div>
                                     </div>
@@ -332,7 +333,7 @@
         </footer>
 
         <!-- ============================ QR MODAL ============================ -->
-        <dialog id="qr_modal" class="modal modal-bottom sm:modal-middle" :open="qrOpen" x-ref="qrModal">
+        <dialog id="qr_modal" class="modal modal-bottom sm:modal-middle" x-ref="qrModal">
             <div class="modal-box glass max-w-sm rounded-[1.5rem] border-0 text-center">
                 <h3 class="mb-1 text-lg font-bold" x-text="qrTitle"></h3>
                 <p class="mb-4 truncate font-mono text-[11px] text-base-content/40" x-text="qrText"></p>

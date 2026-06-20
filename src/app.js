@@ -108,7 +108,18 @@ function aurora() {
             this.restorePrefs();
             this.applyLang();
             this.loadApps();
-            this.$nextTick(() => this.revealAll());
+            this.$nextTick(() => {
+                this.revealAll();
+                this.hideLoader();
+            });
+        },
+
+        // Fade out and remove the loading splash once the app is ready.
+        hideLoader() {
+            const el = document.getElementById("aurora-loader");
+            if (!el) return;
+            el.classList.add("is-done");
+            setTimeout(() => el.remove(), 500);
         },
 
         /* -------- data binding (from the pongo2-rendered data island) -------- */

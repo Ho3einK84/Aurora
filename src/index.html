@@ -27,6 +27,24 @@
 </head>
 
 <body class="min-h-screen text-base-content">
+    <!-- Loading splash (visible before Alpine boots; removed from init()). -->
+    <div id="aurora-loader">
+        <div class="flex flex-col items-center gap-4">
+            <div class="aurora-spinner"></div>
+            <p class="text-lg font-extrabold tracking-tight gradient-text">Aurora</p>
+        </div>
+    </div>
+    <script>
+        // Safety net: never let the splash trap the user if Alpine/CDN fails.
+        setTimeout(function () {
+            var l = document.getElementById("aurora-loader");
+            if (l && !l.classList.contains("is-done")) {
+                l.classList.add("is-done");
+                setTimeout(function () { l.remove(); }, 500);
+            }
+        }, 8000);
+    </script>
+
     <div class="aurora-bg" aria-hidden="true"></div>
 
     <!--
@@ -267,10 +285,10 @@
             <div class="collapsey" :class="appsOpen && 'open'">
                 <div class="collapsey-inner">
                     <div class="px-4 pb-4 sm:px-5 sm:pb-5">
-                        <!-- OS tabs -->
-                        <div role="tablist" class="tabs tabs-box glass mb-4 rounded-2xl p-1">
+                        <!-- OS tabs — horizontally scrollable when they overflow -->
+                        <div role="tablist" class="tabs tabs-box glass no-scrollbar mb-4 flex-nowrap overflow-x-auto rounded-2xl p-1">
                             <template x-for="os in osList" :key="os">
-                                <button role="tab" class="tab gap-1.5 rounded-xl font-semibold transition"
+                                <button role="tab" class="tab shrink-0 gap-1.5 rounded-xl font-semibold transition"
                                     :class="activeOs === os && 'tab-active bg-primary/15 text-primary'"
                                     @click="activeOs = os">
                                     <i class="ph text-lg" :class="osIcon(os)"></i>
@@ -284,7 +302,7 @@
                             <template x-for="app in appsForOs" :key="app.name">
                                 <div class="card glass lift rounded-2xl border-0">
                                     <div class="flex items-center gap-3 p-3">
-                                        <img :src="app.image" :alt="app.name" loading="lazy"
+                                        <img :src="app.image" :alt="app.name" loading="lazy" decoding="async"
                                             class="h-11 w-11 shrink-0 rounded-xl bg-base-100/50 object-contain p-1"
                                             onerror="this.style.visibility='hidden'" />
                                         <div class="min-w-0 flex-1">

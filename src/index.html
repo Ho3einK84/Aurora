@@ -8,22 +8,13 @@
     <meta name="robots" content="noindex, nofollow" />
     <title>{{ user.username }} · Subscription</title>
 
-    <!-- Fonts: Inter (latin, Google Fonts) + Arad (farsi, jsDelivr @font-face in CSS). -->
-    <link rel="preconnect" href="https://fonts.googleapis.com" />
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin />
-    <link rel="stylesheet"
-        href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" />
-
-    <!-- Phosphor Icons (single regular webfont, pinned). -->
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@phosphor-icons/web@2.1.1/src/regular/style.css" />
-
-    <!-- Built Tailwind v4 + DaisyUI v5 CSS is inlined here at build time. -->
+    <!--
+      Fully self-contained: CSS, web fonts (Inter + Arad), Phosphor icons,
+      Alpine.js and qrcode-generator are ALL inlined at build time. The page
+      makes no external requests, so it works even where CDNs are blocked.
+      Built Tailwind v4 + DaisyUI v5 CSS (+ fonts + icons) is inlined here.
+    -->
     <!--AURORA_INLINE_CSS-->
-
-    <!-- Pinned CDN libraries (hardcoded versions, deferred). -->
-    <script defer src="https://cdn.jsdelivr.net/npm/qrcode-generator@1.4.4/qrcode.js"></script>
-    <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.15.0/dist/cdn.min.js"></script>
 </head>
 
 <body class="min-h-screen text-base-content">
@@ -72,6 +63,19 @@
     <div id="aurora-configs" hidden>{% for link in links %}<span class="cfg">{{ link }}</span>{% endfor %}</div>
 
     <main x-data="aurora()" x-init="init()" x-cloak class="relative mx-auto w-full max-w-3xl px-4 pb-16 pt-5 sm:px-6">
+
+        <!-- ===================== OFFLINE BANNER (no network) ===================== -->
+        <div x-show="!online" x-cloak x-transition.opacity
+            class="pointer-events-none fixed inset-x-0 top-0 z-[200] flex justify-center px-4 pt-3"
+            style="padding-top: max(0.75rem, env(safe-area-inset-top));">
+            <div class="alert pointer-events-auto w-auto max-w-sm items-center gap-2 rounded-2xl glass border-0 text-warning shadow-2xl shadow-black/30">
+                <i class="ph ph-wifi-slash shrink-0 text-xl"></i>
+                <div class="min-w-0">
+                    <p class="text-sm font-semibold" x-text="t('offline_title')"></p>
+                    <p class="text-[11px] font-normal text-base-content/60" x-text="t('offline_desc')"></p>
+                </div>
+            </div>
+        </div>
 
         <!-- ============================ TOP BAR ============================ -->
         <header class="reveal relative z-50 mb-6 flex items-center justify-between gap-3">
@@ -201,6 +205,20 @@
                         <span x-text="fmtBytes(used) + ' / ' + fmtBytes(limit)"></span>
                         <span x-text="usagePercent + '%'"></span>
                     </div>
+                </div>
+
+                <!-- Quota reset strategy + countdown to next reset -->
+                <div x-show="hasReset"
+                    class="flex flex-wrap items-center justify-between gap-x-3 gap-y-1 rounded-2xl bg-base-100/40 px-3.5 py-2.5">
+                    <span class="flex items-center gap-2 text-sm font-medium">
+                        <i class="ph ph-arrows-clockwise text-base text-accent"></i>
+                        <span x-text="t('reset')"></span>
+                        <span class="badge badge-sm badge-accent badge-soft" x-text="resetLabel"></span>
+                    </span>
+                    <span class="text-[11px] text-base-content/50">
+                        <span x-text="t('resets_in')"></span>
+                        <span class="font-semibold text-base-content/70" x-text="resetCountdown"></span>
+                    </span>
                 </div>
             </div>
         </section>

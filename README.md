@@ -28,14 +28,15 @@ Tailwind CSS v4 · DaisyUI v5 · Alpine.js v3 · Phosphor Icons · qrcode-genera
 
 ## ✨ Features
 
-- **Service card** — dual progress rings (data usage + time remaining), traffic stats, and expiry. Handles unlimited & never-expire.
+- **Service card** — dual progress rings (data usage + time remaining), traffic stats, expiry, and quota-reset countdown (daily/weekly/monthly/yearly). Handles unlimited & never-expire.
 - **Configs** — collapsible list with copy, per-config QR, copy-all, and a subscription-link QR.
 - **Apps** — collapsible, OS-grouped client list with one-tap import deep links and downloads (from `apps.json`).
 - **Themes** — Aurora Dark, Amoled Dark, Aurora Light, Nord (preference persists, storage-optional).
 - **i18n** — English / فارسی with full RTL ([Arad](https://github.com/MDarvishi5124/Arad) font, localized digits).
+- **Resilient** — **zero external requests**: CSS, web fonts, icons, Alpine & qrcode are all inlined, so the page renders fully even where CDNs are blocked. Offline banner reflects lost connectivity.
 - **Polish** — instant loading splash, lazy-loaded images, and graceful expired/limited/empty states.
 
-Everything ships as **one self-contained `index.html`** (CSS inlined; Alpine + qrcode from pinned CDNs).
+Everything ships as **one truly self-contained `index.html`** — no Google Fonts, no jsDelivr, no runtime network calls of any kind.
 
 ---
 
@@ -106,8 +107,10 @@ npm run dev        # watch Tailwind during development
 
 The build (`scripts/build.mjs`):
 1. compiles Tailwind v4 + DaisyUI v5 to minified CSS,
-2. inlines the CSS and `app.js` (+ `apps.json` as `window.AURORA_APPS`) into `index.html`,
+2. inlines the CSS, web fonts (Inter + Arad as base64 `@font-face`), the Phosphor icons actually used (as CSS mask data-URIs), `app.js`, `apps.json`, `qrcode-generator` and `Alpine.js` — producing a file with **no external requests**,
 3. **guarantees every pongo2 `{{ }}` / `{% %}` placeholder is preserved byte-for-byte** (the build fails if the count changes).
+
+Fonts and libraries are pinned via `package-lock.json` (Inter/Alpine/qrcode/Phosphor come from `node_modules`; Arad is vendored under `assets/fonts/`), so `npm ci && npm run build` is fully reproducible and offline.
 
 CI (`.github/workflows/build.yml`) builds on push to `main` and on `v*` tags, and attaches `index.html` to the GitHub Release so `wget …/releases/latest/download/index.html` works.
 
@@ -123,6 +126,7 @@ The page binds to the real pongo2 context Rebecca passes (`internal/app/user/sub
 | `user.status` | string | `active` · `limited` · `expired` · `disabled` · `on_hold` |
 | `user.status_class` | string | normalized class |
 | `user.data_limit` | int64 bytes / falsy | falsy ⇒ unlimited |
+| `user.data_limit_reset_strategy` | string | `no_reset` · `day` · `week` · `month` · `year` |
 | `user.used_traffic` | int64 bytes | |
 | `user.expire` | int64 unix / falsy | falsy ⇒ never expires |
 | `user.links` / `links` | []string | raw config URIs |

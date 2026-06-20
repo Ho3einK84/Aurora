@@ -34,6 +34,11 @@ const AURORA_I18N = {
         sub_qr: "Subscription QR", subscription: "Subscription link",
         support: "Get support", switch_lang: "Switch language", switch_theme: "Switch theme",
         powered: "Powered by Claude",
+        offline_title: "You're offline",
+        offline_desc: "Check your connection — this updates automatically.",
+        reset: "Quota reset", resets_in: "next in",
+        reset_day: "Daily", reset_week: "Weekly", reset_month: "Monthly", reset_year: "Yearly",
+        unit_d: "d", unit_h: "h", unit_m: "m", soon: "soon",
     },
     fa: {
         dir: "rtl",
@@ -56,6 +61,11 @@ const AURORA_I18N = {
         sub_qr: "کد QR اشتراک", subscription: "لینک اشتراک",
         support: "پشتیبانی", switch_lang: "تغییر زبان", switch_theme: "تغییر پوسته",
         powered: "قدرت‌گرفته از Claude",
+        offline_title: "اتصال اینترنت قطع است",
+        offline_desc: "اتصال خود را بررسی کنید — به‌صورت خودکار به‌روزرسانی می‌شود.",
+        reset: "بازنشانی حجم", resets_in: "بازنشانی بعدی",
+        reset_day: "روزانه", reset_week: "هفتگی", reset_month: "ماهانه", reset_year: "سالانه",
+        unit_d: "روز", unit_h: "ساعت", unit_m: "دقیقه", soon: "به‌زودی",
     },
 };
 
@@ -95,12 +105,14 @@ function aurora() {
         username: "", serviceName: "", status: "active", statusClass: "active",
         used: 0, limit: 0, unlimited: true,
         expire: 0, neverExpire: true, remainingDays: 0,
+        resetStrategy: "",
         subscriptionUrl: "", supportUrl: "", usageUrl: "",
         configs: [],
         apps: [], appsLoaded: false, osList: [], activeOs: "",
         copied: "",
         qrOpen: false, qrText: "", qrTitle: "",
         themeOpen: false, configsOpen: true, appsOpen: true,
+        online: true, now: Date.now(),
         _copyTimer: null,
 
         /* -------- lifecycle -------- */
@@ -110,10 +122,26 @@ function aurora() {
             this.restorePrefs();
             this.applyLang();
             this.loadApps();
+            this.watchConnection();
+            this.startClock();
             this.$nextTick(() => {
                 this.revealAll();
                 this.hideLoader();
             });
+        },
+
+        // Reflect the browser's connectivity into `online` and keep it in sync.
+        watchConnection() {
+            this.online = navigator.onLine !== false;
+            const sync = () => (this.online = navigator.onLine !== false);
+            window.addEventListener("online", sync);
+            window.addEventListener("offline", sync);
+        },
+
+        // Tick once a minute so the reset countdown stays fresh (only while a
+        // reset strategy is actually in effect — otherwise it's a no-op).
+        startClock() {
+            setInterval(() => { this.now = Date.now(); }, 60000);
         },
 
         // Fade out and remove the loading splash once the app is ready.
@@ -137,6 +165,7 @@ function aurora() {
             this.expire = this.num(d.expire);
             this.neverExpire = !d.expire || this.expire <= 0;
             this.remainingDays = Math.max(0, this.num(d.remainingDays));
+            this.resetStrategy = (d.resetStrategy || "").trim().toLowerCase();
             this.usageUrl = d.usageUrl || "";
             this.supportUrl = (d.supportUrl || "").trim();
             this.subscriptionUrl = this.resolveSubUrl(d.subscriptionUrl);
@@ -229,6 +258,41 @@ function aurora() {
             return Math.min(100, Math.round((this.used / this.limit) * 100));
         },
         get remainingBytes() { return Math.max(0, this.limit - this.used); },
+
+        /* -------- quota reset strategy --------
+           Rebecca/Marzban reset `used_traffic` on a fixed schedule
+           (day/week/month/year). The panel doesn't pass the next-reset time, so
+           we approximate it from the local calendar boundary — accurate enough
+           for a friendly countdown. `no_reset` (or unlimited) hides the row. */
+        get hasReset() {
+            return !this.unlimited && ["day", "week", "month", "year"].includes(this.resetStrategy);
+        },
+        get resetLabel() { return this.hasReset ? this.t("reset_" + this.resetStrategy) : ""; },
+        nextResetDate() {
+            const d = new Date(this.now);
+            d.setHours(0, 0, 0, 0); // local midnight today
+            switch (this.resetStrategy) {
+                case "day": d.setDate(d.getDate() + 1); break;
+                case "week": d.setDate(d.getDate() + ((8 - d.getDay()) % 7 || 7)); break; // next Monday
+                case "month": d.setMonth(d.getMonth() + 1, 1); break;
+                case "year": d.setFullYear(d.getFullYear() + 1, 0, 1); break;
+                default: return null;
+            }
+            return d;
+        },
+        get resetCountdown() {
+            const next = this.nextResetDate();
+            if (!next) return "";
+            let mins = Math.floor((next.getTime() - this.now) / 60000);
+            if (mins <= 0) return this.t("soon");
+            const days = Math.floor(mins / 1440); mins -= days * 1440;
+            const hours = Math.floor(mins / 60); mins -= hours * 60;
+            const parts = [];
+            if (days) parts.push(days + " " + this.t("unit_d"));
+            if (hours) parts.push(hours + " " + this.t("unit_h"));
+            if (!days && !hours) parts.push(mins + " " + this.t("unit_m"));
+            return this.localizeDigits(parts.join(" "));
+        },
 
         /* -------- ring indicators -------- */
         // Usage ring: same hue as the theme primary, but shaded from pale (low

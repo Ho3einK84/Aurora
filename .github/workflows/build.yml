@@ -3,7 +3,13 @@ name: Build & Release
 on:
   push:
     branches: [main]
-    tags: ["v*"]
+    # Match both `v1.3.0` and a bare `1.3.0` so a missing "v" doesn't skip the build.
+    tags:
+      - "v[0-9]+.[0-9]+.[0-9]+"
+      - "[0-9]+.[0-9]+.[0-9]+"
+  # Also build when a GitHub Release is published (covers releases created via the UI).
+  release:
+    types: [published]
   workflow_dispatch:
 
 permissions:

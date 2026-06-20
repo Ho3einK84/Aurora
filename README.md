@@ -6,7 +6,7 @@
 
 Northern-lights aesthetics · glassmorphism · radial usage rings · one-tap app import · QR codes · EN/FA with full RTL.
 
-Tailwind CSS v4 · DaisyUI v5 · Alpine.js v3 · qrcode-generator
+Tailwind CSS v4 · DaisyUI v5 · Alpine.js v3 · Phosphor Icons · qrcode-generator
 
 **⚡ Powered by Claude**
 
@@ -19,7 +19,7 @@ Tailwind CSS v4 · DaisyUI v5 · Alpine.js v3 · qrcode-generator
 - **Service info card** — username, status, used/total/remaining traffic with an animated radial + linear progress, expiry date and days remaining. Handles **unlimited traffic** and **never-expire** gracefully.
 - **Apps section** — a **collapsible** card of recommended clients grouped by OS (iOS / Android / Windows / macOS / Linux) with a **one-tap import** deep link (the subscription URL is injected into each app's URL scheme) and a download link. Driven by `apps.json`.
 - **Configs section** — a **collapsible** card listing every config with copy-to-clipboard and a **QR-code modal**, plus *copy subscription link*, *copy all configs*, and a dedicated **QR code of the subscription link**.
-- **Theme switcher** — Aurora (dark), Aurora Light, Nord, Dracula, Synthwave. Preference persists via localStorage → cookie → in-memory, and reads `?theme=` / `?lang=` from the URL. Never *requires* storage.
+- **Theme switcher** — Aurora Dark, Amoled Dark, Aurora Light, Nord. Preference persists via localStorage → cookie → in-memory, and reads `?theme=` / `?lang=` from the URL. Never *requires* storage.
 - **Language switcher** — English / فارسی with full RTL (`dir`, mirrored layout, [Arad](https://github.com/MDarvishi5124/Arad) font, localized digits).
 - **Edge cases** — expired / limited / disabled banners, empty "no configs" state, and a no-flash (`x-cloak`) load.
 

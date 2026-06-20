@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en" dir="ltr" data-theme="aurora">
+<html lang="en" dir="ltr" data-theme="auroradark">
 
 <head>
     <meta charset="UTF-8" />
@@ -14,6 +14,9 @@
     <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin />
     <link rel="stylesheet"
         href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" />
+
+    <!-- Phosphor Icons (single regular webfont, pinned). -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@phosphor-icons/web@2.1.1/src/regular/style.css" />
 
     <!-- Built Tailwind v4 + DaisyUI v5 CSS is inlined here at build time. -->
     <!--AURORA_INLINE_CSS-->
@@ -55,18 +58,8 @@
         <!-- ============================ TOP BAR ============================ -->
         <header class="reveal relative z-50 mb-6 flex items-center justify-between gap-3">
             <div class="flex items-center gap-2.5">
-                <div class="grid h-11 w-11 place-items-center rounded-2xl bg-gradient-to-br from-primary via-secondary to-accent shadow-lg shadow-primary/25 ring-1 ring-white/10">
-                    <svg viewBox="0 0 32 32" class="h-7 w-7 text-primary-content" fill="none">
-                        <!-- moon -->
-                        <circle cx="22.5" cy="9" r="2.3" fill="currentColor" opacity=".95" />
-                        <!-- aurora streaks -->
-                        <path d="M4.5 11.5c3.2-4 6.4 2.2 9.6-0.4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" opacity=".5" />
-                        <path d="M4.5 8c2.6-3 5.2 1.6 7.8-0.3" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" opacity=".3" />
-                        <!-- mountain range -->
-                        <path d="M3.5 24.5 11 13l4.3 6 4.4-7.2 8.3 12.7z" fill="currentColor" />
-                        <path d="M3.5 24.5h25" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" opacity=".55" />
-                    </svg>
-                </div>
+                <!-- Logo placeholder: an empty circle (per request). -->
+                <div class="h-11 w-11 shrink-0 rounded-full border-2 border-base-content/25"></div>
                 <div class="leading-tight">
                     <p class="text-xl font-extrabold tracking-tight gradient-text">Aurora</p>
                     <p class="text-[11px] text-base-content/50" x-text="t('tagline')"></p>
@@ -77,7 +70,7 @@
                 <!-- Language switcher -->
                 <button class="btn btn-sm btn-ghost glass gap-1.5 font-semibold" @click="toggleLang()"
                     :aria-label="t('switch_lang')">
-                    <svg class="h-4 w-4 opacity-70" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M2 12h20M12 2a15 15 0 0 1 0 20M12 2a15 15 0 0 0 0 20"/></svg>
+                    <i class="ph ph-globe text-lg opacity-70"></i>
                     <span x-text="lang === 'en' ? 'EN' : 'فا'"></span>
                 </button>
 
@@ -85,7 +78,7 @@
                 <div class="relative" @click.outside="themeOpen = false">
                     <button class="btn btn-sm btn-ghost glass" @click="themeOpen = !themeOpen"
                         :aria-label="t('switch_theme')" aria-haspopup="true" :aria-expanded="themeOpen">
-                        <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg>
+                        <i class="ph ph-palette text-lg"></i>
                     </button>
                     <ul x-show="themeOpen" x-cloak x-transition.origin.top
                         class="menu glass absolute end-0 z-[100] mt-2 w-48 gap-0.5 rounded-2xl p-2 shadow-2xl shadow-black/30">
@@ -97,7 +90,7 @@
                                         <span class="h-3.5 w-3.5 rounded-full border border-base-content/20" :style="`background:${th.swatch}`"></span>
                                         <span x-text="th.label"></span>
                                     </span>
-                                    <svg x-show="theme === th.id" class="h-4 w-4 text-primary" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><path d="M20 6 9 17l-5-5"/></svg>
+                                    <i class="ph ph-check text-base text-primary" x-show="theme === th.id"></i>
                                 </button>
                             </li>
                         </template>
@@ -108,9 +101,9 @@
 
         <!-- ===================== STATUS BANNER (edge cases) ===================== -->
         <template x-if="statusClass !== 'active'">
-            <div class="reveal alert mb-5 rounded-2xl glass border-0"
+            <div class="reveal alert mb-5 items-center rounded-2xl glass border-0"
                 :class="{'text-warning': statusClass==='expired','text-error': statusClass==='limited','text-base-content/70': statusClass==='disabled'}">
-                <svg class="h-5 w-5 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 8v4M12 16h.01"/></svg>
+                <i class="ph ph-warning-circle shrink-0 text-xl"></i>
                 <span class="text-sm font-medium" x-text="t('banner_' + statusClass)"></span>
             </div>
         </template>
@@ -179,7 +172,7 @@
                     </div>
                 </div>
 
-                <!-- Linear usage bar + last update -->
+                <!-- Linear usage bar -->
                 <div x-show="!unlimited" class="space-y-1.5">
                     <progress class="progress h-2.5 w-full"
                         :class="usagePercent >= 90 ? 'progress-error' : usagePercent >= 75 ? 'progress-warning' : 'progress-primary'"
@@ -198,11 +191,11 @@
             <button class="flex w-full items-center justify-between gap-2 p-4 sm:px-5"
                 @click="configsOpen = !configsOpen" :aria-expanded="configsOpen">
                 <span class="flex items-center gap-2 text-lg font-bold">
-                    <svg class="h-5 w-5 text-primary" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 6h16M4 12h16M4 18h10"/></svg>
+                    <i class="ph ph-list-bullets text-xl text-primary"></i>
                     <span x-text="t('configs')"></span>
                     <span class="badge badge-sm badge-primary badge-soft" x-text="configs.length"></span>
                 </span>
-                <svg class="chev h-5 w-5 text-base-content/50" :class="configsOpen && 'open'" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="m6 9 6 6 6-6"/></svg>
+                <i class="ph ph-caret-down chev text-xl text-base-content/50" :class="configsOpen && 'open'"></i>
             </button>
 
             <div class="collapsey" :class="configsOpen && 'open'">
@@ -211,18 +204,16 @@
                         <!-- Bulk actions -->
                         <div class="mb-4 flex flex-wrap gap-2">
                             <button class="btn glass lift min-w-[8rem] flex-1 gap-2 rounded-2xl border-0 font-semibold" @click="copy(subscriptionUrl, 'sub')">
-                                <svg class="h-4 w-4" x-show="copied!=='sub'" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10 13a5 5 0 0 0 7 0l3-3a5 5 0 0 0-7-7l-1 1"/><path d="M14 11a5 5 0 0 0-7 0l-3 3a5 5 0 0 0 7 7l1-1"/></svg>
-                                <svg class="h-4 w-4 text-success" x-show="copied==='sub'" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><path d="M20 6 9 17l-5-5"/></svg>
+                                <i class="ph text-lg" :class="copied==='sub' ? 'ph-check text-success' : 'ph-link-simple'"></i>
                                 <span x-text="copied==='sub' ? t('copied') : t('copy_sub')"></span>
                             </button>
                             <button class="btn glass lift min-w-[8rem] flex-1 gap-2 rounded-2xl border-0 font-semibold" @click="copyAll()" :disabled="!configs.length">
-                                <svg class="h-4 w-4" x-show="copied!=='all'" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
-                                <svg class="h-4 w-4 text-success" x-show="copied==='all'" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><path d="M20 6 9 17l-5-5"/></svg>
+                                <i class="ph text-lg" :class="copied==='all' ? 'ph-check text-success' : 'ph-copy'"></i>
                                 <span x-text="copied==='all' ? t('copied') : t('copy_all')"></span>
                             </button>
                             <!-- QR code of the subscription link itself -->
                             <button class="btn btn-square glass lift rounded-2xl border-0" @click="showSubQr()" :aria-label="t('sub_qr')">
-                                <svg class="h-5 w-5 text-primary" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><path d="M14 14h3v3M21 21v.01M21 14v.01M14 21v.01M17 17h.01"/></svg>
+                                <i class="ph ph-qr-code text-xl text-primary"></i>
                             </button>
                         </div>
 
@@ -238,11 +229,10 @@
                                             <p class="truncate font-mono text-[11px] text-base-content/40" x-text="cfg.raw"></p>
                                         </div>
                                         <button class="btn btn-circle btn-ghost btn-sm" @click="copy(cfg.raw, 'cfg-'+i)" :aria-label="t('copy')">
-                                            <svg class="h-4 w-4" x-show="copied!=='cfg-'+i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
-                                            <svg class="h-4 w-4 text-success" x-show="copied==='cfg-'+i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><path d="M20 6 9 17l-5-5"/></svg>
+                                            <i class="ph text-lg" :class="copied==='cfg-'+i ? 'ph-check text-success' : 'ph-copy'"></i>
                                         </button>
                                         <button class="btn btn-circle btn-ghost btn-sm" @click="showQr(cfg)" :aria-label="t('qrcode')">
-                                            <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><path d="M14 14h3v3M21 21v.01M21 14v.01M14 21v.01M17 17h.01"/></svg>
+                                            <i class="ph ph-qr-code text-lg"></i>
                                         </button>
                                     </div>
                                 </div>
@@ -251,7 +241,7 @@
                             <!-- Empty state -->
                             <template x-if="!configs.length">
                                 <div class="card glass rounded-2xl border-0 p-10 text-center">
-                                    <svg class="mx-auto h-12 w-12 text-base-content/30" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M9.5 2A2.5 2.5 0 0 0 7 4.5v15A2.5 2.5 0 0 0 9.5 22h5a2.5 2.5 0 0 0 2.5-2.5v-15A2.5 2.5 0 0 0 14.5 2z"/><path d="M12 18h.01"/></svg>
+                                    <i class="ph ph-tray mx-auto text-5xl text-base-content/30"></i>
                                     <p class="mt-3 font-semibold" x-text="t('no_configs')"></p>
                                     <p class="mt-1 text-sm text-base-content/50" x-text="t('no_configs_hint')"></p>
                                 </div>
@@ -268,10 +258,10 @@
             <button class="flex w-full items-center justify-between gap-2 p-4 sm:px-5"
                 @click="appsOpen = !appsOpen" :aria-expanded="appsOpen">
                 <span class="flex items-center gap-2 text-lg font-bold">
-                    <svg class="h-5 w-5 text-secondary" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/></svg>
+                    <i class="ph ph-squares-four text-xl text-secondary"></i>
                     <span x-text="t('apps')"></span>
                 </span>
-                <svg class="chev h-5 w-5 text-base-content/50" :class="appsOpen && 'open'" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="m6 9 6 6 6-6"/></svg>
+                <i class="ph ph-caret-down chev text-xl text-base-content/50" :class="appsOpen && 'open'"></i>
             </button>
 
             <div class="collapsey" :class="appsOpen && 'open'">
@@ -283,14 +273,14 @@
                                 <button role="tab" class="tab gap-1.5 rounded-xl font-semibold transition"
                                     :class="activeOs === os && 'tab-active bg-primary/15 text-primary'"
                                     @click="activeOs = os">
-                                    <span x-html="osIcon(os)"></span>
+                                    <i class="ph text-lg" :class="osIcon(os)"></i>
                                     <span x-text="os"></span>
                                 </button>
                             </template>
                         </div>
 
-                        <!-- App cards -->
-                        <div class="grid grid-cols-1 gap-2.5 sm:grid-cols-2">
+                        <!-- App cards: vertically scrollable list on mobile -->
+                        <div class="aurora-scroll grid max-h-[19rem] grid-cols-1 gap-2.5 overflow-y-auto pe-1 sm:max-h-none sm:grid-cols-2 sm:overflow-visible sm:pe-0">
                             <template x-for="app in appsForOs" :key="app.name">
                                 <div class="card glass lift rounded-2xl border-0">
                                     <div class="flex items-center gap-3 p-3">
@@ -306,7 +296,7 @@
                                                 x-text="t('add')"></a>
                                             <a class="btn btn-ghost btn-sm glass gap-1 rounded-xl font-semibold" :href="downloadLink(app)"
                                                 target="_blank" rel="noopener" x-show="downloadLink(app)" :aria-label="t('download')">
-                                                <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3"/></svg>
+                                                <i class="ph ph-download-simple text-base"></i>
                                                 <span class="hidden sm:inline" x-text="t('download')"></span>
                                             </a>
                                         </div>
@@ -323,7 +313,7 @@
         <footer class="reveal mt-8 flex flex-col items-center gap-3 text-center">
             <a x-show="supportUrl" :href="supportUrl" target="_blank" rel="noopener"
                 class="btn btn-ghost btn-sm glass gap-2 rounded-2xl">
-                <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8z"/></svg>
+                <i class="ph ph-lifebuoy text-base"></i>
                 <span x-text="t('support')"></span>
             </a>
             <p class="text-[11px] text-base-content/40">

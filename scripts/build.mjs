@@ -114,37 +114,58 @@ const styleTag = `<style>\n${css}\n${assetCss}\n</style>`;
 
 // </script> inside an inlined script would close the tag early — escape it.
 const esc = (s) => s.replace(/<\/script>/gi, "<\\/script>");
-const scripts =
-    `<script>window.AURORA_APPS = ${esc(apps.trim())};</script>\n` +
-    `<script>\n${esc(qrcodeLib)}\n</script>\n` +
-    `<script>\n${esc(js)}\n</script>\n` +
-    `<script>\n${esc(alpineLib)}\n</script>`;
 
-// CRITICAL: Rebecca renders this file through pongo2. The inlined libraries are
-// minified JS that can legitimately contain `{{` / `{%` / `{#` byte sequences
-// (e.g. Alpine has a `{{…}}` in an error-message template literal). pongo2 would
-// try to evaluate those as template expressions and crash the render (HTTP 502).
-// None of the inlined scripts carry real pongo2 bindings — all user data rides
-// on the data-* island above — so we wrap them in a {% raw %} block, which makes
-// pongo2 emit the bytes verbatim. (The style block holds no such sequences.)
-if (/\{%-?\s*endraw\s*-?%\}/.test(scripts)) {
-    throw new Error("Inlined scripts contain an {% endraw %} that would close the raw wrapper early.");
+/* CRITICAL — template-engine safety.
+   Rebecca renders this file through a template engine (pongo2 on the Go `dev`
+   branch, Jinja2 on the legacy Python branch). Both treat `{{ }}`, `{% %}` and
+   `{# #}` as directives. The inlined JS libraries legitimately contain such
+   sequences (e.g. Alpine has a `{{…}}` inside an error-message template
+   literal), which the engine would try to evaluate — crashing the render with
+   an HTTP 502. pongo2 has no `{% raw %}`/`{% verbatim %}` we can rely on, and
+   Rebecca even pre-normalizes whitespace inside `{{ }}`/`{% %}` before parsing.
+   So we never let the engine SEE library code: each library is base64-encoded
+   (alphabet [A-Za-z0-9+/=] — no brace sequences possible) and decoded + injected
+   at runtime. The engine only ever sees the safe head bindings, the CSS, and the
+   apps JSON (asserted brace-free below). */
+const b64 = (s) => Buffer.from(s, "utf8").toString("base64");
+
+// The apps list rides as a normal (brace-free) JSON literal so it's easy to read
+// and is available before app.js runs. Guard the assumption at build time.
+const appsLiteral = apps.trim();
+if (/\{\{|\{%|\{#/.test(appsLiteral)) {
+    throw new Error("apps.json contains a `{{`/`{%`/`{#` sequence that would break template rendering — base64-encode it too.");
 }
-const scriptTag = `{% raw %}\n${scripts}\n{% endraw %}`;
+
+const loaderScript =
+    "(function(){function inject(b){var s=atob(b),n=s.length,a=new Uint8Array(n);" +
+    "for(var i=0;i<n;i++)a[i]=s.charCodeAt(i);var e=document.createElement('script');" +
+    "e.textContent=new TextDecoder('utf-8').decode(a);document.head.appendChild(e);}" +
+    `inject(${JSON.stringify(b64(qrcodeLib))});` + // defines window.qrcode
+    `inject(${JSON.stringify(b64(js))});` +        // defines window.aurora
+    `inject(${JSON.stringify(b64(alpineLib))});` + // boots Alpine (finds window.aurora)
+    "})();";
+
+const scriptTag =
+    `<script>window.AURORA_APPS = ${esc(appsLiteral)};</script>\n` +
+    `<script>${loaderScript}</script>`;
 
 const out = html
     .replace("<!--AURORA_INLINE_CSS-->", () => styleTag)
     .replace("<!--AURORA_INLINE_JS-->", () => scriptTag);
 
-// The injected assets/libs may legitimately contain brace sequences, so the
-// expected final count is the template's placeholders plus anything injected.
-const injectedPongo = countPongo(styleTag) + countPongo(scriptTag);
+// Invariant: the ONLY template directives left in the output are the template's
+// own bindings — nothing was injected that the engine could try to evaluate.
 const finalPlaceholders = countPongo(out);
-if (finalPlaceholders !== placeholders + injectedPongo) {
+if (finalPlaceholders !== placeholders) {
     throw new Error(
-        `pongo2 placeholder count changed during build ` +
-        `(template ${placeholders} + injected ${injectedPongo} ≠ final ${finalPlaceholders}).`
+        `Unexpected template directives after assembly ` +
+        `(template had ${placeholders}, output has ${finalPlaceholders}). ` +
+        `Inlined assets must not contain {{ }} / {% %} sequences.`
     );
+}
+const strayComments = (out.match(/\{#/g) || []).length - (html.match(/\{#/g) || []).length;
+if (strayComments !== 0) {
+    throw new Error(`Inlined assets introduced ${strayComments} stray {# template-comment sequence(s).`);
 }
 
 mkdirSync(r("dist"), { recursive: true });
@@ -153,6 +174,6 @@ writeFileSync(r("dist/index.html"), out, "utf8");
 const kb = (Buffer.byteLength(out, "utf8") / 1024).toFixed(1);
 console.log(
     `✓ dist/index.html written (${kb} KB, self-contained: ` +
-    `${usedIcons.length} icons, fonts + Alpine + qrcode inlined, ` +
-    `${placeholders} pongo2 placeholders preserved)`
+    `${usedIcons.length} icons, fonts inlined, Alpine + qrcode base64-injected, ` +
+    `${placeholders} template placeholders preserved)`
 );

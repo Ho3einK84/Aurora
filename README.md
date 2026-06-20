@@ -14,6 +14,18 @@ Tailwind CSS v4 · DaisyUI v5 · Alpine.js v3 · Phosphor Icons · qrcode-genera
 
 ---
 
+## 📸 Preview
+
+<div align="center">
+
+![Aurora subscription page](assets/screenshots/preview-v1.2.6.png)
+
+*Screenshot from version **1.2.6**.*
+
+</div>
+
+---
+
 ## ✨ Features
 
 - **Service card** — dual progress rings (data usage + time remaining), traffic stats, and expiry. Handles unlimited & never-expire.

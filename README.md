@@ -30,56 +30,23 @@ Everything ships as **one self-contained `index.html`** (CSS inlined; Alpine + q
 
 ## 🚀 Installation on Rebecca
 
-> **Verified against Rebecca `dev`.** Rebecca is a Go rewrite of Marzban that renders the subscription page with **pongo2** (Django/Jinja2-compatible). The template is read from disk **on every request and re-parsed each time — so no restart is needed**; replacing the file takes effect immediately.
+In the panel, open **Master Settings → Subscriptions**. The page is loaded from
+`{Custom templates directory}/{Subscription page template}` — by default
+`/var/lib/rebecca/templates/subscription/index.html`.
 
-Rebecca does **not** use Marzban's `CUSTOM_TEMPLATES_DIRECTORY` / `SUBSCRIPTION_PAGE_TEMPLATE` env vars. Instead it uses:
+1. Download the latest `index.html` from the [**Releases**](https://github.com/Ho3einK84/Aurora/releases/latest) page.
+2. Put it at that path — either save the file directly to
+   `<Custom templates directory>/subscription/index.html`, or paste its contents
+   into the **Template Creator** tab and save.
+3. Make sure **Subscription page template** is set to `subscription/index.html`
+   (the default).
 
-| What | Where | Default |
-|---|---|---|
-| Template filename | DB column `subscription_settings.subscription_page_template` | `subscription/index.html` |
-| Custom templates dir | DB column `subscription_settings.custom_templates_directory` | *(unset)* |
-| App template base | env `REBECCA_APP_TEMPLATE_BASE` | `/opt/rebecca/templates` |
-| Data dir | env `REBECCA_DATA_DIR` | `/var/lib/rebecca` |
-
-### Option A — drop into the data directory (recommended)
-
-This keeps your custom template separate from the bundled defaults, so panel updates won't overwrite it.
-
-```bash
-# create the folder, then download the latest build
-mkdir -p /var/lib/rebecca/templates/subscription
-wget -O /var/lib/rebecca/templates/subscription/index.html \
-  https://github.com/Ho3einK84/Aurora/releases/latest/download/index.html
-```
-
-Then point Rebecca at that directory **once**. The panel's template editor does this automatically the first time you save a template; alternatively set it via the settings API:
-
-```bash
-# update subscription settings (use your own admin token & host)
-curl -X PUT https://YOUR_PANEL/api/subscription/settings \
-  -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" \
-  -d '{"custom_templates_directory":"/var/lib/rebecca/templates","subscription_page_template":"subscription/index.html"}'
-```
-
-> If your `REBECCA_DATA_DIR` differs, substitute it. The resolved path is always `<custom_templates_directory>/subscription/index.html`.
-
-### Option B — overwrite the bundled template
-
-Replaces the default that ships with the panel. Simpler, but a panel reinstall/update may overwrite it.
-
-```bash
-wget -O /opt/rebecca/templates/subscription/index.html \
-  https://github.com/Ho3einK84/Aurora/releases/latest/download/index.html
-```
-*(Substitute `REBECCA_APP_TEMPLATE_BASE` if you set it to something other than `/opt/rebecca/templates`.)*
-
-### Verify
-
-Open any user's subscription URL in a browser (the HTML page is served when the request `Accept`s `text/html` and has no `?client_type`). You should see the Aurora page. No service restart required.
+That's it. Rebecca re-reads the template on every request, so **no restart is
+needed** — just open any user's subscription URL to see it.
 
 ### Updating
 
-Re-run the same `wget` command — the new file is picked up on the next page load.
+Replace the same file (or re-paste it in **Template Creator**) with the newer release.
 
 ---
 

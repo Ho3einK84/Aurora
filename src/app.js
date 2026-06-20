@@ -58,11 +58,10 @@ const AURORA_I18N = {
 };
 
 const AURORA_THEMES = [
-    { id: "aurora", label: "Aurora", swatch: "linear-gradient(135deg,#2dd4bf,#a855f7)" },
+    { id: "auroradark", label: "Aurora Dark", swatch: "linear-gradient(135deg,#2dd4bf,#a855f7)" },
+    { id: "amoleddark", label: "Amoled Dark", swatch: "linear-gradient(135deg,#000,#2dd4bf)" },
     { id: "auroralight", label: "Aurora Light", swatch: "linear-gradient(135deg,#0ea5e9,#d946ef)" },
     { id: "nord", label: "Nord", swatch: "#88c0d0" },
-    { id: "dracula", label: "Dracula", swatch: "#bd93f9" },
-    { id: "synthwave", label: "Synthwave", swatch: "linear-gradient(135deg,#e779c1,#58c7f3)" },
 ];
 
 /* --- Tiny, dependency-free preference store (degrades gracefully) ----------
@@ -90,7 +89,7 @@ function aurora() {
     return {
         /* state */
         lang: "en",
-        theme: "aurora",
+        theme: "auroradark",
         username: "", serviceName: "", status: "active", statusClass: "active",
         used: 0, limit: 0, unlimited: true,
         expire: 0, neverExpire: true, remainingDays: 0,
@@ -353,15 +352,15 @@ function aurora() {
             const byOs = app.downloadLinks && app.downloadLinks[this.activeOs];
             return byOs || app.link || "";
         },
+        // Phosphor icon class for each OS tab.
         osIcon(os) {
-            const I = {
-                iOS: '<svg class="h-4 w-4" viewBox="0 0 24 24" fill="currentColor"><path d="M16 1c-1.6.1-3.5 1.1-4.6 2.4-1 1.2-1.8 3-1.5 4.7 1.7.1 3.5-.9 4.5-2.2 1-1.2 1.7-3 1.6-4.9zM19.5 17c-.5 1.2-.8 1.7-1.5 2.8-1 1.5-2.4 3.3-4.1 3.3-1.5 0-1.9-1-4-1-2 0-2.5 1-4 1-1.7 0-3-1.7-4-3.1-2.8-4-3.1-8.7-1.4-11.2 1.2-1.8 3.1-2.8 4.9-2.8 1.8 0 3 1 4.5 1 1.5 0 2.3-1 4.5-1 1.6 0 3.3.9 4.5 2.4-4 2.2-3.3 7.9.1 9.6z"/></svg>',
-                Android: '<svg class="h-4 w-4" viewBox="0 0 24 24" fill="currentColor"><path d="M6 18a1 1 0 0 0 1 1h1v3.5a1.5 1.5 0 0 0 3 0V19h2v3.5a1.5 1.5 0 0 0 3 0V19h1a1 1 0 0 0 1-1V8H6zM3.5 8A1.5 1.5 0 0 0 2 9.5v6a1.5 1.5 0 0 0 3 0v-6A1.5 1.5 0 0 0 3.5 8zm17 0A1.5 1.5 0 0 0 19 9.5v6a1.5 1.5 0 0 0 3 0v-6A1.5 1.5 0 0 0 20.5 8zM15.5 3.3l1-1.8a.4.4 0 0 0-.7-.4l-1.1 1.9A6.5 6.5 0 0 0 12 2c-.9 0-1.8.2-2.7.6L8.2 1.1a.4.4 0 1 0-.7.4l1 1.8A5.9 5.9 0 0 0 6 7h12a5.9 5.9 0 0 0-2.5-3.7zM9.5 5.5a.7.7 0 1 1 0-1.4.7.7 0 0 1 0 1.4zm5 0a.7.7 0 1 1 0-1.4.7.7 0 0 1 0 1.4z"/></svg>',
-                Windows: '<svg class="h-4 w-4" viewBox="0 0 24 24" fill="currentColor"><path d="M3 5.5 10.5 4.4v7.1H3zm0 13L10.5 19.6v-7H3zM11.5 4.2 21 3v8.5h-9.5zm0 15.6L21 21v-8.5h-9.5z"/></svg>',
-                macOS: '<svg class="h-4 w-4" viewBox="0 0 24 24" fill="currentColor"><path d="M16 1c-1.6.1-3.5 1.1-4.6 2.4-1 1.2-1.8 3-1.5 4.7 1.7.1 3.5-.9 4.5-2.2 1-1.2 1.7-3 1.6-4.9zM19.5 17c-.5 1.2-.8 1.7-1.5 2.8-1 1.5-2.4 3.3-4.1 3.3-1.5 0-1.9-1-4-1-2 0-2.5 1-4 1-1.7 0-3-1.7-4-3.1-2.8-4-3.1-8.7-1.4-11.2 1.2-1.8 3.1-2.8 4.9-2.8 1.8 0 3 1 4.5 1 1.5 0 2.3-1 4.5-1 1.6 0 3.3.9 4.5 2.4-4 2.2-3.3 7.9.1 9.6z"/></svg>',
-                Linux: '<svg class="h-4 w-4" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2c-2 0-3 2-3 4 0 1 .2 2 .2 3-.4.6-1.2 1.6-2 3-1 1.7-2.2 3.7-2.2 5 0 1 .6 1.4 1.3 1.6.3 1 .9 1.8 2 1.8.7 0 1.2-.3 1.7-.6.6.2 1.3.3 2 .3s1.4-.1 2-.3c.5.3 1 .6 1.7.6 1.1 0 1.7-.8 2-1.8.7-.2 1.3-.6 1.3-1.6 0-1.3-1.2-3.3-2.2-5-.8-1.4-1.6-2.4-2-3 0-1 .2-2 .2-3 0-2-1-4-3-4zm-1.4 4.5a.7.8 0 1 1 0 1.6.7.8 0 0 1 0-1.6zm2.8 0a.7.8 0 1 1 0 1.6.7.8 0 0 1 0-1.6z"/></svg>',
-            };
-            return I[os] || "";
+            return {
+                iOS: "ph-apple-logo",
+                macOS: "ph-apple-logo",
+                Android: "ph-android-logo",
+                Windows: "ph-windows-logo",
+                Linux: "ph-linux-logo",
+            }[os] || "ph-device-mobile";
         },
 
         /* -------- entrance animation (reveal on view, gently staggered) -------- */

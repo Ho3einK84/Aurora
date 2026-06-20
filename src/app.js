@@ -61,7 +61,7 @@ const AURORA_I18N = {
 
 const AURORA_THEMES = [
     { id: "auroradark", label: "Aurora Dark", swatch: "linear-gradient(135deg,#34c6db,#5a86f5)" },
-    { id: "amoleddark", label: "Amoled Dark", swatch: "linear-gradient(135deg,#000 35%,#4f8bf5,#8a6cff)" },
+    { id: "amoleddark", label: "Amoled Dark", swatch: "linear-gradient(135deg,#000,#3b82f6,#8b5cf6)" },
     { id: "auroralight", label: "Aurora Light", swatch: "linear-gradient(135deg,#1499b8,#3b6dd6)" },
     { id: "nord", label: "Nord", swatch: "#88c0d0" },
 ];
@@ -231,9 +231,14 @@ function aurora() {
         get remainingBytes() { return Math.max(0, this.limit - this.used); },
 
         /* -------- ring indicators -------- */
-        // Usage ring colour by how full it is.
-        get usageTone() {
-            return this.usagePercent >= 90 ? "error" : this.usagePercent >= 75 ? "warning" : "primary";
+        // Usage ring: same hue as the theme primary, but shaded from pale (low
+        // usage) toward dark (high usage) — pale+soft at ~10%, deep at ~90%.
+        get usageRingColor() {
+            if (this.unlimited) return "var(--color-primary)";
+            const d = (this.usagePercent / 100 - 0.5) * 2; // -1 (empty) .. +1 (full)
+            const amt = Math.round(Math.abs(d) * 36);
+            const mixWith = d >= 0 ? "black" : "white";
+            return `color-mix(in oklch, var(--color-primary) ${100 - amt}%, ${mixWith} ${amt}%)`;
         },
         // Time ring fills relative to a 30-day window (we only know days left),
         // so it visibly empties as expiry approaches within the final month.
@@ -373,7 +378,11 @@ function aurora() {
         },
         get appsForOs() { return this.apps.filter((a) => (a.os || []).includes(this.activeOs)); },
         deepLink(app) {
-            const url = encodeURIComponent(this.subscriptionUrl);
+            // Query-style schemes need the URL percent-encoded; path-style schemes
+            // (e.g. Happ's happ://add/<url>) take the raw URL — encoding it breaks
+            // import on Android. Opt out per app via "encode": false.
+            const raw = this.subscriptionUrl;
+            const url = app.encode === false ? raw : encodeURIComponent(raw);
             const tpl = app.urlScheme || "";
             return tpl.includes("{url}") ? tpl.replace(/\{url\}/g, url) : tpl + url;
         },

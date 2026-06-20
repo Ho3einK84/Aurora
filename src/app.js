@@ -59,7 +59,7 @@ const AURORA_I18N = {
 
 const AURORA_THEMES = [
     { id: "auroradark", label: "Aurora Dark", swatch: "linear-gradient(135deg,#2dd4bf,#a855f7)" },
-    { id: "amoleddark", label: "Amoled Dark", swatch: "linear-gradient(135deg,#000,#2dd4bf)" },
+    { id: "amoleddark", label: "Amoled Dark", swatch: "linear-gradient(135deg,#000 35%,#3b6dff,#ff4fd8)" },
     { id: "auroralight", label: "Aurora Light", swatch: "linear-gradient(135deg,#0ea5e9,#d946ef)" },
     { id: "nord", label: "Nord", swatch: "#88c0d0" },
 ];

@@ -7,8 +7,8 @@
 }
 
 /* ----------------------------------------------------------------------------
-   Aurora Dark — the signature dark theme (northern-lights palette).
-   A deep cosmic navy base lit by teal → cyan → violet → magenta accents.
+   Aurora Dark — calm, cohesive cyan→blue palette on deep navy. Analogous
+   accents (no clashing hues) for a minimal, premium feel.
 ---------------------------------------------------------------------------- */
 @plugin "daisyui/theme" {
   name: "auroradark";
@@ -16,28 +16,28 @@
   prefersdark: true;
   color-scheme: dark;
 
-  --color-base-100: oklch(20% 0.04 265);
-  --color-base-200: oklch(17% 0.04 266);
-  --color-base-300: oklch(14% 0.04 267);
-  --color-base-content: oklch(94% 0.02 250);
+  --color-base-100: oklch(21% 0.03 245);
+  --color-base-200: oklch(18% 0.03 245);
+  --color-base-300: oklch(15% 0.025 245);
+  --color-base-content: oklch(93% 0.012 240);
 
-  --color-primary: oklch(72% 0.16 190);
-  --color-primary-content: oklch(15% 0.03 200);
-  --color-secondary: oklch(70% 0.19 320);
-  --color-secondary-content: oklch(15% 0.03 320);
-  --color-accent: oklch(74% 0.18 150);
-  --color-accent-content: oklch(15% 0.03 150);
-  --color-neutral: oklch(26% 0.04 266);
-  --color-neutral-content: oklch(92% 0.02 250);
+  --color-primary: oklch(76% 0.12 215);
+  --color-primary-content: oklch(20% 0.03 230);
+  --color-secondary: oklch(72% 0.11 245);
+  --color-secondary-content: oklch(20% 0.03 245);
+  --color-accent: oklch(80% 0.11 195);
+  --color-accent-content: oklch(20% 0.03 200);
+  --color-neutral: oklch(27% 0.025 245);
+  --color-neutral-content: oklch(92% 0.012 240);
 
-  --color-info: oklch(72% 0.14 230);
-  --color-info-content: oklch(15% 0.03 230);
-  --color-success: oklch(76% 0.17 150);
-  --color-success-content: oklch(15% 0.03 150);
-  --color-warning: oklch(82% 0.16 80);
-  --color-warning-content: oklch(20% 0.04 80);
-  --color-error: oklch(68% 0.21 18);
-  --color-error-content: oklch(15% 0.03 18);
+  --color-info: oklch(76% 0.10 230);
+  --color-info-content: oklch(20% 0.03 230);
+  --color-success: oklch(80% 0.12 165);
+  --color-success-content: oklch(20% 0.03 165);
+  --color-warning: oklch(85% 0.12 85);
+  --color-warning-content: oklch(22% 0.04 85);
+  --color-error: oklch(68% 0.16 25);
+  --color-error-content: oklch(20% 0.03 25);
 
   --radius-selector: 1.25rem;
   --radius-field: 0.875rem;
@@ -50,7 +50,8 @@
 }
 
 /* ----------------------------------------------------------------------------
-   Amoled Dark — pure-black, OLED-friendly. Same aurora accents on true black.
+   Amoled Dark — pure-black, OLED-friendly. Cohesive blue→indigo→cyan accents,
+   a touch more vivid than Aurora Dark to pop on true black.
 ---------------------------------------------------------------------------- */
 @plugin "daisyui/theme" {
   name: "amoleddark";
@@ -59,27 +60,27 @@
   color-scheme: dark;
 
   --color-base-100: oklch(0% 0 0);
-  --color-base-200: oklch(16% 0 0);
-  --color-base-300: oklch(24% 0 0);
+  --color-base-200: oklch(15% 0 0);
+  --color-base-300: oklch(23% 0 0);
   --color-base-content: oklch(95% 0 0);
 
-  --color-primary: oklch(70% 0.18 250);
-  --color-primary-content: oklch(14% 0.03 250);
-  --color-secondary: oklch(72% 0.24 350);
-  --color-secondary-content: oklch(14% 0.03 350);
-  --color-accent: oklch(68% 0.2 300);
-  --color-accent-content: oklch(14% 0.03 300);
+  --color-primary: oklch(72% 0.14 245);
+  --color-primary-content: oklch(16% 0.03 245);
+  --color-secondary: oklch(70% 0.14 280);
+  --color-secondary-content: oklch(16% 0.03 280);
+  --color-accent: oklch(78% 0.12 215);
+  --color-accent-content: oklch(16% 0.03 215);
   --color-neutral: oklch(20% 0 0);
   --color-neutral-content: oklch(95% 0 0);
 
-  --color-info: oklch(72% 0.16 235);
-  --color-info-content: oklch(14% 0.03 235);
-  --color-success: oklch(80% 0.19 155);
-  --color-success-content: oklch(14% 0.03 155);
-  --color-warning: oklch(85% 0.17 90);
-  --color-warning-content: oklch(16% 0.03 90);
-  --color-error: oklch(56% 0.24 22);
-  --color-error-content: oklch(98% 0.02 22);
+  --color-info: oklch(76% 0.12 235);
+  --color-info-content: oklch(16% 0.03 235);
+  --color-success: oklch(80% 0.13 165);
+  --color-success-content: oklch(16% 0.03 165);
+  --color-warning: oklch(85% 0.13 90);
+  --color-warning-content: oklch(18% 0.03 90);
+  --color-error: oklch(56% 0.2 25);
+  --color-error-content: oklch(98% 0.02 25);
 
   --radius-selector: 1.25rem;
   --radius-field: 0.875rem;
@@ -100,28 +101,28 @@
   prefersdark: false;
   color-scheme: light;
 
-  --color-base-100: oklch(98% 0.01 230);
-  --color-base-200: oklch(95% 0.02 235);
-  --color-base-300: oklch(91% 0.03 240);
-  --color-base-content: oklch(25% 0.04 260);
+  --color-base-100: oklch(98% 0.006 235);
+  --color-base-200: oklch(96% 0.01 238);
+  --color-base-300: oklch(92% 0.015 240);
+  --color-base-content: oklch(28% 0.03 245);
 
-  --color-primary: oklch(50% 0.15 200);
-  --color-primary-content: oklch(98% 0.01 200);
-  --color-secondary: oklch(50% 0.21 330);
-  --color-secondary-content: oklch(98% 0.01 330);
-  --color-accent: oklch(52% 0.16 155);
-  --color-accent-content: oklch(98% 0.01 155);
-  --color-neutral: oklch(32% 0.04 260);
-  --color-neutral-content: oklch(98% 0.01 260);
+  --color-primary: oklch(52% 0.12 215);
+  --color-primary-content: oklch(99% 0.01 215);
+  --color-secondary: oklch(50% 0.12 250);
+  --color-secondary-content: oklch(99% 0.01 250);
+  --color-accent: oklch(54% 0.11 195);
+  --color-accent-content: oklch(99% 0.01 195);
+  --color-neutral: oklch(34% 0.03 245);
+  --color-neutral-content: oklch(99% 0.01 245);
 
-  --color-info: oklch(51% 0.14 230);
-  --color-info-content: oklch(98% 0.01 230);
-  --color-success: oklch(52% 0.15 150);
-  --color-success-content: oklch(98% 0.01 150);
-  --color-warning: oklch(64% 0.16 75);
-  --color-warning-content: oklch(20% 0.04 75);
-  --color-error: oklch(53% 0.22 25);
-  --color-error-content: oklch(98% 0.01 25);
+  --color-info: oklch(52% 0.11 230);
+  --color-info-content: oklch(99% 0.01 230);
+  --color-success: oklch(52% 0.12 165);
+  --color-success-content: oklch(99% 0.01 165);
+  --color-warning: oklch(62% 0.13 80);
+  --color-warning-content: oklch(22% 0.04 80);
+  --color-error: oklch(54% 0.18 25);
+  --color-error-content: oklch(99% 0.01 25);
 
   --radius-selector: 1.25rem;
   --radius-field: 0.875rem;
@@ -345,6 +346,50 @@ html[dir="rtl"] {
 .reveal.shown {
   opacity: 1;
   transform: translateY(0);
+}
+
+/* ----------------------------------------------------------------------------
+   Progress rings — conic-gradient + mask, so the unfilled track stays faintly
+   visible. Animates the fill on load via the registered --val property.
+---------------------------------------------------------------------------- */
+@property --val {
+  syntax: "<number>";
+  inherits: false;
+  initial-value: 0;
+}
+.ring-wrap {
+  position: relative;
+  width: var(--size, 6.75rem);
+  height: var(--size, 6.75rem);
+  display: grid;
+  place-items: center;
+}
+@media (min-width: 480px) {
+  .ring-wrap {
+    --size: 7.75rem;
+  }
+}
+.ring {
+  --val: 0;
+  --thick: 0.6rem;
+  --ring-color: var(--color-primary);
+  --ring-track: color-mix(in oklch, var(--color-base-content) 16%, transparent);
+  position: absolute;
+  inset: 0;
+  border-radius: 9999px;
+  background: conic-gradient(var(--ring-color) calc(var(--val) * 1%), var(--ring-track) 0);
+  -webkit-mask: radial-gradient(farthest-side, #0000 calc(100% - var(--thick)), #000 calc(100% - var(--thick)));
+          mask: radial-gradient(farthest-side, #0000 calc(100% - var(--thick)), #000 calc(100% - var(--thick)));
+  transition: --val 0.85s cubic-bezier(0.22, 1, 0.36, 1);
+}
+.ring-label {
+  position: relative;
+  z-index: 1;
+}
+@media (prefers-reduced-motion: reduce) {
+  .ring {
+    transition: none;
+  }
 }
 
 /* ----------------------------------------------------------------------------

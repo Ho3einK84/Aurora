@@ -16,6 +16,7 @@ const AURORA_I18N = {
     en: {
         dir: "ltr",
         tagline: "Your connection, beautifully managed",
+        brand: "Subscription",
         account: "Account",
         used: "Used", total: "Total", remaining: "Remaining", expires: "Expires",
         unlimited: "Unlimited", days: "days",
@@ -37,6 +38,7 @@ const AURORA_I18N = {
     fa: {
         dir: "rtl",
         tagline: "اتصال شما، با مدیریتی زیبا",
+        brand: "اشتراک",
         account: "حساب کاربری",
         used: "مصرف‌شده", total: "کل", remaining: "باقی‌مانده", expires: "انقضا",
         unlimited: "نامحدود", days: "روز",
@@ -58,9 +60,9 @@ const AURORA_I18N = {
 };
 
 const AURORA_THEMES = [
-    { id: "auroradark", label: "Aurora Dark", swatch: "linear-gradient(135deg,#2dd4bf,#a855f7)" },
-    { id: "amoleddark", label: "Amoled Dark", swatch: "linear-gradient(135deg,#000 35%,#3b6dff,#ff4fd8)" },
-    { id: "auroralight", label: "Aurora Light", swatch: "linear-gradient(135deg,#0ea5e9,#d946ef)" },
+    { id: "auroradark", label: "Aurora Dark", swatch: "linear-gradient(135deg,#34c6db,#5a86f5)" },
+    { id: "amoleddark", label: "Amoled Dark", swatch: "linear-gradient(135deg,#000 35%,#4f8bf5,#8a6cff)" },
+    { id: "auroralight", label: "Aurora Light", swatch: "linear-gradient(135deg,#1499b8,#3b6dd6)" },
     { id: "nord", label: "Nord", swatch: "#88c0d0" },
 ];
 
@@ -228,6 +230,24 @@ function aurora() {
         },
         get remainingBytes() { return Math.max(0, this.limit - this.used); },
 
+        /* -------- ring indicators -------- */
+        // Usage ring colour by how full it is.
+        get usageTone() {
+            return this.usagePercent >= 90 ? "error" : this.usagePercent >= 75 ? "warning" : "primary";
+        },
+        // Time ring fills relative to a 30-day window (we only know days left),
+        // so it visibly empties as expiry approaches within the final month.
+        get timePercent() {
+            if (this.neverExpire) return 100;
+            return Math.max(0, Math.min(100, Math.round((this.remainingDays / 30) * 100)));
+        },
+        get timeTone() {
+            if (this.neverExpire) return "accent";
+            if (this.remainingDays <= 3) return "error";
+            if (this.remainingDays <= 7) return "warning";
+            return "accent";
+        },
+
         get statusBadge() {
             return {
                 active: "bg-success/15 text-success",
@@ -243,7 +263,7 @@ function aurora() {
             const dir = AURORA_I18N[this.lang].dir;
             document.documentElement.lang = this.lang;
             document.documentElement.dir = dir;
-            document.title = `${this.username} · Aurora`;
+            document.title = `${this.username} · ${this.t("brand")}`;
         },
         toggleLang() {
             this.lang = this.lang === "en" ? "fa" : "en";
@@ -374,28 +394,17 @@ function aurora() {
             }[os] || "ph-device-mobile";
         },
 
-        /* -------- entrance animation (reveal on view, gently staggered) -------- */
+        /* -------- entrance animation -------- */
+        // Reveal EVERY section on load (gently staggered) — never gate visibility
+        // on scrolling, so below-the-fold cards are always present.
         revealAll() {
             const els = Array.from(document.querySelectorAll(".reveal"));
-            if (!("IntersectionObserver" in window)) {
-                els.forEach((el) => el.classList.add("shown"));
-                return;
-            }
-            const io = new IntersectionObserver((entries) => {
-                entries.forEach((entry) => {
-                    if (!entry.isIntersecting) return;
-                    entry.target.classList.add("shown");
-                    io.unobserve(entry.target);
-                });
-            }, { threshold: 0.06, rootMargin: "0px 0px -32px 0px" });
-
-            els.forEach((el, i) => {
-                // Stagger only the items already on screen at load for a clean cascade.
-                el.style.transitionDelay = Math.min(i * 45, 220) + "ms";
-                io.observe(el);
-            });
-            // Clear the stagger after the initial cascade so scroll reveals feel instant.
-            setTimeout(() => els.forEach((el) => (el.style.transitionDelay = "")), 900);
+            els.forEach((el, i) => (el.style.transitionDelay = Math.min(i * 70, 350) + "ms"));
+            requestAnimationFrame(() =>
+                requestAnimationFrame(() => els.forEach((el) => el.classList.add("shown")))
+            );
+            // Drop the stagger afterwards so later state changes don't lag.
+            setTimeout(() => els.forEach((el) => (el.style.transitionDelay = "")), 1000);
         },
     };
 }

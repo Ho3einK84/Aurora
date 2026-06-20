@@ -6,7 +6,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
     <meta name="color-scheme" content="dark light" />
     <meta name="robots" content="noindex, nofollow" />
-    <title>{{ user.username }} · Aurora</title>
+    <title>{{ user.username }} · Subscription</title>
 
     <!-- Fonts: Inter (latin, Google Fonts) + Arad (farsi, jsDelivr @font-face in CSS). -->
     <link rel="preconnect" href="https://fonts.googleapis.com" />
@@ -31,7 +31,7 @@
     <div id="aurora-loader">
         <div class="flex flex-col items-center gap-4">
             <div class="aurora-spinner"></div>
-            <p class="text-lg font-extrabold tracking-tight gradient-text">Aurora</p>
+            <p class="text-lg font-extrabold tracking-tight gradient-text">Subscription</p>
         </div>
     </div>
     <script>
@@ -79,7 +79,7 @@
                 <!-- Logo placeholder: an empty circle (per request). -->
                 <div class="h-11 w-11 shrink-0 rounded-full border-2 border-base-content/25"></div>
                 <div class="leading-tight">
-                    <p class="text-xl font-extrabold tracking-tight gradient-text">Aurora</p>
+                    <p class="text-xl font-extrabold tracking-tight gradient-text" x-text="t('brand')"></p>
                     <p class="text-[11px] text-base-content/50" x-text="t('tagline')"></p>
                 </div>
             </div>
@@ -142,51 +142,45 @@
                     </span>
                 </div>
 
-                <div class="grid grid-cols-1 items-center gap-6 sm:grid-cols-[auto_1fr]">
-                    <!-- Radial usage indicator -->
-                    <div class="mx-auto grid place-items-center">
-                        <div class="radial-progress text-primary transition-all duration-700"
-                            :class="usagePercent >= 90 ? 'text-error' : usagePercent >= 75 ? 'text-warning' : 'text-primary'"
-                            :style="`--value:${unlimited ? 100 : usagePercent}; --size:8.5rem; --thickness:0.7rem;`"
-                            role="progressbar">
-                            <div class="text-center leading-none">
-                                <template x-if="!unlimited">
-                                    <div>
-                                        <p class="text-2xl font-extrabold" x-text="usagePercent + '%'"></p>
-                                        <p class="mt-1 text-[10px] uppercase tracking-wider text-base-content/50" x-text="t('used')"></p>
-                                    </div>
-                                </template>
-                                <template x-if="unlimited">
-                                    <div>
-                                        <p class="text-3xl font-extrabold">∞</p>
-                                        <p class="mt-1 text-[10px] uppercase tracking-wider text-base-content/50" x-text="t('unlimited')"></p>
-                                    </div>
-                                </template>
-                            </div>
+                <!-- Dual rings: data usage + time remaining -->
+                <div class="flex items-center justify-center gap-6 py-1 sm:gap-14">
+                    <!-- Usage ring -->
+                    <div class="ring-wrap">
+                        <div class="ring" :style="`--thick:0.6rem; --ring-color:var(--color-${usageTone}); --val:${unlimited ? 100 : usagePercent}`"></div>
+                        <div class="ring-label text-center leading-none">
+                            <p class="text-2xl font-extrabold" x-text="unlimited ? '∞' : (usagePercent + '%')"></p>
+                            <p class="mt-0.5 text-[10px] uppercase tracking-wider text-base-content/50" x-text="t('used')"></p>
                         </div>
                     </div>
+                    <!-- Time-remaining ring -->
+                    <div class="ring-wrap">
+                        <div class="ring" :style="`--thick:0.6rem; --ring-color:var(--color-${timeTone}); --val:${timePercent}`"></div>
+                        <div class="ring-label text-center leading-none">
+                            <p class="text-2xl font-extrabold" x-text="neverExpire ? '∞' : remainingDays"></p>
+                            <p class="mt-0.5 text-[10px] uppercase tracking-wider text-base-content/50" x-text="t('days')"></p>
+                        </div>
+                    </div>
+                </div>
 
-                    <!-- Traffic + expiry stats -->
-                    <div class="grid grid-cols-2 gap-3">
-                        <div class="rounded-2xl bg-base-100/40 p-3.5">
-                            <p class="text-[11px] uppercase tracking-wide text-base-content/50" x-text="t('used')"></p>
-                            <p class="mt-1 text-lg font-bold" x-text="fmtBytes(used)"></p>
-                        </div>
-                        <div class="rounded-2xl bg-base-100/40 p-3.5">
-                            <p class="text-[11px] uppercase tracking-wide text-base-content/50" x-text="t('total')"></p>
-                            <p class="mt-1 text-lg font-bold" x-text="unlimited ? '∞' : fmtBytes(limit)"></p>
-                        </div>
-                        <div class="rounded-2xl bg-base-100/40 p-3.5">
-                            <p class="text-[11px] uppercase tracking-wide text-base-content/50" x-text="t('remaining')"></p>
-                            <p class="mt-1 text-lg font-bold text-accent" x-text="unlimited ? '∞' : fmtBytes(remainingBytes)"></p>
-                        </div>
-                        <div class="rounded-2xl bg-base-100/40 p-3.5">
-                            <p class="text-[11px] uppercase tracking-wide text-base-content/50" x-text="t('expires')"></p>
-                            <p class="mt-1 text-lg font-bold"
-                                :class="!neverExpire && remainingDays <= 3 && 'text-error'"
-                                x-text="neverExpire ? '∞' : (remainingDays + ' ' + t('days'))"></p>
-                            <p class="text-[11px] text-base-content/50" x-show="!neverExpire" x-text="fmtDate(expire)"></p>
-                        </div>
+                <!-- Traffic + expiry stats -->
+                <div class="grid grid-cols-2 gap-3 sm:grid-cols-4">
+                    <div class="rounded-2xl bg-base-100/40 p-3.5">
+                        <p class="text-[11px] uppercase tracking-wide text-base-content/50" x-text="t('used')"></p>
+                        <p class="mt-1 text-lg font-bold" x-text="fmtBytes(used)"></p>
+                    </div>
+                    <div class="rounded-2xl bg-base-100/40 p-3.5">
+                        <p class="text-[11px] uppercase tracking-wide text-base-content/50" x-text="t('total')"></p>
+                        <p class="mt-1 text-lg font-bold" x-text="unlimited ? '∞' : fmtBytes(limit)"></p>
+                    </div>
+                    <div class="rounded-2xl bg-base-100/40 p-3.5">
+                        <p class="text-[11px] uppercase tracking-wide text-base-content/50" x-text="t('remaining')"></p>
+                        <p class="mt-1 text-lg font-bold text-accent" x-text="unlimited ? '∞' : fmtBytes(remainingBytes)"></p>
+                    </div>
+                    <div class="rounded-2xl bg-base-100/40 p-3.5">
+                        <p class="text-[11px] uppercase tracking-wide text-base-content/50" x-text="t('expires')"></p>
+                        <p class="mt-1 text-lg font-bold"
+                            :class="!neverExpire && remainingDays <= 3 && 'text-error'"
+                            x-text="neverExpire ? '∞' : fmtDate(expire)"></p>
                     </div>
                 </div>
 

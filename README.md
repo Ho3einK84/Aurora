@@ -16,7 +16,7 @@ Tailwind CSS v4 · DaisyUI v5 · Alpine.js v3 · Phosphor Icons · qrcode-genera
 
 ## ✨ Features
 
-- **Service info card** — username, status, used/total/remaining traffic with an animated radial + linear progress, expiry date and days remaining. Handles **unlimited traffic** and **never-expire** gracefully.
+- **Service info card** — username, status, and **dual progress rings** (data usage % + time remaining) with a faintly-visible unfilled track, plus used/total/remaining traffic, a linear usage bar, and the expiry date. Handles **unlimited traffic** and **never-expire** gracefully.
 - **Apps section** — a **collapsible** card of recommended clients with a **horizontally scrollable** OS strip (iOS / Android / Windows / macOS / Linux) and a **vertically scrollable** app list on mobile. Each app has a **one-tap import** deep link (the subscription URL is injected into the app's URL scheme) and a download button. Driven by `apps.json`.
 - **Configs section** — a **collapsible** card listing every config with copy-to-clipboard and a **QR-code modal**, plus *copy subscription link*, *copy all configs*, and a dedicated **QR code of the subscription link**.
 - **Theme switcher** — Aurora Dark, Amoled Dark, Aurora Light, Nord. Preference persists via localStorage → cookie → in-memory, and reads `?theme=` / `?lang=` from the URL. Never *requires* storage.

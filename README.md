@@ -107,8 +107,9 @@ npm run dev        # watch Tailwind during development
 
 The build (`scripts/build.mjs`):
 1. compiles Tailwind v4 + DaisyUI v5 to minified CSS,
-2. inlines the CSS, web fonts (Inter + Arad as base64 `@font-face`), the Phosphor icons actually used (as CSS mask data-URIs), `app.js`, `apps.json`, `qrcode-generator` and `Alpine.js` — producing a file with **no external requests**,
-3. **guarantees every pongo2 `{{ }}` / `{% %}` placeholder is preserved byte-for-byte** (the build fails if the count changes).
+2. inlines the CSS, web fonts (Inter + Arad as base64 `@font-face`), the Phosphor icons actually used (as CSS mask data-URIs), `apps.json` and `app.js` — producing a file with **no external requests**,
+3. base64-encodes `qrcode-generator` and `Alpine.js` and injects them at runtime, so the template engine never sees library code that happens to contain `{{`/`{%`/`{#` (pongo2/Jinja2 would otherwise try to evaluate it and crash the render),
+4. **guarantees the template's own `{{ }}` / `{% %}` bindings are the only directives in the output** (the build fails if any inlined asset introduces a stray one).
 
 Fonts and libraries are pinned via `package-lock.json` (Inter/Alpine/qrcode/Phosphor come from `node_modules`; Arad is vendored under `assets/fonts/`), so `npm ci && npm run build` is fully reproducible and offline.
 

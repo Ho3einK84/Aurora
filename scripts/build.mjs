@@ -114,11 +114,23 @@ const styleTag = `<style>\n${css}\n${assetCss}\n</style>`;
 
 // </script> inside an inlined script would close the tag early — escape it.
 const esc = (s) => s.replace(/<\/script>/gi, "<\\/script>");
-const scriptTag =
+const scripts =
     `<script>window.AURORA_APPS = ${esc(apps.trim())};</script>\n` +
     `<script>\n${esc(qrcodeLib)}\n</script>\n` +
     `<script>\n${esc(js)}\n</script>\n` +
     `<script>\n${esc(alpineLib)}\n</script>`;
+
+// CRITICAL: Rebecca renders this file through pongo2. The inlined libraries are
+// minified JS that can legitimately contain `{{` / `{%` / `{#` byte sequences
+// (e.g. Alpine has a `{{…}}` in an error-message template literal). pongo2 would
+// try to evaluate those as template expressions and crash the render (HTTP 502).
+// None of the inlined scripts carry real pongo2 bindings — all user data rides
+// on the data-* island above — so we wrap them in a {% raw %} block, which makes
+// pongo2 emit the bytes verbatim. (The style block holds no such sequences.)
+if (/\{%-?\s*endraw\s*-?%\}/.test(scripts)) {
+    throw new Error("Inlined scripts contain an {% endraw %} that would close the raw wrapper early.");
+}
+const scriptTag = `{% raw %}\n${scripts}\n{% endraw %}`;
 
 const out = html
     .replace("<!--AURORA_INLINE_CSS-->", () => styleTag)

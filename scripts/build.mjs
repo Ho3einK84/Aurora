@@ -1,86 +1,185 @@
 #!/usr/bin/env node
 /* ===========================================================================
-   Aurora build step.
-   Produces a SINGLE, fully self-contained dist/index.html that Rebecca (pongo2)
-   can render directly — with ZERO external network requests at runtime, so the
-   page works even when CDNs (jsDelivr, Google Fonts, …) are blocked or slow:
-     • inlines the built Tailwind v4 + DaisyUI v5 CSS into <style>
-     • inlines the web fonts (Inter latin + Arad farsi) as base64 @font-face
-     • inlines the Phosphor icons used on the page as CSS mask data-URIs
-     • inlines app.js, qrcode-generator and Alpine.js (plus apps.json)
-     • keeps all {{ ... }} / {% ... %} pongo2 placeholders byte-for-byte intact
+   Aurora build.
+   Produces ONE fully self-contained dist/index.html that Rebecca (pongo2)
+   renders directly, with ZERO external requests at runtime:
+
+     • bundles + minifies the app (src/app.js + modules) with esbuild
+     • bundles the QR module SEPARATELY — embedded as an inert base64 blob and
+       only decoded/imported the first time a QR modal opens
+     • inlines the built Tailwind v4 + DaisyUI v5 CSS
+     • inlines web fonts: Inter variable (latin) + Arad 400/700/800, base64
+     • inlines the Phosphor icons actually used, as CSS mask data-URIs
+     • inlines apps.json as a plain (hand-editable) JSON literal
+
+   Template-engine safety — the reason for the base64 dance: pongo2 (and the
+   legacy Jinja2 branch) treats {{ }} / {% %} / {# #} as directives, and
+   minified JS legitimately contains such sequences. The engine must only ever
+   see the data-island bindings, so all executable JS travels base64-encoded
+   (alphabet [A-Za-z0-9+/=] — no brace pairs possible) and is decoded at
+   runtime. The guard below fails the build on ANY stray directive, unknown
+   island binding, or external resource reference.
+
+   Usage:
+     node scripts/build.mjs                build → dist/index.html
+     node scripts/build.mjs --guard-only   re-run the guard on dist/index.html
    =========================================================================== */
 
 import { readFileSync, writeFileSync, mkdirSync, existsSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
+import * as esbuild from "esbuild";
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const r = (p) => resolve(root, p);
+const GUARD_ONLY = process.argv.includes("--guard-only");
+
+/* -------------------------------------------------------- directive guard */
+
+// The exact pongo2 bindings allowed to survive, all inside #aurora-data.
+const ALLOWED_DIRECTIVES = new Set([
+    "{{ user.username }}",
+    "{{ user.status }}",
+    "{{ user.status_class }}",
+    "{{ user.used_traffic }}",
+    "{{ user.data_limit }}",
+    "{{ user.data_limit_reset_strategy }}",
+    "{{ user.expire }}",
+    "{{ remaining_days }}",
+    "{{ user.subscription_url }}",
+    "{{ support_url }}",
+    "{{ usage_url }}",
+    "{{ brand_name }}",
+    "{{ user.online_count }}",
+    "{{ user.service_name }}",
+    "{{ link }}",
+    "{% for link in links %}",
+    "{% endfor %}",
+].map(normalize));
+
+function normalize(d) {
+    return d.replace(/\s+/g, " ").trim();
+}
+
+/**
+ * Fail unless: every directive inside #aurora-data is a known binding, there
+ * are no directive-openers anywhere else, and nothing references an external
+ * resource (the self-contained promise).
+ */
+function guard(html) {
+    const island = (html.match(/<div\b[^>]*\bid="aurora-data"[\s\S]*?<\/div>/) || [])[0];
+    if (!island) throw new Error("[guard] #aurora-data island not found — bindings missing.");
+    const rest = html.replace(island, "");
+
+    const strays = rest.match(/\{\{|\{%|\{#/g);
+    if (strays) {
+        const ctx = [];
+        const re = /\{\{|\{%|\{#/g;
+        let m;
+        while ((m = re.exec(rest)) && ctx.length < 6) {
+            ctx.push(JSON.stringify(rest.slice(Math.max(0, m.index - 34), m.index + 34)));
+        }
+        throw new Error(
+            `[guard] ${strays.length} stray template directive(s) outside the data island:\n  ` + ctx.join("\n  ")
+        );
+    }
+
+    const directives = island.match(/\{\{[\s\S]*?\}\}|\{%[\s\S]*?%\}|\{#[\s\S]*?#\}/g) || [];
+    for (const d of directives) {
+        if (!ALLOWED_DIRECTIVES.has(normalize(d))) {
+            throw new Error(`[guard] Unexpected directive in the data island: ${JSON.stringify(d)}`);
+        }
+    }
+
+    const offenders = [];
+    if (/<link\b[^>]*\brel=/i.test(rest)) offenders.push("<link rel> tag");
+    if (/<script\b[^>]*\bsrc=/i.test(html)) offenders.push("<script src> tag");
+    if (/@import\b/i.test(html)) offenders.push("@import in CSS");
+    if (/url\(\s*['"]?https?:/i.test(html)) offenders.push("url(http…) in CSS");
+    if (offenders.length) {
+        throw new Error("[guard] external resource reference(s): " + offenders.join(", "));
+    }
+
+    return directives.length;
+}
+
+if (GUARD_ONLY) {
+    const out = r("dist/index.html");
+    if (!existsSync(out)) {
+        console.error("[guard-only] dist/index.html not found — run `npm run build` first.");
+        process.exit(1);
+    }
+    try {
+        const n = guard(readFileSync(out, "utf8"));
+        console.log(`✓ guard: ${n} known binding(s) in the data island, 0 strays, no external loads.`);
+        process.exit(0);
+    } catch (err) {
+        console.error(err.message || err);
+        process.exit(1);
+    }
+}
+
+/* ------------------------------------------------------------------ inputs */
 
 const html = readFileSync(r("src/index.html"), "utf8");
-const css = readFileSync(r("build/app.css"), "utf8");
-const js = readFileSync(r("src/app.js"), "utf8");
 const apps = readFileSync(r("src/apps.json"), "utf8");
+if (!existsSync(r("build/app.css"))) {
+    throw new Error("build/app.css missing — run `npm run build:css` first (or `npm run build`).");
+}
+const css = readFileSync(r("build/app.css"), "utf8");
 
-// Counts pongo2 placeholders ({{ }} / {% %}) in a string.
-const countPongo = (s) => (s.match(/\{\{.*?\}\}|\{%.*?%\}/gs) || []).length;
-
-// Sanity check: the markers we replace must exist and be unique.
 for (const marker of ["<!--AURORA_INLINE_CSS-->", "<!--AURORA_INLINE_JS-->"]) {
     const count = html.split(marker).length - 1;
-    if (count !== 1) {
-        throw new Error(`Expected exactly one "${marker}" in src/index.html, found ${count}.`);
-    }
+    if (count !== 1) throw new Error(`Expected exactly one "${marker}" in src/index.html, found ${count}.`);
 }
 
-// Guard against accidentally trampling pongo2 tags during the build.
-const placeholders = countPongo(html);
-if (placeholders === 0) {
-    throw new Error("No pongo2 placeholders found — refusing to emit a template with no bindings.");
-}
+/* --------------------------------------------------------------- JS bundles */
 
-/* --- Vendored libraries (read from node_modules, pinned via package-lock) --- */
-const readVendor = (p, label) => {
-    const abs = r(p);
-    if (!existsSync(abs)) {
-        throw new Error(`Missing ${label} at ${p}. Run "npm ci" first.`);
-    }
-    return readFileSync(abs, "utf8");
+const bundle = async (entry, format) => {
+    const result = await esbuild.build({
+        entryPoints: [r(entry)],
+        bundle: true,
+        minify: true,
+        format,
+        target: ["es2018"],
+        charset: "utf8",
+        legalComments: "none",
+        write: false,
+    });
+    return result.outputFiles[0].text;
 };
-const qrcodeLib = readVendor("node_modules/qrcode-generator/qrcode.js", "qrcode-generator");
-const alpineLib = readVendor("node_modules/alpinejs/dist/cdn.min.js", "alpinejs");
 
-/* --- Web fonts → base64 @font-face (no Google Fonts / jsDelivr at runtime) -- */
+const appJs = await bundle("src/app.js", "iife");
+const qrJs = await bundle("src/qr.js", "esm");
+
+/* -------------------- fonts → base64 @font-face (no CDNs at runtime) ------ */
+
 const fontFace = (family, weight, file) => {
-    const b64 = readFileSync(r(file)).toString("base64");
+    const abs = r(file);
+    if (!existsSync(abs)) throw new Error(`Missing font ${file}. Run "npm ci" first.`);
+    const b64 = readFileSync(abs).toString("base64");
     return `@font-face{font-family:'${family}';font-style:normal;font-weight:${weight};` +
         `font-display:swap;src:url(data:font/woff2;base64,${b64}) format('woff2')}`;
 };
-// Inter (latin) ships pre-subset per weight via @fontsource; Arad (farsi) is
-// vendored under assets/fonts (fetched once from the upstream GitHub release).
-const interDir = "node_modules/@fontsource/inter/files";
-const aradDir = "assets/fonts";
+
+// Inter ships as ONE variable file covering wght 100–900 (~48KB vs ~120KB of
+// static cuts). Arad (farsi) ships the three weights the UI resolves to —
+// 500/600 requests match 400/700 via the browser's nearest-weight rules.
 const fontCss = [
-    fontFace("Inter", 400, `${interDir}/inter-latin-400-normal.woff2`),
-    fontFace("Inter", 500, `${interDir}/inter-latin-500-normal.woff2`),
-    fontFace("Inter", 600, `${interDir}/inter-latin-600-normal.woff2`),
-    fontFace("Inter", 700, `${interDir}/inter-latin-700-normal.woff2`),
-    fontFace("Inter", 800, `${interDir}/inter-latin-800-normal.woff2`),
-    fontFace("Arad", 400, `${aradDir}/Arad-Regular.woff2`),
-    fontFace("Arad", 500, `${aradDir}/Arad-Medium.woff2`),
-    fontFace("Arad", 600, `${aradDir}/Arad-SemiBold.woff2`),
-    fontFace("Arad", 700, `${aradDir}/Arad-Bold.woff2`),
-    fontFace("Arad", 800, `${aradDir}/Arad-ExtraBold.woff2`),
+    fontFace("Inter", "100 900", "node_modules/@fontsource-variable/inter/files/inter-latin-wght-normal.woff2"),
+    fontFace("Arad", 400, "assets/fonts/Arad-Regular.woff2"),
+    fontFace("Arad", 700, "assets/fonts/Arad-Bold.woff2"),
+    fontFace("Arad", 800, "assets/fonts/Arad-ExtraBold.woff2"),
 ].join("\n");
 
-/* --- Phosphor icons → CSS mask data-URIs (only the glyphs actually used) ----
-   Every `ph-<name>` class referenced in the HTML/JS is turned into a CSS custom
-   property holding the inlined SVG. The shared `.ph` rule paints it with the
-   current text colour, so icons inherit colour/size exactly like the webfont
-   did — but with no network request. */
+/* ------------- Phosphor icons → CSS mask data-URIs (used glyphs only) ----- */
+
+const jsSources = ["src/app.js", "src/ui.js", "src/i18n.js", "src/format.js", "src/store.js",
+    "src/configs.js", "src/apps.js", "src/usage.js"]
+    .map((p) => readFileSync(r(p), "utf8")).join("\n");
+
 const usedIcons = [...new Set(
-    [html, js].join("\n").match(/ph-[a-z0-9]+(?:-[a-z0-9]+)*/g) || []
+    (html + "\n" + jsSources).match(/ph-[a-z0-9]+(?:-[a-z0-9]+)*/g) || []
 )].map((c) => c.replace(/^ph-/, "")).sort();
 
 const svgToDataUri = (svg) =>
@@ -95,11 +194,8 @@ const svgToDataUri = (svg) =>
 
 const iconRules = usedIcons.map((name) => {
     const file = r(`node_modules/@phosphor-icons/core/assets/regular/${name}.svg`);
-    if (!existsSync(file)) {
-        throw new Error(`Icon "ph-${name}" used but not found in @phosphor-icons/core.`);
-    }
-    const svg = readFileSync(file, "utf8");
-    return `.ph-${name}{--ph:url("${svgToDataUri(svg)}")}`;
+    if (!existsSync(file)) throw new Error(`Icon "ph-${name}" used but not found in @phosphor-icons/core.`);
+    return `.ph-${name}{--ph:url("${svgToDataUri(readFileSync(file, "utf8"))}")}`;
 }).join("\n");
 
 const iconBase =
@@ -107,73 +203,61 @@ const iconBase =
     "background-color:currentColor;-webkit-mask:var(--ph) center/contain no-repeat;" +
     "mask:var(--ph) center/contain no-repeat}";
 
-const assetCss = `${fontCss}\n${iconBase}\n${iconRules}`;
+/* -------------------------------------------------------------- assemble */
 
-/* --- Assemble the single-file output --------------------------------------- */
-const styleTag = `<style>\n${css}\n${assetCss}\n</style>`;
+/**
+ * Neutralize directive-opener/closer pairs the CSS minifier can incidentally
+ * produce (e.g. `@media{…}}` → `}}`). A single space is CSS-insignificant and
+ * keeps the output clean for engines that scan greedily.
+ */
+const neutralizeCss = (s) => s.replace(/\{\{|\}\}|\{%|%\}|\{#|#\}/g, (m) => m[0] + " " + m[1]);
 
-// </script> inside an inlined script would close the tag early — escape it.
-const esc = (s) => s.replace(/<\/script>/gi, "<\\/script>");
+const styleTag = `<style>\n${neutralizeCss(css)}\n${fontCss}\n${iconBase}\n${iconRules}\n</style>`;
 
-/* CRITICAL — template-engine safety.
-   Rebecca renders this file through a template engine (pongo2 on the Go `dev`
-   branch, Jinja2 on the legacy Python branch). Both treat `{{ }}`, `{% %}` and
-   `{# #}` as directives. The inlined JS libraries legitimately contain such
-   sequences (e.g. Alpine has a `{{…}}` inside an error-message template
-   literal), which the engine would try to evaluate — crashing the render with
-   an HTTP 502. pongo2 has no `{% raw %}`/`{% verbatim %}` we can rely on, and
-   Rebecca even pre-normalizes whitespace inside `{{ }}`/`{% %}` before parsing.
-   So we never let the engine SEE library code: each library is base64-encoded
-   (alphabet [A-Za-z0-9+/=] — no brace sequences possible) and decoded + injected
-   at runtime. The engine only ever sees the safe head bindings, the CSS, and the
-   apps JSON (asserted brace-free below). */
 const b64 = (s) => Buffer.from(s, "utf8").toString("base64");
+const appB64 = b64(appJs);
+const qrB64 = b64(qrJs);
+if (/[{}<]/.test(appB64) || /[{}<]/.test(qrB64)) {
+    throw new Error("base64 payload contained a brace/angle bracket — impossible?");
+}
 
-// The apps list rides as a normal (brace-free) JSON literal so it's easy to read
-// and is available before app.js runs. Guard the assumption at build time.
+// The apps list stays a plain JSON literal so self-hosters can edit the
+// catalogue directly in dist/index.html without a rebuild.
 const appsLiteral = apps.trim();
 if (/\{\{|\{%|\{#/.test(appsLiteral)) {
-    throw new Error("apps.json contains a `{{`/`{%`/`{#` sequence that would break template rendering — base64-encode it too.");
+    throw new Error("apps.json contains a template-directive sequence — refusing to inline it.");
+}
+if (/<\/script/i.test(appsLiteral)) {
+    throw new Error("apps.json contains </script> — refusing to inline it.");
 }
 
 const loaderScript =
-    "(function(){function inject(b){var s=atob(b),n=s.length,a=new Uint8Array(n);" +
-    "for(var i=0;i<n;i++)a[i]=s.charCodeAt(i);var e=document.createElement('script');" +
-    "e.textContent=new TextDecoder('utf-8').decode(a);document.head.appendChild(e);}" +
-    `inject(${JSON.stringify(b64(qrcodeLib))});` + // defines window.qrcode
-    `inject(${JSON.stringify(b64(js))});` +        // defines window.aurora
-    `inject(${JSON.stringify(b64(alpineLib))});` + // boots Alpine (finds window.aurora)
-    "})();";
+    "(function(){var b=document.getElementById('aurora-app').textContent;" +
+    "var s=atob(b.trim()),n=s.length,a=new Uint8Array(n);" +
+    "for(var i=0;i<n;i++)a[i]=s.charCodeAt(i);" +
+    "var e=document.createElement('script');" +
+    "e.textContent=new TextDecoder('utf-8').decode(a);" +
+    "document.head.appendChild(e);})();";
 
 const scriptTag =
-    `<script>window.AURORA_APPS = ${esc(appsLiteral)};</script>\n` +
+    `<script>window.AURORA_APPS = ${appsLiteral};</script>\n` +
+    `<script id="aurora-app" type="application/octet-stream">${appB64}</script>\n` +
+    `<script id="aurora-qr" type="application/octet-stream">${qrB64}</script>\n` +
     `<script>${loaderScript}</script>`;
 
 const out = html
     .replace("<!--AURORA_INLINE_CSS-->", () => styleTag)
     .replace("<!--AURORA_INLINE_JS-->", () => scriptTag);
 
-// Invariant: the ONLY template directives left in the output are the template's
-// own bindings — nothing was injected that the engine could try to evaluate.
-const finalPlaceholders = countPongo(out);
-if (finalPlaceholders !== placeholders) {
-    throw new Error(
-        `Unexpected template directives after assembly ` +
-        `(template had ${placeholders}, output has ${finalPlaceholders}). ` +
-        `Inlined assets must not contain {{ }} / {% %} sequences.`
-    );
-}
-const strayComments = (out.match(/\{#/g) || []).length - (html.match(/\{#/g) || []).length;
-if (strayComments !== 0) {
-    throw new Error(`Inlined assets introduced ${strayComments} stray {# template-comment sequence(s).`);
-}
+const bindings = guard(out);
 
 mkdirSync(r("dist"), { recursive: true });
 writeFileSync(r("dist/index.html"), out, "utf8");
 
-const kb = (Buffer.byteLength(out, "utf8") / 1024).toFixed(1);
+const kb = (n) => (n / 1024).toFixed(1) + " KB";
 console.log(
-    `✓ dist/index.html written (${kb} KB, self-contained: ` +
-    `${usedIcons.length} icons, fonts inlined, Alpine + qrcode base64-injected, ` +
-    `${placeholders} template placeholders preserved)`
+    `✓ dist/index.html written (${kb(Buffer.byteLength(out, "utf8"))}, self-contained)\n` +
+    `  app ${kb(appJs.length)} (b64 ${kb(appB64.length)}) · qr ${kb(qrJs.length)} lazy (b64 ${kb(qrB64.length)})\n` +
+    `  css ${kb(css.length)} · fonts ${kb(fontCss.length)} · ${usedIcons.length} icons · ` +
+    `${bindings} pongo2 bindings preserved`
 );

@@ -1,485 +1,623 @@
 /* ===========================================================================
    Aurora — subscription page logic for the Rebecca panel.
-   Vanilla Alpine.js component: i18n (EN/FA + RTL), theming, traffic math,
-   clipboard, client-side QR codes, and app deep-links.
+   Vanilla JS (no framework): reads the pongo2 data island, drives i18n + RTL,
+   theming, the dual rings, live quota-reset countdown, configs, apps, the
+   usage dashboard and the QR modal. Bundled + minified by scripts/build.mjs
+   and base64-injected at runtime so pongo2 never parses this source.
    =========================================================================== */
 
+import { I18N, locNum, locPct, fmtDate } from "./i18n.js";
+import { num, hasValue, clamp, fmtBytes, fmtBytesStr, escapeHtml } from "./format.js";
+import { storeGet, storeSet } from "./store.js";
+import {
+    $, $$, setHidden, copyText, flashCopied,
+    animateCount, revealAll, hideSplash, showErrorBanner,
+} from "./ui.js";
+import { parseLinks, mountConfigs } from "./configs.js";
+import { mountApps } from "./apps.js";
+import { mountUsage } from "./usage.js";
+
 /* --- Optional remote apps.json override -----------------------------------
-   A default apps list is inlined at build time (window.AURORA_APPS). If you
-   host an updated apps.json somewhere reachable, point this at its raw URL and
-   it will be fetched and used instead — no rebuild required. Leave as "" to
-   rely solely on the bundled defaults. */
+   A default apps list is inlined at build time (window.AURORA_APPS). Point
+   this at a hosted apps.json raw URL to update the catalogue without a
+   rebuild; the bundled list is the fallback. Leave "" to stay fully offline. */
 const AURORA_APPS_REMOTE_URL = "";
 
-/* --- Internationalisation -------------------------------------------------- */
-const AURORA_I18N = {
-    en: {
-        dir: "ltr",
-        tagline: "Your connection, beautifully managed",
-        brand: "Subscription",
-        account: "Account",
-        used: "Used", total: "Total", remaining: "Remaining", expires: "Expires",
-        unlimited: "Unlimited", days: "days",
-        status_active: "Active", status_limited: "Data limit reached",
-        status_expired: "Expired", status_disabled: "Disabled",
-        banner_limited: "Your data limit has been reached. Configs may stop working.",
-        banner_expired: "Your subscription has expired. Please renew to continue.",
-        banner_disabled: "This account is currently disabled.",
-        configs: "Configurations", config: "Config",
-        copy_sub: "Copy sub link", copy_all: "Copy all", copy: "Copy", copied: "Copied!",
-        no_configs: "No configurations available",
-        no_configs_hint: "There are no active configs for this account yet.",
-        apps: "Recommended apps", add: "Add", download: "Download",
-        tap_to_add: "One-tap import", qrcode: "QR code", close: "Close",
-        sub_qr: "Subscription QR", subscription: "Subscription link",
-        support: "Get support", switch_lang: "Switch language", switch_theme: "Switch theme",
-        powered: "Powered by Claude",
-        offline_title: "You're offline",
-        offline_desc: "Check your connection — this updates automatically.",
-        reset: "Quota reset", resets_in: "next in",
-        reset_day: "Daily", reset_week: "Weekly", reset_month: "Monthly", reset_year: "Yearly",
-        unit_d: "d", unit_h: "h", unit_m: "m", soon: "soon",
-    },
-    fa: {
-        dir: "rtl",
-        tagline: "اتصال شما، با مدیریتی زیبا",
-        brand: "اشتراک",
-        account: "حساب کاربری",
-        used: "مصرف‌شده", total: "کل", remaining: "باقی‌مانده", expires: "انقضا",
-        unlimited: "نامحدود", days: "روز",
-        status_active: "فعال", status_limited: "اتمام حجم",
-        status_expired: "منقضی‌شده", status_disabled: "غیرفعال",
-        banner_limited: "حجم مصرفی شما به پایان رسیده است. ممکن است کانفیگ‌ها قطع شوند.",
-        banner_expired: "اشتراک شما منقضی شده است. لطفاً برای ادامه تمدید کنید.",
-        banner_disabled: "این حساب در حال حاضر غیرفعال است.",
-        configs: "کانفیگ‌ها", config: "کانفیگ",
-        copy_sub: "کپی لینک", copy_all: "کپی همه", copy: "کپی", copied: "کپی شد!",
-        no_configs: "کانفیگی موجود نیست",
-        no_configs_hint: "هنوز هیچ کانفیگ فعالی برای این حساب وجود ندارد.",
-        apps: "اپلیکیشن‌های پیشنهادی", add: "افزودن", download: "دانلود",
-        tap_to_add: "افزودن با یک لمس", qrcode: "کد QR", close: "بستن",
-        sub_qr: "کد QR اشتراک", subscription: "لینک اشتراک",
-        support: "پشتیبانی", switch_lang: "تغییر زبان", switch_theme: "تغییر پوسته",
-        powered: "قدرت‌گرفته از Claude",
-        offline_title: "اتصال اینترنت قطع است",
-        offline_desc: "اتصال خود را بررسی کنید — به‌صورت خودکار به‌روزرسانی می‌شود.",
-        reset: "بازنشانی حجم", resets_in: "بازنشانی بعدی",
-        reset_day: "روزانه", reset_week: "هفتگی", reset_month: "ماهانه", reset_year: "سالانه",
-        unit_d: "روز", unit_h: "ساعت", unit_m: "دقیقه", soon: "به‌زودی",
-    },
-};
-
-const AURORA_THEMES = [
+const THEMES = [
     { id: "auroradark", label: "Aurora Dark", swatch: "linear-gradient(135deg,#34c6db,#5a86f5)" },
     { id: "amoleddark", label: "Amoled Dark", swatch: "linear-gradient(135deg,#000,#3b82f6,#8b5cf6)" },
     { id: "auroralight", label: "Aurora Light", swatch: "linear-gradient(135deg,#1499b8,#3b6dd6)" },
     { id: "nord", label: "Nord", swatch: "#88c0d0" },
 ];
 
-/* --- Tiny, dependency-free preference store (degrades gracefully) ----------
-   Tries localStorage, then a cookie, and always keeps an in-memory copy so the
-   page works even when storage is blocked (private mode / embedded webviews). */
-const AuroraStore = {
-    mem: {},
-    get(key) {
-        if (key in this.mem) return this.mem[key];
-        try {
-            const v = localStorage.getItem(key);
-            if (v !== null) return v;
-        } catch (_) { /* ignore */ }
-        const m = document.cookie.match(new RegExp("(?:^|; )" + key + "=([^;]*)"));
-        return m ? decodeURIComponent(m[1]) : null;
-    },
-    set(key, value) {
-        this.mem[key] = value;
-        try { localStorage.setItem(key, value); } catch (_) { /* ignore */ }
-        try { document.cookie = `${key}=${encodeURIComponent(value)}; path=/; max-age=31536000; SameSite=Lax`; } catch (_) { /* ignore */ }
-    },
-};
+/* ------------------------------------------------------------ data island */
 
-function aurora() {
+function defaultBrand() {
+    const meta = document.querySelector('meta[name="aurora-brand"]');
+    return (meta && meta.content.trim()) || "Aurora";
+}
+
+function readContext() {
+    const d = ($("#aurora-data") || {}).dataset || {};
+    let subUrl = (d.subscriptionUrl || "").trim();
+    if (!/^https?:\/\//i.test(subUrl)) {
+        subUrl = location.origin + location.pathname.replace(/\/$/, "");
+    }
     return {
-        /* state */
-        lang: "en",
-        theme: "auroradark",
-        username: "", serviceName: "", status: "active", statusClass: "active",
-        used: 0, limit: 0, unlimited: true,
-        expire: 0, neverExpire: true, remainingDays: 0,
-        resetStrategy: "",
-        subscriptionUrl: "", supportUrl: "", usageUrl: "",
-        configs: [],
-        apps: [], appsLoaded: false, osList: [], activeOs: "",
-        copied: "",
-        qrOpen: false, qrText: "", qrTitle: "",
-        themeOpen: false, configsOpen: true, appsOpen: true,
-        online: true, now: Date.now(),
-        _copyTimer: null,
-
-        /* -------- lifecycle -------- */
-        init() {
-            this.readData();
-            this.readConfigs();
-            this.restorePrefs();
-            this.applyLang();
-            this.loadApps();
-            this.watchConnection();
-            this.startClock();
-            this.$nextTick(() => {
-                this.revealAll();
-                this.hideLoader();
-            });
-        },
-
-        // Reflect the browser's connectivity into `online` and keep it in sync.
-        watchConnection() {
-            this.online = navigator.onLine !== false;
-            const sync = () => (this.online = navigator.onLine !== false);
-            window.addEventListener("online", sync);
-            window.addEventListener("offline", sync);
-        },
-
-        // Tick once a minute so the reset countdown stays fresh (only while a
-        // reset strategy is actually in effect — otherwise it's a no-op).
-        startClock() {
-            setInterval(() => { this.now = Date.now(); }, 60000);
-        },
-
-        // Fade out and remove the loading splash once the app is ready.
-        hideLoader() {
-            const el = document.getElementById("aurora-loader");
-            if (!el) return;
-            el.classList.add("is-done");
-            setTimeout(() => el.remove(), 500);
-        },
-
-        /* -------- data binding (from the pongo2-rendered data island) -------- */
-        readData() {
-            const d = document.getElementById("aurora-data")?.dataset || {};
-            this.username = d.username || "";
-            this.serviceName = d.serviceName || "";
-            this.status = d.status || "active";
-            this.statusClass = d.statusClass || "active";
-            this.used = this.num(d.used);
-            this.limit = this.num(d.limit);
-            this.unlimited = !d.limit || this.limit <= 0;
-            this.expire = this.num(d.expire);
-            this.neverExpire = !d.expire || this.expire <= 0;
-            this.remainingDays = Math.max(0, this.num(d.remainingDays));
-            this.resetStrategy = (d.resetStrategy || "").trim().toLowerCase();
-            this.usageUrl = d.usageUrl || "";
-            this.supportUrl = (d.supportUrl || "").trim();
-            this.subscriptionUrl = this.resolveSubUrl(d.subscriptionUrl);
-        },
-
-        readConfigs() {
-            const nodes = document.querySelectorAll("#aurora-configs .cfg");
-            this.configs = Array.from(nodes)
-                .map((n) => (n.textContent || "").trim())
-                .filter(Boolean)
-                .map((raw) => ({ raw, name: this.remarkOf(raw), protocol: this.protocolOf(raw) }));
-        },
-
-        resolveSubUrl(value) {
-            const v = (value || "").trim();
-            if (/^https?:\/\//i.test(v)) return v;
-            // Prefix-relative or empty → derive from the current page (drop query).
-            return window.location.origin + window.location.pathname.replace(/\/$/, "");
-        },
-
-        /* -------- helpers -------- */
-        num(v) { const n = Number(v); return Number.isFinite(n) ? n : 0; },
-
-        protocolOf(link) {
-            const m = /^([a-z0-9-]+):\/\//i.exec(link);
-            const p = (m ? m[1] : "?").toLowerCase();
-            const map = { vmess: "VM", vless: "VL", trojan: "TR", ss: "SS", ssr: "SSR", hysteria: "HY", hysteria2: "HY2", hy2: "HY2", tuic: "TU", wireguard: "WG", socks: "SK" };
-            return map[p] || p.slice(0, 3).toUpperCase();
-        },
-
-        remarkOf(link) {
-            // vmess:// carries a base64-encoded JSON payload whose "ps" field is
-            // the display name (UTF-8 — must be decoded as bytes, not Latin-1).
-            if (/^vmess:\/\//i.test(link)) {
-                try {
-                    const payload = link.replace(/^vmess:\/\//i, "").split("#")[0];
-                    const json = JSON.parse(this.b64ToUtf8(payload));
-                    if (json && (json.ps || json.remark)) return String(json.ps || json.remark);
-                } catch (_) { /* fall through to the URL fragment */ }
-            }
-            // Every other protocol keeps the remark in the URL fragment (#...),
-            // percent-encoded by Rebecca.
-            const hash = link.split("#").slice(1).join("#");
-            if (hash) {
-                try { return decodeURIComponent(hash); }
-                catch (_) { return hash; }
-            }
-            return "";
-        },
-
-        // Decode a (possibly URL-safe / unpadded) base64 string as UTF-8.
-        b64ToUtf8(b64) {
-            let s = b64.replace(/-/g, "+").replace(/_/g, "/").trim();
-            while (s.length % 4) s += "=";
-            const bytes = Uint8Array.from(atob(s), (c) => c.charCodeAt(0));
-            return new TextDecoder("utf-8").decode(bytes);
-        },
-
-        fmtBytes(bytes) {
-            const b = Number(bytes) || 0;
-            if (b <= 0) return "0 B";
-            const units = this.lang === "fa"
-                ? ["بایت", "کیلوبایت", "مگابایت", "گیگابایت", "ترابایت", "پتابایت"]
-                : ["B", "KB", "MB", "GB", "TB", "PB"];
-            let i = 0, n = b;
-            while (n >= 1024 && i < units.length - 1) { n /= 1024; i++; }
-            const val = i === 0 ? n : n.toFixed(2);
-            return this.localizeDigits(`${val} ${units[i]}`);
-        },
-
-        fmtDate(ts) {
-            if (!ts) return "∞";
-            const date = new Date(ts * 1000);
-            const locale = this.lang === "fa" ? "fa-IR" : "en-GB";
-            try {
-                return new Intl.DateTimeFormat(locale, { year: "numeric", month: "short", day: "numeric" }).format(date);
-            } catch (_) {
-                return date.toISOString().slice(0, 10);
-            }
-        },
-
-        localizeDigits(str) {
-            if (this.lang !== "fa") return str;
-            const fa = "۰۱۲۳۴۵۶۷۸۹";
-            return str.replace(/[0-9]/g, (d) => fa[+d]);
-        },
-
-        get usagePercent() {
-            if (this.unlimited || this.limit <= 0) return 0;
-            return Math.min(100, Math.round((this.used / this.limit) * 100));
-        },
-        get remainingBytes() { return Math.max(0, this.limit - this.used); },
-
-        /* -------- quota reset strategy --------
-           Rebecca/Marzban reset `used_traffic` on a fixed schedule
-           (day/week/month/year). The panel doesn't pass the next-reset time, so
-           we approximate it from the local calendar boundary — accurate enough
-           for a friendly countdown. `no_reset` (or unlimited) hides the row. */
-        get hasReset() {
-            return !this.unlimited && ["day", "week", "month", "year"].includes(this.resetStrategy);
-        },
-        get resetLabel() { return this.hasReset ? this.t("reset_" + this.resetStrategy) : ""; },
-        nextResetDate() {
-            const d = new Date(this.now);
-            d.setHours(0, 0, 0, 0); // local midnight today
-            switch (this.resetStrategy) {
-                case "day": d.setDate(d.getDate() + 1); break;
-                case "week": d.setDate(d.getDate() + ((8 - d.getDay()) % 7 || 7)); break; // next Monday
-                case "month": d.setMonth(d.getMonth() + 1, 1); break;
-                case "year": d.setFullYear(d.getFullYear() + 1, 0, 1); break;
-                default: return null;
-            }
-            return d;
-        },
-        get resetCountdown() {
-            const next = this.nextResetDate();
-            if (!next) return "";
-            let mins = Math.floor((next.getTime() - this.now) / 60000);
-            if (mins <= 0) return this.t("soon");
-            const days = Math.floor(mins / 1440); mins -= days * 1440;
-            const hours = Math.floor(mins / 60); mins -= hours * 60;
-            const parts = [];
-            if (days) parts.push(days + " " + this.t("unit_d"));
-            if (hours) parts.push(hours + " " + this.t("unit_h"));
-            if (!days && !hours) parts.push(mins + " " + this.t("unit_m"));
-            return this.localizeDigits(parts.join(" "));
-        },
-
-        /* -------- ring indicators -------- */
-        // Usage ring: same hue as the theme primary, but shaded from pale (low
-        // usage) toward dark (high usage) — pale+soft at ~10%, deep at ~90%.
-        get usageRingColor() {
-            if (this.unlimited) return "var(--color-primary)";
-            const d = (this.usagePercent / 100 - 0.5) * 2; // -1 (empty) .. +1 (full)
-            const amt = Math.round(Math.abs(d) * 36);
-            const mixWith = d >= 0 ? "black" : "white";
-            return `color-mix(in oklch, var(--color-primary) ${100 - amt}%, ${mixWith} ${amt}%)`;
-        },
-        // Time ring fills relative to a 30-day window (we only know days left),
-        // so it visibly empties as expiry approaches within the final month.
-        get timePercent() {
-            if (this.neverExpire) return 100;
-            return Math.max(0, Math.min(100, Math.round((this.remainingDays / 30) * 100)));
-        },
-        get timeTone() {
-            if (this.neverExpire) return "accent";
-            if (this.remainingDays <= 3) return "error";
-            if (this.remainingDays <= 7) return "warning";
-            return "accent";
-        },
-
-        get statusBadge() {
-            return {
-                active: "bg-success/15 text-success",
-                limited: "bg-error/15 text-error",
-                expired: "bg-warning/15 text-warning",
-                disabled: "bg-base-content/10 text-base-content/60",
-            }[this.statusClass] || "bg-base-content/10 text-base-content/60";
-        },
-
-        /* -------- i18n -------- */
-        t(key) { return (AURORA_I18N[this.lang] && AURORA_I18N[this.lang][key]) || key; },
-        applyLang() {
-            const dir = AURORA_I18N[this.lang].dir;
-            document.documentElement.lang = this.lang;
-            document.documentElement.dir = dir;
-            document.title = `${this.username} · ${this.t("brand")}`;
-        },
-        toggleLang() {
-            this.lang = this.lang === "en" ? "fa" : "en";
-            AuroraStore.set("aurora_lang", this.lang);
-            this.applyLang();
-        },
-
-        /* -------- theming -------- */
-        themes: AURORA_THEMES,
-        setTheme(id) {
-            this.theme = id;
-            document.documentElement.setAttribute("data-theme", id);
-            AuroraStore.set("aurora_theme", id);
-            document.activeElement?.blur?.();
-        },
-        restorePrefs() {
-            const params = new URLSearchParams(window.location.search);
-            const lang = params.get("lang") || AuroraStore.get("aurora_lang");
-            const theme = params.get("theme") || AuroraStore.get("aurora_theme");
-            if (lang && AURORA_I18N[lang]) this.lang = lang;
-            else if ((navigator.language || "").toLowerCase().startsWith("fa")) this.lang = "fa";
-            if (theme && this.themes.some((th) => th.id === theme)) this.theme = theme;
-            document.documentElement.setAttribute("data-theme", this.theme);
-        },
-
-        /* -------- clipboard -------- */
-        async copy(text, tag) {
-            if (!text) return;
-            let ok = false;
-            try { await navigator.clipboard.writeText(text); ok = true; }
-            catch (_) { ok = this.legacyCopy(text); }
-            if (!ok) return;
-            this.copied = tag;
-            clearTimeout(this._copyTimer);
-            this._copyTimer = setTimeout(() => (this.copied = ""), 1600);
-        },
-        legacyCopy(text) {
-            try {
-                const ta = document.createElement("textarea");
-                ta.value = text; ta.style.position = "fixed"; ta.style.opacity = "0";
-                document.body.appendChild(ta); ta.select();
-                const ok = document.execCommand("copy");
-                document.body.removeChild(ta);
-                return ok;
-            } catch (_) { return false; }
-        },
-        copyAll() { this.copy(this.configs.map((c) => c.raw).join("\n"), "all"); },
-
-        /* -------- QR codes (qrcode-generator) -------- */
-        showQr(cfg) {
-            this.qrText = cfg.raw;
-            this.qrTitle = cfg.name || cfg.protocol;
-            this.qrOpen = true;
-            this.$nextTick(() => {
-                this.renderQr(cfg.raw);
-                const el = this.$refs.qrModal;
-                if (el && !el.open) el.showModal();
-            });
-        },
-        // QR code of the subscription link itself.
-        showSubQr() {
-            this.showQr({ raw: this.subscriptionUrl, name: this.t("subscription") });
-        },
-        renderQr(text) {
-            const box = this.$refs.qrBox;
-            if (!box || typeof qrcode === "undefined") return;
-            box.innerHTML = "";
-            // typeNumber 0 = auto-fit; error correction "M" balances density/resilience.
-            const qr = qrcode(0, "M");
-            qr.addData(text);
-            qr.make();
-            box.innerHTML = qr.createSvgTag({ scalable: true, margin: 0 });
-        },
-        closeQr() {
-            this.qrOpen = false;
-            this.$refs.qrModal?.close();
-        },
-
-        /* -------- apps -------- */
-        async loadApps() {
-            let data = Array.isArray(window.AURORA_APPS) ? window.AURORA_APPS : [];
-            if (AURORA_APPS_REMOTE_URL) {
-                try {
-                    const res = await fetch(AURORA_APPS_REMOTE_URL, { cache: "no-store" });
-                    if (res.ok) {
-                        const remote = await res.json();
-                        if (Array.isArray(remote) && remote.length) data = remote;
-                    }
-                } catch (_) { /* fall back to bundled defaults */ }
-            }
-            this.apps = data.filter((a) => a && a.ShowInMenu !== false);
-            const order = ["iOS", "Android", "Windows", "macOS", "Linux"];
-            const present = new Set();
-            this.apps.forEach((a) => (a.os || []).forEach((o) => present.add(o)));
-            this.osList = order.filter((o) => present.has(o)).concat([...present].filter((o) => !order.includes(o)));
-            this.activeOs = this.detectOs(this.osList);
-            this.appsLoaded = this.apps.length > 0;
-        },
-        detectOs(list) {
-            const ua = navigator.userAgent || "";
-            if (/iphone|ipad|ipod/i.test(ua) && list.includes("iOS")) return "iOS";
-            if (/android/i.test(ua) && list.includes("Android")) return "Android";
-            if (/mac/i.test(ua) && list.includes("macOS")) return "macOS";
-            if (/win/i.test(ua) && list.includes("Windows")) return "Windows";
-            if (/linux/i.test(ua) && list.includes("Linux")) return "Linux";
-            return list[0] || "";
-        },
-        get appsForOs() { return this.apps.filter((a) => (a.os || []).includes(this.activeOs)); },
-        deepLink(app) {
-            // Query-style schemes need the URL percent-encoded; path-style schemes
-            // (e.g. Happ's happ://add/<url>) take the raw URL — encoding it breaks
-            // import on Android. Opt out per app via "encode": false.
-            const raw = this.subscriptionUrl;
-            const url = app.encode === false ? raw : encodeURIComponent(raw);
-            const tpl = app.urlScheme || "";
-            return tpl.includes("{url}") ? tpl.replace(/\{url\}/g, url) : tpl + url;
-        },
-        // Resolve the download URL for the active OS, falling back to the
-        // generic "link" field.
-        downloadLink(app) {
-            const byOs = app.downloadLinks && app.downloadLinks[this.activeOs];
-            return byOs || app.link || "";
-        },
-        // Phosphor icon class for each OS tab.
-        osIcon(os) {
-            return {
-                iOS: "ph-apple-logo",
-                macOS: "ph-apple-logo",
-                Android: "ph-android-logo",
-                Windows: "ph-windows-logo",
-                Linux: "ph-linux-logo",
-            }[os] || "ph-device-mobile";
-        },
-
-        /* -------- entrance animation -------- */
-        // Reveal EVERY section on load (gently staggered) — never gate visibility
-        // on scrolling, so below-the-fold cards are always present.
-        revealAll() {
-            const els = Array.from(document.querySelectorAll(".reveal"));
-            els.forEach((el, i) => (el.style.transitionDelay = Math.min(i * 70, 350) + "ms"));
-            requestAnimationFrame(() =>
-                requestAnimationFrame(() => els.forEach((el) => el.classList.add("shown")))
-            );
-            // Drop the stagger afterwards so later state changes don't lag.
-            setTimeout(() => els.forEach((el) => (el.style.transitionDelay = "")), 1000);
-        },
+        username: (d.username || "").trim(),
+        brandName: (d.brandName || "").trim() || defaultBrand(),
+        serviceName: (d.serviceName || "").trim(),
+        onlineCount: num(d.onlineCount),
+        status: (d.status || "").trim().toLowerCase(),
+        statusClass: (d.statusClass || "").trim().toLowerCase(),
+        usedTraffic: num(d.used),
+        dataLimit: num(d.limit),
+        limitRaw: d.limit,
+        resetStrategy: (d.resetStrategy || "").trim().toLowerCase(),
+        expire: num(d.expire),
+        expireRaw: d.expire,
+        remainingDays: Math.max(0, num(d.remainingDays)),
+        subUrl,
+        usageUrl: (d.usageUrl || "").trim(),
+        supportUrl: (d.supportUrl || "").trim(),
+        links: parseLinks(($("#aurora-links") || {}).textContent),
     };
 }
 
-window.aurora = aurora;
+/**
+ * Effective account state. `status` is authoritative; `status_class` is only a
+ * styling hint some panels normalize differently. When the server still says
+ * "active", fall back to client-side conditions (a quota that ran out or an
+ * expiry that passed after the page was rendered).
+ */
+function deriveState(ctx) {
+    const KNOWN = ["disabled", "on_hold", "expired", "limited"];
+    if (KNOWN.includes(ctx.status)) return ctx.status;
+    if (KNOWN.includes(ctx.statusClass)) return ctx.statusClass;
+    if (hasValue(ctx.expireRaw) && ctx.expire * 1000 < Date.now()) return "expired";
+    if (hasValue(ctx.limitRaw) && ctx.dataLimit > 0 && ctx.usedTraffic >= ctx.dataLimit) return "limited";
+    return "active";
+}
+
+/* ------------------------------------------------------------------ state */
+
+let lang = "en";
+let theme = "auroradark";
+let CTX = null;
+let STATE = "active";
+let cardAnimated = false;
+let configsView = null;
+let appsView = null;
+let usageView = null;
+
+const t = (key) => (I18N[lang] && I18N[lang][key]) || I18N.en[key] || key;
+
+/* ------------------------------------------------------------------- i18n */
+
+function applyI18n() {
+    const dict = I18N[lang];
+    document.documentElement.lang = lang;
+    document.documentElement.dir = dict.dir;
+    $$("[data-i18n]").forEach((el) => {
+        const key = el.getAttribute("data-i18n");
+        if (dict[key] != null || I18N.en[key] != null) el.textContent = t(key);
+    });
+    $$("[data-i18n-ph]").forEach((el) => el.setAttribute("placeholder", t(el.getAttribute("data-i18n-ph"))));
+    $$("[data-i18n-title]").forEach((el) => el.setAttribute("title", t(el.getAttribute("data-i18n-title"))));
+    $$("[data-i18n-label]").forEach((el) => el.setAttribute("aria-label", t(el.getAttribute("data-i18n-label"))));
+    $$("[data-i18n-dyn]").forEach((el) => { el.textContent = t(el.getAttribute("data-i18n-dyn")); });
+}
+
+function setLang(next, persist) {
+    lang = I18N[next] ? next : "en";
+    if (persist) storeSet("aurora_lang", lang);
+    $("#lang-label").textContent = lang === "en" ? "EN" : "فا";
+    applyI18n();
+    renderAllDynamic();
+}
+
+/* ------------------------------------------------------------------ theme */
+
+function themeToken(name, fallback) {
+    try {
+        const v = getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+        return v || fallback;
+    } catch (_) {
+        return fallback;
+    }
+}
+
+function setTheme(id, persist) {
+    theme = THEMES.some((th) => th.id === id) ? id : "auroradark";
+    document.documentElement.setAttribute("data-theme", theme);
+    if (persist) storeSet("aurora_theme", theme);
+    renderThemeMenu();
+    // Keep the browser chrome + PWA manifest colours in step with the theme.
+    const meta = document.querySelector('meta[name="theme-color"]');
+    if (meta) meta.setAttribute("content", themeToken("--color-base-100", "#141c28"));
+    if (CTX) installManifest();
+}
+
+function renderThemeMenu() {
+    const list = $("#theme-list");
+    list.innerHTML = THEMES.map((th) =>
+        `<li><button data-theme-id="${th.id}" class="justify-between rounded-xl${th.id === theme ? " active font-semibold" : ""}">` +
+        `<span class="flex items-center gap-2">` +
+        `<span class="h-3.5 w-3.5 rounded-full border border-base-content/20" style="background:${th.swatch}"></span>` +
+        `<span>${th.label}</span></span>` +
+        (th.id === theme ? `<i class="ph ph-check text-base text-primary"></i>` : "") +
+        `</button></li>`
+    ).join("");
+    $$("[data-theme-id]", list).forEach((btn) => {
+        btn.addEventListener("click", () => {
+            setTheme(btn.getAttribute("data-theme-id"), true);
+            closeThemeMenu();
+        });
+    });
+}
+
+function openThemeMenu() {
+    setHidden($("#theme-list"), false);
+    $("#theme-toggle").setAttribute("aria-expanded", "true");
+}
+
+function closeThemeMenu() {
+    setHidden($("#theme-list"), true);
+    $("#theme-toggle").setAttribute("aria-expanded", "false");
+}
+
+function wireThemeMenu() {
+    $("#theme-toggle").addEventListener("click", (e) => {
+        e.stopPropagation();
+        if ($("#theme-list").hidden) openThemeMenu();
+        else closeThemeMenu();
+    });
+    document.addEventListener("click", (e) => {
+        if (!$("#theme-menu").contains(e.target)) closeThemeMenu();
+    });
+    document.addEventListener("keydown", (e) => {
+        if (e.key === "Escape") closeThemeMenu();
+    });
+}
+
+/* ------------------------------------------------------------------ prefs */
+
+function resolvePrefs() {
+    const params = new URLSearchParams(location.search);
+    const qLang = params.get("lang");
+    const sLang = storeGet("aurora_lang");
+    if (I18N[qLang]) lang = qLang;
+    else if (I18N[sLang]) lang = sLang;
+    else if ((navigator.language || "").toLowerCase().startsWith("fa")) lang = "fa";
+
+    const qTheme = params.get("theme");
+    const sTheme = storeGet("aurora_theme");
+    const isTheme = (v) => THEMES.some((th) => th.id === v);
+    if (isTheme(qTheme)) theme = qTheme;
+    else if (isTheme(sTheme)) theme = sTheme;
+    else if (typeof matchMedia === "function" && matchMedia("(prefers-color-scheme: light)").matches) {
+        theme = "auroralight";
+    }
+}
+
+/* ------------------------------------------------------------- brand/PWA */
+
+function renderBrand() {
+    $("#brand-name").textContent = CTX.brandName;
+    const splash = $("#splash-brand");
+    if (splash) splash.textContent = CTX.brandName;
+    document.title = CTX.username ? `${CTX.username} · ${CTX.brandName}` : CTX.brandName;
+}
+
+let manifestUrl = null;
+
+/** Dynamic PWA manifest so "Add to Home Screen" carries the brand + theme. */
+function installManifest() {
+    try {
+        const manifest = {
+            name: CTX.brandName,
+            short_name: CTX.brandName,
+            start_url: ".",
+            display: "standalone",
+            background_color: themeToken("--color-base-100", "#141c28"),
+            theme_color: themeToken("--color-base-100", "#141c28"),
+        };
+        const blob = new Blob([JSON.stringify(manifest)], { type: "application/json" });
+        if (manifestUrl) URL.revokeObjectURL(manifestUrl);
+        manifestUrl = URL.createObjectURL(blob);
+        let link = document.querySelector('link[rel="manifest"]');
+        if (!link) {
+            link = document.createElement("link");
+            link.rel = "manifest";
+            document.head.appendChild(link);
+        }
+        link.href = manifestUrl;
+    } catch (_) { /* PWA extras are best-effort */ }
+}
+
+/* ----------------------------------------------------------- service card */
+
+const STATUS_BADGES = {
+    active: "bg-success/15 text-success",
+    limited: "bg-error/15 text-error",
+    expired: "bg-warning/15 text-warning",
+    disabled: "bg-base-content/10 text-base-content/60",
+    on_hold: "bg-info/15 text-info",
+};
+
+const BANNER_TONES = {
+    limited: "text-error",
+    expired: "text-warning",
+    disabled: "text-base-content/70",
+    on_hold: "text-info",
+};
+
+function setRing(fillEl, pct) {
+    fillEl.style.strokeDashoffset = String(100 - clamp(pct, 0, 100));
+}
+
+function renderCard() {
+    const unlimited = !hasValue(CTX.limitRaw) || CTX.dataLimit <= 0;
+    const neverExpire = !hasValue(CTX.expireRaw);
+    const snap = cardAnimated;
+
+    $("#username").textContent = CTX.username || "—";
+    const svc = $("#service-name");
+    svc.textContent = CTX.serviceName;
+    setHidden(svc, !CTX.serviceName);
+
+    // Status badge + banner
+    const badge = $("#status-badge");
+    badge.className = `badge badge-lg gap-1.5 border-0 px-3 py-3.5 font-semibold ${STATUS_BADGES[STATE] || STATUS_BADGES.disabled}`;
+    $("#status-badge-text").textContent = t("status_" + STATE) === "status_" + STATE ? t("status_unknown") : t("status_" + STATE);
+    const banner = $("#status-banner");
+    if (STATE !== "active" && I18N.en["banner_" + STATE]) {
+        banner.className = `reveal shown alert mb-5 items-center rounded-2xl glass border-0 ${BANNER_TONES[STATE] || ""}`;
+        $("#status-banner-text").textContent = t("banner_" + STATE);
+        setHidden(banner, false);
+    } else {
+        setHidden(banner, true);
+    }
+
+    // ---- usage ring + stats
+    const usedPct = unlimited ? 0 : Math.min(100, Math.round((CTX.usedTraffic / CTX.dataLimit) * 100));
+    const dataFill = $("#ring-data-fill");
+    if (unlimited) {
+        dataFill.style.stroke = "var(--color-primary)";
+        setRing(dataFill, 100);
+        $("#ring-data-pct").textContent = "∞";
+        $("#ring-data").classList.remove("is-urgent");
+    } else {
+        // Same hue as the theme primary, shaded pale (low) → deep (high).
+        const d = (usedPct / 100 - 0.5) * 2;
+        const amt = Math.round(Math.abs(d) * 36);
+        const mixWith = d >= 0 ? "black" : "white";
+        dataFill.style.stroke = `color-mix(in oklch, var(--color-primary) ${100 - amt}%, ${mixWith} ${amt}%)`;
+        setRing(dataFill, usedPct);
+        $("#ring-data-pct").textContent = locPct(usedPct, lang);
+        $("#ring-data").classList.toggle("is-urgent", usedPct >= 90);
+    }
+
+    // Count-up formatter matching the decimal precision of the final value.
+    const countFmt = (final) => {
+        const dot = final.indexOf(".");
+        const dec = dot >= 0 ? final.length - dot - 1 : 0;
+        return (n) => locNum(n.toFixed(dec), lang);
+    };
+    const usedF = fmtBytes(CTX.usedTraffic, lang);
+    animateCount($("#stat-used"), usedF.num, countFmt(usedF.value), snap);
+    $("#stat-used-unit").textContent = usedF.unit;
+
+    if (unlimited) {
+        $("#stat-total").textContent = "∞";
+        $("#stat-total-unit").textContent = "";
+        $("#stat-remaining").textContent = "∞";
+        $("#stat-remaining-unit").textContent = "";
+    } else {
+        const totalF = fmtBytes(CTX.dataLimit, lang);
+        animateCount($("#stat-total"), totalF.num, countFmt(totalF.value), snap);
+        $("#stat-total-unit").textContent = totalF.unit;
+        const remF = fmtBytes(Math.max(0, CTX.dataLimit - CTX.usedTraffic), lang);
+        animateCount($("#stat-remaining"), remF.num, countFmt(remF.value), snap);
+        $("#stat-remaining-unit").textContent = remF.unit;
+    }
+
+    // ---- time ring + expiry
+    const timeFill = $("#ring-time-fill");
+    const expireCell = $("#stat-expire");
+    if (neverExpire) {
+        timeFill.style.stroke = "var(--color-accent)";
+        setRing(timeFill, 100);
+        $("#ring-time-val").textContent = "∞";
+        $("#ring-time").classList.remove("is-urgent");
+        expireCell.textContent = t("never");
+        expireCell.classList.remove("text-error");
+    } else {
+        const nowSec = Date.now() / 1000;
+        const remainingSec = Math.max(0, CTX.expire - nowSec);
+        // `remaining_days` is precomputed server-side (no now() in pongo2) and can
+        // be stale — derive live from `expire`, falling back to the server value.
+        const days = remainingSec > 0
+            ? Math.max(0, Math.ceil(remainingSec / 86400))
+            : Math.round(CTX.remainingDays);
+        // The ring empties across an adaptive cycle window so short plans show
+        // useful motion and long plans don't pin to 100%.
+        const windowDays = Math.max(CTX.remainingDays, remainingSec / 86400);
+        const cycleDays = windowDays <= 1 ? 1 : windowDays <= 7 ? 7 : windowDays <= 31 ? 31
+            : windowDays <= 93 ? 93 : windowDays <= 366 ? 366 : windowDays;
+        const frac = clamp(remainingSec / (cycleDays * 86400), 0, 1);
+        const tone = days <= 3 ? "var(--color-error)" : days <= 7 ? "var(--color-warning)" : "var(--color-accent)";
+        timeFill.style.stroke = tone;
+        setRing(timeFill, Math.round(frac * 100));
+        $("#ring-time").classList.toggle("is-urgent", frac <= 0.1 && STATE === "active");
+        $("#ring-time-val").textContent = locNum(days, lang);
+        expireCell.textContent = fmtDate(new Date(CTX.expire * 1000), lang);
+        expireCell.classList.toggle("text-error", days <= 3);
+    }
+    $("#ring-time-unit").textContent = t("days");
+
+    // ---- linear usage bar
+    const bar = $("#usage-bar");
+    if (unlimited) {
+        setHidden(bar, true);
+    } else {
+        setHidden(bar, false);
+        const prog = $("#usage-progress");
+        prog.value = usedPct;
+        prog.className = `progress h-2.5 w-full ${usedPct >= 90 ? "progress-error" : usedPct >= 75 ? "progress-warning" : "progress-primary"}`;
+        $("#usage-caption").textContent = `${fmtBytesStr(CTX.usedTraffic, lang)} / ${fmtBytesStr(CTX.dataLimit, lang)}`;
+        $("#usage-pct").textContent = locPct(usedPct, lang);
+    }
+
+    renderReset();
+    cardAnimated = true;
+}
+
+/* -------------------------------------------------------- reset countdown */
+
+let resetTimer = null;
+
+function nextResetDate(strategy) {
+    const d = new Date();
+    d.setHours(0, 0, 0, 0);
+    switch (strategy) {
+        case "day":
+            d.setDate(d.getDate() + 1);
+            return d;
+        case "week": {
+            const day = d.getDay(); // 0 Sun .. 6 Sat → next Monday
+            d.setDate(d.getDate() + (((8 - (day === 0 ? 7 : day)) % 7) || 7));
+            return d;
+        }
+        case "month":
+            d.setMonth(d.getMonth() + 1, 1);
+            return d;
+        case "year":
+            d.setFullYear(d.getFullYear() + 1, 0, 1);
+            return d;
+        default:
+            return null;
+    }
+}
+
+function renderReset() {
+    const row = $("#reset-row");
+    clearInterval(resetTimer);
+    const unlimited = !hasValue(CTX.limitRaw) || CTX.dataLimit <= 0;
+    const strategy = CTX.resetStrategy;
+    const target = nextResetDate(strategy);
+    if (unlimited || !target || STATE === "expired" || STATE === "disabled") {
+        setHidden(row, true);
+        return;
+    }
+    setHidden(row, false);
+    $("#reset-label").textContent = t("reset_" + strategy);
+
+    const out = $("#reset-countdown");
+    const tick = () => {
+        let diff = target.getTime() - Date.now();
+        if (diff <= 0) {
+            out.textContent = t("soon");
+            return;
+        }
+        const dd = Math.floor(diff / 86400000); diff -= dd * 86400000;
+        const hh = Math.floor(diff / 3600000); diff -= hh * 3600000;
+        const mm = Math.floor(diff / 60000); diff -= mm * 60000;
+        const ss = Math.floor(diff / 1000);
+        const pad = (n) => String(n).padStart(2, "0");
+        const clock = `${pad(hh)}:${pad(mm)}:${pad(ss)}`;
+        out.textContent = locNum(dd > 0 ? `${dd} ${t(dd === 1 ? "day" : "days")} ${clock}` : clock, lang);
+    };
+    tick();
+    resetTimer = setInterval(tick, 1000);
+}
+
+/* --------------------------------------------------------------- QR modal */
+
+let qrSvgFn = null;
+let qrSvgPromise = null;
+let qrCurrentText = "";
+
+/**
+ * Decode + import the QR module embedded by the build as an inert base64 blob
+ * (#aurora-qr), exactly once. Blob-URL import — no network request — so the
+ * ~20KB generator costs nothing until a QR is actually opened.
+ */
+function loadQrSvg() {
+    if (qrSvgFn) return Promise.resolve(qrSvgFn);
+    if (qrSvgPromise) return qrSvgPromise;
+    qrSvgPromise = (async () => {
+        const el = document.getElementById("aurora-qr");
+        const bytes = Uint8Array.from(atob(el.textContent.trim()), (c) => c.charCodeAt(0));
+        const src = new TextDecoder("utf-8").decode(bytes);
+        const url = URL.createObjectURL(new Blob([src], { type: "text/javascript" }));
+        try {
+            const mod = await import(/* @vite-ignore */ url);
+            qrSvgFn = mod.qrSvg;
+            return qrSvgFn;
+        } finally {
+            URL.revokeObjectURL(url);
+        }
+    })();
+    return qrSvgPromise;
+}
+
+async function openQr(title, text) {
+    const modal = $("#qr-modal");
+    qrCurrentText = text;
+    $("#qr-title").textContent = title || t("qrcode");
+    $("#qr-text").textContent = text;
+    const box = $("#qr-box");
+    box.innerHTML = `<span class="text-xs text-base-content/50">${escapeHtml(t("qr_loading"))}</span>`;
+    if (!modal.open) modal.showModal();
+    try {
+        const qrSvg = await loadQrSvg();
+        if (!modal.open) return; // closed before the module resolved
+        box.innerHTML = qrSvg(text, { margin: 0, errorText: t("qr_too_long") });
+    } catch (_) {
+        if (modal.open) box.innerHTML = `<span class="text-xs text-error">${escapeHtml(t("qr_error"))}</span>`;
+    }
+}
+
+function wireQrModal() {
+    $("#qr-close").addEventListener("click", () => $("#qr-modal").close());
+    $("#qr-copy").addEventListener("click", async (e) => {
+        if (await copyText(qrCurrentText)) flashCopied(e.currentTarget, t);
+    });
+}
+
+/* ------------------------------------------------------------- collapses */
+
+function wireCollapses() {
+    $$("[data-collapse]").forEach((head) => {
+        const id = head.getAttribute("data-collapse");
+        const target = $("#" + id);
+        if (!target) return;
+        // Restore the persisted open/closed choice.
+        const saved = storeGet("aurora_collapse_" + id);
+        if (saved === "open" || saved === "closed") {
+            const open = saved === "open";
+            target.classList.toggle("open", open);
+            head.setAttribute("aria-expanded", String(open));
+        }
+        head.addEventListener("click", () => {
+            const open = !target.classList.contains("open");
+            target.classList.toggle("open", open);
+            head.setAttribute("aria-expanded", String(open));
+            head.querySelector(".chev")?.classList.toggle("open", open);
+            storeSet("aurora_collapse_" + id, open ? "open" : "closed");
+        });
+        // Sync the chevron with the (possibly restored) state.
+        head.querySelector(".chev")?.classList.toggle("open", target.classList.contains("open"));
+    });
+}
+
+/* ---------------------------------------------------------------- offline */
+
+function wireOffline() {
+    const sync = () => setHidden($("#offline-banner"), navigator.onLine !== false);
+    window.addEventListener("online", sync);
+    window.addEventListener("offline", sync);
+    sync();
+}
+
+/* ------------------------------------------------------------------- apps */
+
+async function loadAppsCatalogue() {
+    let data = Array.isArray(window.AURORA_APPS) ? window.AURORA_APPS : [];
+    if (AURORA_APPS_REMOTE_URL) {
+        try {
+            const res = await fetch(AURORA_APPS_REMOTE_URL, { cache: "no-store" });
+            if (res.ok) {
+                const remote = await res.json();
+                if (Array.isArray(remote) && remote.length) data = remote;
+            }
+        } catch (_) { /* bundled defaults remain */ }
+    }
+    return data;
+}
+
+/* ------------------------------------------------------------- re-render */
+
+function renderAllDynamic() {
+    if (!CTX) return;
+    renderBrand();
+    renderOnlineBadge();
+    renderCard();
+    if (configsView) configsView.rerender();
+    if (appsView) appsView.rerender();
+    if (usageView) usageView.rerender();
+}
+
+function renderOnlineBadge() {
+    const badge = $("#online-badge");
+    if (CTX.onlineCount > 0) {
+        $("#online-count").textContent = locNum(CTX.onlineCount, lang);
+        setHidden(badge, false);
+    } else {
+        setHidden(badge, true);
+    }
+}
+
+/* -------------------------------------------------------------- bootstrap */
+
+async function init() {
+    try {
+        CTX = readContext();
+        STATE = deriveState(CTX);
+
+        resolvePrefs();
+        setTheme(theme, false);
+        setLang(lang, false); // applies i18n and the first dynamic render
+
+        $("#lang-toggle").addEventListener("click", () => setLang(lang === "en" ? "fa" : "en", true));
+        wireThemeMenu();
+        wireQrModal();
+        wireCollapses();
+        wireOffline();
+
+        // Header copy-sub + sub-QR act on the subscription URL.
+        $("#copy-sub").addEventListener("click", async (e) => {
+            if (await copyText(CTX.subUrl)) flashCopied(e.currentTarget, t);
+        });
+        $("#sub-qr").addEventListener("click", () => openQr(t("subscription"), CTX.subUrl));
+
+        const support = $("#support-link");
+        if (CTX.supportUrl) {
+            support.href = CTX.supportUrl;
+            setHidden(support, false);
+        }
+
+        // Sections. Configs mounts synchronously; apps waits on the (optional)
+        // remote catalogue; usage fetches its history in the background.
+        configsView = mountConfigs({
+            links: CTX.links,
+            username: CTX.username,
+            t,
+            lang: () => lang,
+            openQr,
+        });
+        usageView = mountUsage({ ctx: CTX, state: STATE, t, lang: () => lang });
+        usageView.start();
+        loadAppsCatalogue().then((apps) => {
+            appsView = mountApps({ apps, subUrl: CTX.subUrl, username: CTX.username, t });
+        });
+
+        renderAllDynamic();
+
+        requestAnimationFrame(() => {
+            revealAll();
+            hideSplash();
+        });
+    } catch (err) {
+        try { console.error("[aurora] init failed:", err); } catch (_) { /* ignore */ }
+        showErrorBanner();
+        hideSplash();
+    }
+}
+
+if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", init);
+} else {
+    init();
+}

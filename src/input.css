@@ -1,9 +1,12 @@
 @import "tailwindcss";
 @source "../src/**/*.{html,js}";
 
-/* DaisyUI v5 — load plugin and select the themes we ship. */
+/* DaisyUI v5 — themes we ship, and ONLY the component CSS the page actually
+   uses (the default emits every component, ~30KB of dead weight here). */
 @plugin "daisyui" {
   themes: auroradark --default --prefersdark, auroralight, amoleddark, nord;
+  include: properties, rootcolor, rootscrollgutter, rootscrolllock, scrollbar, svg,
+    alert, badge, button, card, checkbox, link, menu, modal, progress, tab;
 }
 
 /* ----------------------------------------------------------------------------
@@ -165,11 +168,6 @@ html[dir="rtl"] {
   html {
     scroll-behavior: smooth;
   }
-
-  /* Hide the Alpine-driven UI until the component is ready (no flash). */
-  [x-cloak] {
-    display: none !important;
-  }
 }
 
 /* ----------------------------------------------------------------------------
@@ -223,14 +221,19 @@ html[dir="rtl"] {
     transform: scale(0.985);
   }
 
-  /* Smooth height-collapse without JS measuring (grid 0fr → 1fr trick). */
+  /* Smooth height-collapse without JS measuring (grid 0fr → 1fr trick).
+     `visibility` flips after the animation so closed content leaves the tab
+     order and the accessibility tree. */
   .collapsey {
     display: grid;
     grid-template-rows: 0fr;
-    transition: grid-template-rows 0.38s cubic-bezier(0.4, 0, 0.2, 1);
+    visibility: hidden;
+    transition: grid-template-rows 0.38s cubic-bezier(0.4, 0, 0.2, 1), visibility 0s 0.38s;
   }
   .collapsey.open {
     grid-template-rows: 1fr;
+    visibility: visible;
+    transition: grid-template-rows 0.38s cubic-bezier(0.4, 0, 0.2, 1);
   }
   .collapsey > .collapsey-inner {
     overflow: hidden;
@@ -285,6 +288,126 @@ html[dir="rtl"] {
   }
   .no-scrollbar::-webkit-scrollbar {
     display: none;
+  }
+
+  /* Muted unit suffix next to big stat numbers. */
+  .stat-unit {
+    font-size: 0.72em;
+    font-weight: 600;
+    color: color-mix(in oklch, var(--color-base-content) 55%, transparent);
+  }
+
+  /* Pulsing presence dot in the online badge. */
+  .online-dot {
+    width: 0.4rem;
+    height: 0.4rem;
+    border-radius: 9999px;
+    background: currentColor;
+    animation: aurora-pulse 2.2s ease-in-out infinite;
+  }
+  @keyframes aurora-pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.35; }
+  }
+
+  /* Config search field focus affordance. */
+  .cfg-search {
+    transition: border-color 0.2s ease;
+  }
+  .cfg-search:focus-within {
+    border-color: color-mix(in oklch, var(--color-primary) 55%, transparent);
+  }
+
+  /* Protocol filter pills. */
+  .filter-pill {
+    flex-shrink: 0;
+    border-radius: 9999px;
+    padding: 0.3rem 0.8rem;
+    font-size: 12px;
+    font-weight: 600;
+    color: color-mix(in oklch, var(--color-base-content) 65%, transparent);
+    background: color-mix(in oklch, var(--color-base-100) 55%, transparent);
+    border: 1px solid color-mix(in oklch, var(--color-base-content) 10%, transparent);
+    transition: background 0.2s ease, color 0.2s ease;
+  }
+  .filter-pill.active {
+    background: color-mix(in oklch, var(--color-primary) 18%, transparent);
+    border-color: color-mix(in oklch, var(--color-primary) 35%, transparent);
+    color: var(--color-primary);
+  }
+
+  /* Toolbar toggles (group / select) when engaged. */
+  .tool-active {
+    background: color-mix(in oklch, var(--color-primary) 16%, transparent) !important;
+    color: var(--color-primary);
+  }
+
+  /* Usage history chart — bars pick up the theme primary. */
+  .usage-chart svg {
+    display: block;
+    width: 100%;
+    height: 5.5rem;
+  }
+  .usage-chart rect {
+    fill: color-mix(in oklch, var(--color-primary) 75%, transparent);
+  }
+  .usage-chart rect:hover {
+    fill: var(--color-primary);
+  }
+
+  /* Per-server horizontal bars. */
+  .node-bar {
+    height: 0.375rem;
+    border-radius: 9999px;
+    background: color-mix(in oklch, var(--color-base-content) 10%, transparent);
+    overflow: hidden;
+  }
+  .node-bar > span {
+    display: block;
+    height: 100%;
+    border-radius: 9999px;
+    background: linear-gradient(90deg, var(--color-primary), var(--color-secondary));
+  }
+
+  /* Toast (export confirmations etc.). */
+  .toast-pill {
+    transform: translateX(-50%);
+    margin-bottom: env(safe-area-inset-bottom);
+  }
+  .toast-pill.toast-in {
+    animation: aurora-toast-in 0.25s cubic-bezier(0.22, 1, 0.36, 1);
+  }
+  @keyframes aurora-toast-in {
+    from {
+      opacity: 0;
+      transform: translateX(-50%) translateY(0.75rem);
+    }
+    to {
+      opacity: 1;
+      transform: translateX(-50%) translateY(0);
+    }
+  }
+
+  /* Theme popover entrance. */
+  .pop-menu:not([hidden]) {
+    animation: aurora-pop 0.16s ease;
+    transform-origin: top var(--pop-origin, right);
+  }
+  @keyframes aurora-pop {
+    from {
+      opacity: 0;
+      transform: scale(0.95) translateY(-4px);
+    }
+    to {
+      opacity: 1;
+      transform: scale(1) translateY(0);
+    }
+  }
+
+  /* QR canvas fills its white frame. */
+  .qr-box > svg {
+    width: 100%;
+    height: 100%;
   }
 }
 
@@ -354,9 +477,16 @@ html[dir="rtl"] {
   position: relative;
   z-index: 1;
 }
+/* Urgent pulse when usage ≥ 90% or the plan is in its final stretch. */
+.ring-wrap.is-urgent .ring-fill {
+  filter: drop-shadow(0 0 6px color-mix(in oklch, var(--color-error) 55%, transparent));
+}
 @media (prefers-reduced-motion: reduce) {
   .ring-fill {
     transition: none;
+  }
+  .online-dot {
+    animation: none;
   }
 }
 

@@ -6,27 +6,70 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
     <meta name="color-scheme" content="dark light" />
     <meta name="robots" content="noindex, nofollow" />
-    <title>{{ user.username }} · Subscription</title>
+    <meta name="theme-color" content="#141c28" />
+    <title>Aurora</title>
 
     <!--
-      Fully self-contained: CSS, web fonts (Inter + Arad), Phosphor icons,
-      Alpine.js and qrcode-generator are ALL inlined at build time. The page
-      makes no external requests, so it works even where CDNs are blocked.
-      Built Tailwind v4 + DaisyUI v5 CSS (+ fonts + icons) is inlined here.
+      Default brand name. The panel's brand_name binding (data island below)
+      wins when present; when it's empty this meta is the fallback shown in the
+      splash, header, title and PWA manifest. To rebrand an already-built
+      dist/index.html without rebuilding:  sed -i 's/\bAurora\b/YourBrand/g' index.html
+    -->
+    <meta name="aurora-brand" content="Aurora" />
+
+    <!--
+      Blocking pref resolver: apply the saved/queried theme and language BEFORE
+      first paint so there is no flash of the default theme or LTR layout.
+      Plain JS only; the build guard forbids template directives here.
+    -->
+    <script>
+        (function () {
+            try {
+                var doc = document.documentElement;
+                var q = new URLSearchParams(location.search);
+                var themes = ["auroradark", "amoleddark", "auroralight", "nord"];
+                var t = q.get("theme");
+                if (themes.indexOf(t) < 0) {
+                    t = null;
+                    try { t = localStorage.getItem("aurora_theme"); } catch (e) { t = null; }
+                }
+                if (themes.indexOf(t) < 0 && window.matchMedia) {
+                    if (matchMedia("(prefers-color-scheme: light)").matches) t = "auroralight";
+                }
+                if (themes.indexOf(t) >= 0) doc.setAttribute("data-theme", t);
+                var l = q.get("lang");
+                if (l !== "en" && l !== "fa") {
+                    l = null;
+                    try { l = localStorage.getItem("aurora_lang"); } catch (e) { l = null; }
+                }
+                if (l !== "en" && l !== "fa") {
+                    l = (navigator.language || "").toLowerCase().indexOf("fa") === 0 ? "fa" : "en";
+                }
+                doc.lang = l;
+                doc.dir = l === "fa" ? "rtl" : "ltr";
+            } catch (e) { /* keep markup defaults */ }
+        })();
+    </script>
+
+    <!--
+      Fully self-contained: CSS, web fonts (Inter variable + Arad), Phosphor
+      icons, the app bundle and the lazy QR module are ALL inlined at build
+      time. The page makes no external requests, so it renders fully even
+      where CDNs are blocked.
     -->
     <!--AURORA_INLINE_CSS-->
 </head>
 
 <body class="min-h-screen text-base-content">
-    <!-- Loading splash (visible before Alpine boots; removed from init()). -->
+    <!-- Loading splash (pure CSS, visible before the app boots). -->
     <div id="aurora-loader">
         <div class="flex flex-col items-center gap-4">
             <div class="aurora-spinner"></div>
-            <p class="text-lg font-extrabold tracking-tight gradient-text">Subscription</p>
+            <p id="splash-brand" class="text-lg font-extrabold tracking-tight gradient-text">Aurora</p>
         </div>
     </div>
     <script>
-        // Safety net: never let the splash trap the user if Alpine/CDN fails.
+        // Safety net: never let the splash trap the user if the app fails to boot.
         setTimeout(function () {
             var l = document.getElementById("aurora-loader");
             if (l && !l.classList.contains("is-done")) {
@@ -40,10 +83,10 @@
 
     <!--
       ====================================================================
-       DATA ISLAND — bound to the REAL Rebecca (pongo2) context.
-       Numbers/strings ride on data-* attributes (browser decodes entities
-       on read); config links ride as element text (read via textContent),
-       which sidesteps JSON/JS escaping issues with unicode remark names.
+       DATA ISLAND — bound to the REAL Rebecca (pongo2) context. These are
+       the ONLY template directives in the whole file; the build guard
+       enforces it. Values ride on data-* attributes (entities decode on
+       read); config links ride as newline-separated plain text.
       ====================================================================
     -->
     <div id="aurora-data" hidden
@@ -51,125 +94,129 @@
         data-status="{{ user.status }}"
         data-status-class="{{ user.status_class }}"
         data-used="{{ user.used_traffic }}"
-        data-limit="{% if user.data_limit %}{{ user.data_limit }}{% endif %}"
+        data-limit="{{ user.data_limit }}"
         data-reset-strategy="{{ user.data_limit_reset_strategy }}"
-        data-expire="{% if user.expire %}{{ user.expire }}{% endif %}"
+        data-expire="{{ user.expire }}"
         data-remaining-days="{{ remaining_days }}"
         data-subscription-url="{{ user.subscription_url }}"
         data-support-url="{{ support_url }}"
         data-usage-url="{{ usage_url }}"
+        data-brand-name="{{ brand_name }}"
+        data-online-count="{{ user.online_count }}"
         data-service-name="{{ user.service_name }}">
+        <script type="text/plain" id="aurora-links">{% for link in links %}{{ link }}
+{% endfor %}</script>
     </div>
-    <div id="aurora-configs" hidden>{% for link in links %}<span class="cfg">{{ link }}</span>{% endfor %}</div>
 
-    <main x-data="aurora()" x-init="init()" x-cloak class="relative mx-auto w-full max-w-3xl px-4 pb-16 pt-5 sm:px-6">
-
-        <!-- ===================== OFFLINE BANNER (no network) ===================== -->
-        <div x-show="!online" x-cloak x-transition.opacity
-            class="pointer-events-none fixed inset-x-0 top-0 z-[200] flex justify-center px-4 pt-3"
-            style="padding-top: max(0.75rem, env(safe-area-inset-top));">
-            <div class="alert pointer-events-auto w-auto max-w-sm items-center gap-2 rounded-2xl glass border-0 text-warning shadow-2xl shadow-black/30">
-                <i class="ph ph-wifi-slash shrink-0 text-xl"></i>
-                <div class="min-w-0">
-                    <p class="text-sm font-semibold" x-text="t('offline_title')"></p>
-                    <p class="text-[11px] font-normal text-base-content/60" x-text="t('offline_desc')"></p>
-                </div>
+    <!-- ===================== OFFLINE BANNER (no network) ===================== -->
+    <div id="offline-banner" hidden
+        class="pointer-events-none fixed inset-x-0 top-0 z-[200] flex justify-center px-4 pt-3"
+        style="padding-top: max(0.75rem, env(safe-area-inset-top));">
+        <div class="alert pointer-events-auto w-auto max-w-sm items-center gap-2 rounded-2xl glass border-0 text-warning shadow-2xl shadow-black/30">
+            <i class="ph ph-wifi-slash shrink-0 text-xl"></i>
+            <div class="min-w-0">
+                <p class="text-sm font-semibold" data-i18n="offline_title">You're offline</p>
+                <p class="text-[11px] font-normal text-base-content/60" data-i18n="offline_desc">Check your connection — this updates automatically.</p>
             </div>
         </div>
+    </div>
+
+    <!-- ================= ERROR BANNER (boot failure boundary) ================ -->
+    <div id="error-banner" hidden role="alert"
+        class="fixed inset-x-0 top-0 z-[210] flex justify-center px-4 pt-3"
+        style="padding-top: max(0.75rem, env(safe-area-inset-top));">
+        <div class="alert w-auto max-w-sm items-center gap-2 rounded-2xl glass border-0 text-error shadow-2xl shadow-black/30">
+            <i class="ph ph-warning-circle shrink-0 text-xl"></i>
+            <div class="min-w-0">
+                <p class="text-sm font-semibold" data-i18n="error_title">Something went wrong</p>
+                <p class="text-[11px] font-normal text-base-content/60" data-i18n="error_desc">The page failed to load fully. Please refresh to try again.</p>
+            </div>
+        </div>
+    </div>
+
+    <main id="app" class="relative mx-auto w-full max-w-3xl px-4 pb-16 pt-5 sm:px-6">
 
         <!-- ============================ TOP BAR ============================ -->
         <header class="reveal relative z-50 mb-6 flex items-center justify-between gap-3">
-            <div class="flex items-center gap-2.5">
+            <div class="flex min-w-0 items-center gap-2.5">
                 <!-- Logo placeholder: an empty circle (per request). -->
                 <div class="h-11 w-11 shrink-0 rounded-full border-2 border-base-content/25"></div>
-                <div class="leading-tight">
-                    <p class="text-xl font-extrabold tracking-tight gradient-text" x-text="t('brand')"></p>
-                    <p class="text-[11px] text-base-content/50" x-text="t('tagline')"></p>
+                <div class="min-w-0 leading-tight">
+                    <div class="flex items-center gap-2">
+                        <p id="brand-name" class="truncate text-xl font-extrabold tracking-tight gradient-text">Aurora</p>
+                        <span id="online-badge" hidden
+                            class="badge badge-sm gap-1 border-0 bg-success/15 font-semibold text-success">
+                            <span class="online-dot"></span>
+                            <span id="online-count">0</span>
+                            <span class="hidden sm:inline" data-i18n="online_now">online now</span>
+                        </span>
+                    </div>
+                    <p class="truncate text-[11px] text-base-content/50" data-i18n="tagline">Your connection, beautifully managed</p>
                 </div>
             </div>
 
-            <div class="flex items-center gap-2">
+            <div class="flex shrink-0 items-center gap-2">
                 <!-- Language switcher -->
-                <button class="btn btn-sm btn-ghost glass gap-1.5 font-semibold" @click="toggleLang()"
-                    :aria-label="t('switch_lang')">
+                <button id="lang-toggle" class="btn btn-sm btn-ghost glass gap-1.5 font-semibold"
+                    data-i18n-label="switch_lang">
                     <i class="ph ph-globe text-lg opacity-70"></i>
-                    <span x-text="lang === 'en' ? 'EN' : 'فا'"></span>
+                    <span id="lang-label">EN</span>
                 </button>
 
-                <!-- Theme switcher (Alpine-controlled popover; renders above all cards) -->
-                <div class="relative" @click.outside="themeOpen = false">
-                    <button class="btn btn-sm btn-ghost glass" @click="themeOpen = !themeOpen"
-                        :aria-label="t('switch_theme')" aria-haspopup="true" :aria-expanded="themeOpen">
+                <!-- Theme switcher popover -->
+                <div id="theme-menu" class="relative">
+                    <button id="theme-toggle" class="btn btn-sm btn-ghost glass" aria-haspopup="true"
+                        aria-expanded="false" data-i18n-label="switch_theme">
                         <i class="ph ph-palette text-lg"></i>
                     </button>
-                    <ul x-show="themeOpen" x-cloak x-transition.origin.top
-                        class="menu glass absolute end-0 z-[100] mt-2 w-48 gap-0.5 rounded-2xl p-2 shadow-2xl shadow-black/30">
-                        <template x-for="th in themes" :key="th.id">
-                            <li>
-                                <button @click="setTheme(th.id); themeOpen = false" class="justify-between rounded-xl"
-                                    :class="theme === th.id && 'active font-semibold'">
-                                    <span class="flex items-center gap-2">
-                                        <span class="h-3.5 w-3.5 rounded-full border border-base-content/20" :style="`background:${th.swatch}`"></span>
-                                        <span x-text="th.label"></span>
-                                    </span>
-                                    <i class="ph ph-check text-base text-primary" x-show="theme === th.id"></i>
-                                </button>
-                            </li>
-                        </template>
+                    <ul id="theme-list" hidden
+                        class="menu glass pop-menu absolute end-0 z-[100] mt-2 w-48 gap-0.5 rounded-2xl p-2 shadow-2xl shadow-black/30">
                     </ul>
                 </div>
             </div>
         </header>
 
         <!-- ===================== STATUS BANNER (edge cases) ===================== -->
-        <template x-if="statusClass !== 'active'">
-            <div class="reveal alert mb-5 items-center rounded-2xl glass border-0"
-                :class="{'text-warning': statusClass==='expired','text-error': statusClass==='limited','text-base-content/70': statusClass==='disabled'}">
-                <i class="ph ph-warning-circle shrink-0 text-xl"></i>
-                <span class="text-sm font-medium" x-text="t('banner_' + statusClass)"></span>
-            </div>
-        </template>
+        <div id="status-banner" hidden class="reveal alert mb-5 items-center rounded-2xl glass border-0">
+            <i class="ph ph-warning-circle shrink-0 text-xl"></i>
+            <span id="status-banner-text" class="text-sm font-medium"></span>
+        </div>
 
         <!-- ========================= SERVICE INFO CARD ========================= -->
         <section class="reveal card glass lift mb-6 overflow-hidden rounded-[1.5rem] shadow-2xl shadow-black/20">
             <div class="card-body gap-5 p-5 sm:p-7">
                 <div class="flex flex-wrap items-center justify-between gap-3">
                     <div class="min-w-0">
-                        <p class="text-xs uppercase tracking-widest text-base-content/50" x-text="t('account')"></p>
-                        <h1 class="truncate text-2xl font-extrabold sm:text-3xl" x-text="username"></h1>
-                        <p class="mt-0.5 truncate text-sm text-base-content/60" x-show="serviceName" x-text="serviceName"></p>
+                        <p class="text-xs uppercase tracking-widest text-base-content/50" data-i18n="account">Account</p>
+                        <h1 id="username" class="truncate text-2xl font-extrabold sm:text-3xl"></h1>
+                        <p id="service-name" hidden class="mt-0.5 truncate text-sm text-base-content/60"></p>
                     </div>
-                    <span class="badge badge-lg gap-1.5 border-0 px-3 py-3.5 font-semibold"
-                        :class="statusBadge">
+                    <span id="status-badge" class="badge badge-lg gap-1.5 border-0 px-3 py-3.5 font-semibold">
                         <span class="h-2 w-2 rounded-full bg-current"></span>
-                        <span x-text="t('status_' + statusClass)"></span>
+                        <span id="status-badge-text"></span>
                     </span>
                 </div>
 
-                <!-- Dual rings: data usage + time remaining (rounded caps) -->
+                <!-- Dual rings: data usage + time remaining -->
                 <div class="flex items-center justify-center gap-6 py-1 sm:gap-14">
-                    <!-- Usage ring -->
-                    <div class="ring-wrap">
+                    <div id="ring-data" class="ring-wrap">
                         <svg class="ring-svg" viewBox="0 0 100 100" aria-hidden="true">
                             <circle class="ring-track" cx="50" cy="50" r="44" pathLength="100" />
-                            <circle class="ring-fill" cx="50" cy="50" r="44" pathLength="100"
-                                :style="`stroke:${usageRingColor}; stroke-dashoffset:${100 - (unlimited ? 100 : usagePercent)}`" />
+                            <circle id="ring-data-fill" class="ring-fill" cx="50" cy="50" r="44" pathLength="100" />
                         </svg>
                         <div class="ring-label text-center leading-none">
-                            <p class="text-2xl font-extrabold" x-text="unlimited ? '∞' : (usagePercent + '%')"></p>
-                            <p class="mt-0.5 text-[10px] uppercase tracking-wider text-base-content/50" x-text="t('used')"></p>
+                            <p id="ring-data-pct" class="text-2xl font-extrabold"></p>
+                            <p class="mt-0.5 text-[10px] uppercase tracking-wider text-base-content/50" data-i18n="used">Used</p>
                         </div>
                     </div>
-                    <!-- Time-remaining ring -->
-                    <div class="ring-wrap">
+                    <div id="ring-time" class="ring-wrap">
                         <svg class="ring-svg" viewBox="0 0 100 100" aria-hidden="true">
                             <circle class="ring-track" cx="50" cy="50" r="44" pathLength="100" />
-                            <circle class="ring-fill" cx="50" cy="50" r="44" pathLength="100"
-                                :style="`stroke:var(--color-${timeTone}); stroke-dashoffset:${100 - timePercent}`" />
+                            <circle id="ring-time-fill" class="ring-fill" cx="50" cy="50" r="44" pathLength="100" />
                         </svg>
                         <div class="ring-label text-center leading-none">
-                            <p class="text-2xl font-extrabold" x-text="neverExpire ? '∞' : remainingDays"></p>
-                            <p class="mt-0.5 text-[10px] uppercase tracking-wider text-base-content/50" x-text="t('days')"></p>
+                            <p id="ring-time-val" class="text-2xl font-extrabold"></p>
+                            <p id="ring-time-unit" class="mt-0.5 text-[10px] uppercase tracking-wider text-base-content/50" data-i18n="days">days</p>
                         </div>
                     </div>
                 </div>
@@ -177,171 +224,166 @@
                 <!-- Traffic + expiry stats -->
                 <div class="grid grid-cols-2 gap-3 sm:grid-cols-4">
                     <div class="rounded-2xl bg-base-100/40 p-3.5">
-                        <p class="text-[11px] uppercase tracking-wide text-base-content/50" x-text="t('used')"></p>
-                        <p class="mt-1 text-lg font-bold" x-text="fmtBytes(used)"></p>
+                        <p class="text-[11px] uppercase tracking-wide text-base-content/50" data-i18n="used">Used</p>
+                        <p class="mt-1 text-lg font-bold"><span id="stat-used"></span> <span id="stat-used-unit" class="stat-unit"></span></p>
                     </div>
                     <div class="rounded-2xl bg-base-100/40 p-3.5">
-                        <p class="text-[11px] uppercase tracking-wide text-base-content/50" x-text="t('total')"></p>
-                        <p class="mt-1 text-lg font-bold" x-text="unlimited ? '∞' : fmtBytes(limit)"></p>
+                        <p class="text-[11px] uppercase tracking-wide text-base-content/50" data-i18n="total">Total</p>
+                        <p class="mt-1 text-lg font-bold"><span id="stat-total"></span> <span id="stat-total-unit" class="stat-unit"></span></p>
                     </div>
                     <div class="rounded-2xl bg-base-100/40 p-3.5">
-                        <p class="text-[11px] uppercase tracking-wide text-base-content/50" x-text="t('remaining')"></p>
-                        <p class="mt-1 text-lg font-bold text-accent" x-text="unlimited ? '∞' : fmtBytes(remainingBytes)"></p>
+                        <p class="text-[11px] uppercase tracking-wide text-base-content/50" data-i18n="remaining">Remaining</p>
+                        <p class="mt-1 text-lg font-bold text-accent"><span id="stat-remaining"></span> <span id="stat-remaining-unit" class="stat-unit"></span></p>
                     </div>
                     <div class="rounded-2xl bg-base-100/40 p-3.5">
-                        <p class="text-[11px] uppercase tracking-wide text-base-content/50" x-text="t('expires')"></p>
-                        <p class="mt-1 text-lg font-bold"
-                            :class="!neverExpire && remainingDays <= 3 && 'text-error'"
-                            x-text="neverExpire ? '∞' : fmtDate(expire)"></p>
+                        <p class="text-[11px] uppercase tracking-wide text-base-content/50" data-i18n="expires">Expires</p>
+                        <p id="stat-expire" class="mt-1 text-lg font-bold"></p>
                     </div>
                 </div>
 
                 <!-- Linear usage bar -->
-                <div x-show="!unlimited" class="space-y-1.5">
-                    <progress class="progress h-2.5 w-full"
-                        :class="usagePercent >= 90 ? 'progress-error' : usagePercent >= 75 ? 'progress-warning' : 'progress-primary'"
-                        :value="usagePercent" max="100"></progress>
+                <div id="usage-bar" hidden class="space-y-1.5">
+                    <progress id="usage-progress" class="progress progress-primary h-2.5 w-full" value="0" max="100"></progress>
                     <div class="flex justify-between text-[11px] text-base-content/50">
-                        <span x-text="fmtBytes(used) + ' / ' + fmtBytes(limit)"></span>
-                        <span x-text="usagePercent + '%'"></span>
+                        <span id="usage-caption"></span>
+                        <span id="usage-pct"></span>
                     </div>
                 </div>
 
-                <!-- Quota reset strategy + countdown to next reset -->
-                <div x-show="hasReset"
+                <!-- Quota reset strategy + live countdown -->
+                <div id="reset-row" hidden
                     class="flex flex-wrap items-center justify-between gap-x-3 gap-y-1 rounded-2xl bg-base-100/40 px-3.5 py-2.5">
                     <span class="flex items-center gap-2 text-sm font-medium">
                         <i class="ph ph-arrows-clockwise text-base text-accent"></i>
-                        <span x-text="t('reset')"></span>
-                        <span class="badge badge-sm badge-accent badge-soft" x-text="resetLabel"></span>
+                        <span data-i18n="reset">Quota reset</span>
+                        <span id="reset-label" class="badge badge-sm badge-accent badge-soft"></span>
                     </span>
                     <span class="text-[11px] text-base-content/50">
-                        <span x-text="t('resets_in')"></span>
-                        <span class="font-semibold text-base-content/70" x-text="resetCountdown"></span>
+                        <span data-i18n="resets_in">next in</span>
+                        <span id="reset-countdown" class="font-semibold tabular-nums text-base-content/70"></span>
                     </span>
+                </div>
+            </div>
+        </section>
+
+        <!-- ========================= USAGE DASHBOARD ========================= -->
+        <section id="usage-card" hidden class="reveal card glass mb-6 overflow-hidden rounded-[1.5rem] border-0 shadow-xl shadow-black/10">
+            <button id="usage-head" class="flex w-full items-center justify-between gap-2 p-4 sm:px-5"
+                data-collapse="usage-body" aria-expanded="true" aria-controls="usage-body">
+                <span class="flex min-w-0 items-center gap-2 text-lg font-bold">
+                    <i class="ph ph-chart-bar text-xl text-accent"></i>
+                    <span data-i18n="usage_history">Usage history</span>
+                    <span id="usage-period" class="truncate text-xs font-normal text-base-content/50"></span>
+                </span>
+                <i class="ph ph-caret-down chev text-xl text-base-content/50"></i>
+            </button>
+            <div id="usage-body" class="collapsey open">
+                <div class="collapsey-inner">
+                    <div class="space-y-3 px-4 pb-4 sm:px-5 sm:pb-5">
+                        <div id="usage-chart" class="usage-chart" role="img"></div>
+                        <p id="usage-forecast" hidden class="flex items-center gap-2 text-[12px] text-base-content/60">
+                            <i class="ph ph-hourglass-medium text-base text-accent"></i>
+                            <span id="usage-forecast-text"></span>
+                        </p>
+                        <div id="usage-alert" hidden class="rounded-xl px-3 py-2 text-[12px] font-semibold"></div>
+                        <div id="usage-nodes" hidden class="space-y-2"></div>
+                        <p id="usage-updated" hidden class="text-end text-[10px] text-base-content/40"></p>
+                    </div>
                 </div>
             </div>
         </section>
 
         <!-- ============================ CONFIGS ============================ -->
         <section class="reveal card glass mb-6 overflow-hidden rounded-[1.5rem] border-0 shadow-xl shadow-black/10">
-            <!-- Collapsible header -->
             <button class="flex w-full items-center justify-between gap-2 p-4 sm:px-5"
-                @click="configsOpen = !configsOpen" :aria-expanded="configsOpen">
+                data-collapse="configs-body" aria-expanded="true" aria-controls="configs-body">
                 <span class="flex items-center gap-2 text-lg font-bold">
                     <i class="ph ph-list-bullets text-xl text-primary"></i>
-                    <span x-text="t('configs')"></span>
-                    <span class="badge badge-sm badge-primary badge-soft" x-text="configs.length"></span>
+                    <span data-i18n="configs">Configurations</span>
+                    <span id="configs-count" class="badge badge-sm badge-primary badge-soft">0</span>
                 </span>
-                <i class="ph ph-caret-down chev text-xl text-base-content/50" :class="configsOpen && 'open'"></i>
+                <i class="ph ph-caret-down chev text-xl text-base-content/50"></i>
             </button>
 
-            <div class="collapsey" :class="configsOpen && 'open'">
+            <div id="configs-body" class="collapsey open">
                 <div class="collapsey-inner">
                     <div class="px-4 pb-4 sm:px-5 sm:pb-5">
                         <!-- Bulk actions -->
-                        <div class="mb-4 flex flex-wrap gap-2">
-                            <button class="btn glass lift min-w-[8rem] flex-1 gap-2 rounded-2xl border-0 font-semibold" @click="copy(subscriptionUrl, 'sub')">
-                                <i class="ph text-lg" :class="copied==='sub' ? 'ph-check text-success' : 'ph-link-simple'"></i>
-                                <span x-text="copied==='sub' ? t('copied') : t('copy_sub')"></span>
+                        <div class="mb-3 flex flex-wrap gap-2">
+                            <button id="copy-sub" class="btn glass lift min-w-[8rem] flex-1 gap-2 rounded-2xl border-0 font-semibold">
+                                <i class="ph ph-link-simple text-lg"></i>
+                                <span data-i18n-dyn="copy_sub">Copy sub link</span>
                             </button>
-                            <button class="btn glass lift min-w-[8rem] flex-1 gap-2 rounded-2xl border-0 font-semibold" @click="copyAll()" :disabled="!configs.length">
-                                <i class="ph text-lg" :class="copied==='all' ? 'ph-check text-success' : 'ph-copy'"></i>
-                                <span x-text="copied==='all' ? t('copied') : t('copy_all')"></span>
+                            <button id="copy-all" class="btn glass lift min-w-[8rem] flex-1 gap-2 rounded-2xl border-0 font-semibold">
+                                <i class="ph ph-copy text-lg"></i>
+                                <span data-i18n-dyn="copy_all">Copy all</span>
                             </button>
-                            <!-- QR code of the subscription link itself -->
-                            <button class="btn btn-square glass lift rounded-2xl border-0" @click="showSubQr()" :aria-label="t('sub_qr')">
+                            <button id="sub-qr" class="btn btn-square glass lift rounded-2xl border-0" data-i18n-label="sub_qr">
                                 <i class="ph ph-qr-code text-xl text-primary"></i>
                             </button>
                         </div>
 
-                        <!-- Config list -->
-                        <div class="space-y-2.5">
-                            <template x-for="(cfg, i) in configs" :key="i">
-                                <div class="group card glass lift rounded-2xl border-0">
-                                    <div class="flex items-center gap-3 p-3">
-                                        <div class="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-gradient-to-br from-primary/20 to-secondary/20 text-xs font-bold text-primary"
-                                            x-text="cfg.protocol"></div>
-                                        <div class="min-w-0 flex-1">
-                                            <p class="truncate text-sm font-semibold" x-text="cfg.name || (t('config') + ' ' + (i+1))"></p>
-                                            <p class="truncate font-mono text-[11px] text-base-content/40" x-text="cfg.raw"></p>
-                                        </div>
-                                        <button class="btn btn-circle btn-ghost btn-sm" @click="copy(cfg.raw, 'cfg-'+i)" :aria-label="t('copy')">
-                                            <i class="ph text-lg" :class="copied==='cfg-'+i ? 'ph-check text-success' : 'ph-copy'"></i>
-                                        </button>
-                                        <button class="btn btn-circle btn-ghost btn-sm" @click="showQr(cfg)" :aria-label="t('qrcode')">
-                                            <i class="ph ph-qr-code text-lg"></i>
-                                        </button>
-                                    </div>
-                                </div>
-                            </template>
-
-                            <!-- Empty state -->
-                            <template x-if="!configs.length">
-                                <div class="card glass rounded-2xl border-0 p-10 text-center">
-                                    <i class="ph ph-tray mx-auto text-5xl text-base-content/30"></i>
-                                    <p class="mt-3 font-semibold" x-text="t('no_configs')"></p>
-                                    <p class="mt-1 text-sm text-base-content/50" x-text="t('no_configs_hint')"></p>
-                                </div>
-                            </template>
+                        <!-- Search + tools -->
+                        <div id="configs-toolbar" class="mb-3 flex flex-wrap items-center gap-2">
+                            <label class="cfg-search glass flex min-w-[10rem] flex-1 items-center gap-2 rounded-2xl px-3">
+                                <i class="ph ph-magnifying-glass text-base text-base-content/40"></i>
+                                <input id="config-search" type="search" autocomplete="off" spellcheck="false"
+                                    class="h-9 w-full min-w-0 bg-transparent text-sm outline-none placeholder:text-base-content/35"
+                                    data-i18n-ph="search_configs" data-i18n-label="search_configs" />
+                            </label>
+                            <button id="config-group" class="btn btn-sm btn-ghost glass btn-square rounded-xl"
+                                aria-pressed="false" data-i18n-label="group_by_country" data-i18n-title="group_by_country">
+                                <i class="ph ph-flag text-lg"></i>
+                            </button>
+                            <button id="config-select" class="btn btn-sm btn-ghost glass btn-square rounded-xl"
+                                aria-pressed="false" data-i18n-label="select_configs" data-i18n-title="select_configs">
+                                <i class="ph ph-checks text-lg"></i>
+                            </button>
+                            <button id="config-export" class="btn btn-sm btn-ghost glass btn-square rounded-xl"
+                                data-i18n-label="export_configs" data-i18n-title="export_configs">
+                                <i class="ph ph-download-simple text-lg"></i>
+                            </button>
                         </div>
+
+                        <!-- Protocol filter pills (built at runtime) -->
+                        <div id="config-filters" hidden class="no-scrollbar mb-3 flex gap-1.5 overflow-x-auto"
+                            role="tablist" aria-label="Filter by protocol"></div>
+
+                        <!-- Bulk-selection bar -->
+                        <div id="selection-bar" hidden class="mb-3 flex items-center justify-between gap-2 rounded-2xl bg-primary/10 px-3.5 py-2">
+                            <span class="text-sm font-medium">
+                                <span id="selection-count" class="font-bold text-primary">0</span>
+                                <span data-i18n-dyn="selected">selected</span>
+                            </span>
+                            <button id="copy-selected" class="btn btn-sm btn-primary gap-1.5 rounded-xl font-semibold">
+                                <i class="ph ph-copy text-base"></i>
+                                <span data-i18n-dyn="copy_selected">Copy selected</span>
+                            </button>
+                        </div>
+
+                        <!-- Config list -->
+                        <div id="configs-list" class="space-y-2.5"></div>
                     </div>
                 </div>
             </div>
         </section>
 
         <!-- ============================== APPS ============================== -->
-        <section class="reveal card glass mb-6 overflow-hidden rounded-[1.5rem] border-0 shadow-xl shadow-black/10" x-show="appsLoaded">
-            <!-- Collapsible header -->
+        <section id="apps-card" hidden class="reveal card glass mb-6 overflow-hidden rounded-[1.5rem] border-0 shadow-xl shadow-black/10">
             <button class="flex w-full items-center justify-between gap-2 p-4 sm:px-5"
-                @click="appsOpen = !appsOpen" :aria-expanded="appsOpen">
+                data-collapse="apps-body" aria-expanded="true" aria-controls="apps-body">
                 <span class="flex items-center gap-2 text-lg font-bold">
                     <i class="ph ph-squares-four text-xl text-secondary"></i>
-                    <span x-text="t('apps')"></span>
+                    <span data-i18n="apps">Recommended apps</span>
                 </span>
-                <i class="ph ph-caret-down chev text-xl text-base-content/50" :class="appsOpen && 'open'"></i>
+                <i class="ph ph-caret-down chev text-xl text-base-content/50"></i>
             </button>
 
-            <div class="collapsey" :class="appsOpen && 'open'">
+            <div id="apps-body" class="collapsey open">
                 <div class="collapsey-inner">
                     <div class="px-4 pb-4 sm:px-5 sm:pb-5">
-                        <!-- OS tabs — horizontally scrollable when they overflow -->
-                        <div role="tablist" class="tabs tabs-box glass no-scrollbar mb-4 flex-nowrap overflow-x-auto rounded-2xl p-1">
-                            <template x-for="os in osList" :key="os">
-                                <button role="tab" class="tab shrink-0 gap-1.5 rounded-xl font-semibold transition"
-                                    :class="activeOs === os && 'tab-active bg-primary/15 text-primary'"
-                                    @click="activeOs = os">
-                                    <i class="ph text-lg" :class="osIcon(os)"></i>
-                                    <span x-text="os"></span>
-                                </button>
-                            </template>
-                        </div>
-
-                        <!-- App cards: vertically scrollable list on mobile -->
-                        <div class="aurora-scroll grid max-h-[19rem] grid-cols-1 gap-2.5 overflow-y-auto pe-1 sm:max-h-none sm:grid-cols-2 sm:overflow-visible sm:pe-0">
-                            <template x-for="app in appsForOs" :key="app.name">
-                                <div class="card glass lift rounded-2xl border-0">
-                                    <div class="flex items-center gap-3 p-3">
-                                        <img :src="app.image" :alt="app.name" loading="lazy" decoding="async"
-                                            class="h-11 w-11 shrink-0 rounded-xl bg-base-100/50 object-contain p-1"
-                                            onerror="this.style.visibility='hidden'" />
-                                        <div class="min-w-0 flex-1">
-                                            <p class="truncate font-semibold" x-text="app.name"></p>
-                                            <p class="text-[11px] text-base-content/50" x-text="t('tap_to_add')"></p>
-                                        </div>
-                                        <div class="flex items-center gap-1.5">
-                                            <a class="btn btn-primary btn-sm rounded-xl font-semibold" :href="deepLink(app)"
-                                                x-text="t('add')"></a>
-                                            <a class="btn btn-ghost btn-sm glass gap-1 rounded-xl font-semibold" :href="downloadLink(app)"
-                                                target="_blank" rel="noopener" x-show="downloadLink(app)" :aria-label="t('download')">
-                                                <i class="ph ph-download-simple text-base"></i>
-                                                <span class="hidden sm:inline" x-text="t('download')"></span>
-                                            </a>
-                                        </div>
-                                    </div>
-                                </div>
-                            </template>
-                        </div>
+                        <div id="os-tabs" role="tablist" class="tabs tabs-box glass no-scrollbar mb-4 flex-nowrap overflow-x-auto rounded-2xl p-1"></div>
+                        <div id="apps-list" class="aurora-scroll grid max-h-[19rem] grid-cols-1 gap-2.5 overflow-y-auto pe-1 sm:max-h-none sm:grid-cols-2 sm:overflow-visible sm:pe-0"></div>
                     </div>
                 </div>
             </div>
@@ -349,34 +391,39 @@
 
         <!-- ============================= FOOTER ============================= -->
         <footer class="reveal mt-8 flex flex-col items-center gap-3 text-center">
-            <a x-show="supportUrl" :href="supportUrl" target="_blank" rel="noopener"
+            <a id="support-link" hidden target="_blank" rel="noopener"
                 class="btn btn-ghost btn-sm glass gap-2 rounded-2xl">
                 <i class="ph ph-lifebuoy text-base"></i>
-                <span x-text="t('support')"></span>
+                <span data-i18n="support">Get support</span>
             </a>
             <p class="text-[11px] text-base-content/40">
-                <span x-text="t('powered')"></span> ·
-                <a href="https://github.com/Ho3einK84/Aurora" target="_blank" rel="noopener" class="link link-hover gradient-text font-semibold">Aurora</a>
+                <span data-i18n="powered">Powered by Claude</span> ·
+                <a href="https://github.com/Ho3einK84/Aurora" target="_blank" rel="noopener"
+                    class="link link-hover gradient-text font-semibold">Aurora</a>
             </p>
         </footer>
 
         <!-- ============================ QR MODAL ============================ -->
-        <dialog id="qr_modal" class="modal modal-bottom sm:modal-middle" x-ref="qrModal">
+        <dialog id="qr-modal" class="modal modal-bottom sm:modal-middle">
             <div class="modal-box glass max-w-sm rounded-[1.5rem] border-0 text-center">
-                <h3 class="mb-1 text-lg font-bold" x-text="qrTitle"></h3>
-                <p class="mb-4 truncate font-mono text-[11px] text-base-content/40" x-text="qrText"></p>
+                <h3 id="qr-title" class="mb-1 text-lg font-bold"></h3>
+                <p id="qr-text" dir="ltr" class="mb-4 truncate font-mono text-[11px] text-base-content/40"></p>
                 <div class="mx-auto grid aspect-square w-full max-w-[260px] place-items-center rounded-2xl bg-white p-4">
-                    <div x-ref="qrBox" class="h-full w-full [&>svg]:h-full [&>svg]:w-full"></div>
+                    <div id="qr-box" class="qr-box h-full w-full"></div>
                 </div>
                 <div class="modal-action mt-5 justify-center gap-2">
-                    <button class="btn btn-primary flex-1 rounded-2xl font-semibold" @click="copy(qrText, 'qr')">
-                        <span x-text="copied==='qr' ? t('copied') : t('copy')"></span>
+                    <button id="qr-copy" class="btn btn-primary flex-1 rounded-2xl font-semibold">
+                        <span data-i18n-dyn="copy">Copy</span>
                     </button>
-                    <button class="btn btn-ghost glass flex-1 rounded-2xl" @click="closeQr()" x-text="t('close')"></button>
+                    <button id="qr-close" class="btn btn-ghost glass flex-1 rounded-2xl" data-i18n="close">Close</button>
                 </div>
             </div>
-            <form method="dialog" class="modal-backdrop" @click="closeQr()"><button>close</button></form>
+            <form method="dialog" class="modal-backdrop"><button>close</button></form>
         </dialog>
+
+        <!-- ============================== TOAST ============================== -->
+        <div id="toast" hidden role="status" aria-live="polite"
+            class="toast-pill glass fixed bottom-5 left-1/2 z-[300] rounded-2xl px-4 py-2.5 text-sm font-semibold shadow-2xl shadow-black/30"></div>
     </main>
 
     <!-- Aurora application logic is inlined here at build time. -->

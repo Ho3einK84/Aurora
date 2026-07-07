@@ -20,7 +20,7 @@ Tailwind CSS v4 · DaisyUI v5 · vanilla JS (esbuild) · Phosphor Icons · qrcod
 
 ![Aurora subscription page](assets/screenshots/preview-v3.2.png)
 
-*Version **3.2** — Aurora Dark.*
+*Version **3.2** — Aurora Light.*
 
 </div>
 
@@ -28,29 +28,25 @@ Tailwind CSS v4 · DaisyUI v5 · vanilla JS (esbuild) · Phosphor Icons · qrcod
 
 ## ✨ Features
 
-- **Service card** — dual progress rings (data usage + time remaining, with urgent glow near the limits), traffic stats with animated count-ups, expiry, and a **live quota-reset countdown** (daily/weekly/monthly/yearly). Handles unlimited, never-expire, and `on_hold` accounts; expired/limited states are also derived client-side when the server snapshot is stale.
-- **Usage dashboard** — 30-day history chart fed by Rebecca's `usage_url`, with 50/80/90 % alerts, a **per-server breakdown**, a **depletion forecast** ("at this rate, data runs out …"), an offline-cached fallback, and auto-refresh every 5 minutes while the tab is visible.
-- **Configs** — collapsible list with copy, per-config QR, copy-all, **live search**, **protocol filter pills**, **group-by-country** (flag detection from remarks), **bulk select + copy**, and **`.txt` export**. Full keyboard support: ↑/↓ to move, Enter to copy, Space for QR, `Ctrl/Cmd+Shift+C` to copy everything.
-- **OpenVPN files (OpenVPN · L2TP/IPsec · PPTP)** — a tabbed card for the classic-VPN protocols added on Rebecca's `dev` branch. `.ovpn` profiles get **download** and **copy-link** buttons; L2TP/IPsec and PPTP get **credential cards** (server / username / password / IPsec PSK) with per-field copy and masked secrets behind a reveal toggle. Fed by the `.ovpn` links the panel appends to `links` and by the subscription **`/info`** endpoint, with an offline-cached fallback. Hidden automatically when the account has no VPN hosts.
-- **Apps** — OS-grouped client catalogue (Android / iOS / Windows / macOS / Linux) with one-tap import deep links and downloads from `src/apps.json`, lazily rendered on scroll.
-- **Themes** — Aurora Dark, Amoled Dark, Aurora Light, Nord. Applied **before first paint** (no flash), persisted, and forceable via `?theme=nord`.
+- **Service card** — dual progress rings (data usage + time remaining), animated stats, expiry, and a **live quota-reset countdown**. Handles unlimited, never-expire, and `on_hold` accounts; expired/limited states are also derived client-side when the server snapshot is stale.
+- **Usage dashboard** — 30-day history chart with 50/80/90 % alerts, a per-server breakdown, a depletion forecast, an offline-cached fallback, and auto-refresh every 5 minutes.
+- **Configs** — collapsible list with copy, per-config QR, live search, protocol filter pills, group-by-country, bulk select + copy, and `.txt` export. Full keyboard support.
+- **OpenVPN files** (OpenVPN · L2TP/IPsec · PPTP) — a tabbed card for the classic-VPN protocols. `.ovpn` profiles get download/copy-link buttons; L2TP/IPsec and PPTP get credential cards with masked secrets. Fed by the panel's `.ovpn` links and its `/info` endpoint (see "Rebecca template context" below); hidden when the account has no VPN hosts.
+- **Apps** — OS-grouped client catalogue with one-tap import deep links, from `src/apps.json`.
+- **Themes** — Aurora Dark, Amoled Dark, Aurora Light, Nord. Applied before first paint (no flash), persisted, forceable via `?theme=`.
 - **i18n** — English / فارسی with full RTL ([Arad](https://github.com/MDarvishi5124/Arad) font), localized digits, and Jalali dates; forceable via `?lang=fa`.
-- **White-label** — the panel's **Subscription profile title** setting (`subscription_profile_title` binding) drives the splash, header, title, and PWA manifest, with the legacy `brand_name` binding as a fallback. Neither bound? Rebrand a built file in place — see below.
-- **PWA-ready** — a manifest is registered at runtime (brand-named, theme-colored) so "Add to Home Screen" looks native.
-- **Resilient** — **zero external requests**: CSS, fonts, icons, and all JS are inlined. Offline banner, visible error state if boot ever fails, and graceful expired/limited/disabled/on-hold/empty states.
-- **Accessible** — ARIA labels throughout, focus-trapped native QR dialog, keyboard navigation, `prefers-reduced-motion` respected.
+- **White-label** — brand text driven by the panel's **Subscription profile title** setting, falling back to a legacy binding, then a built-in default — see Customization below.
+- **PWA-ready, resilient, accessible** — installable manifest; zero external requests (everything inlined); offline banner and graceful expired/limited/disabled/on-hold/empty states; ARIA labels, focus-trapped QR dialog, `prefers-reduced-motion` respected.
 
-Everything ships as **one truly self-contained `index.html`** — no Google Fonts, no jsDelivr, no runtime network calls of any kind (the usage chart and optional remote catalogue talk only to *your* panel/host).
+Ships as **one self-contained `index.html`** — no external fonts, CDNs, or runtime network calls (the usage chart and optional remote catalogue talk only to *your* panel/host).
 
 ---
 
 ## 🚀 Installation on Rebecca
 
-In the panel, open **Master Settings → Subscriptions**. The page is loaded from
+In **Master Settings → Subscriptions**, the page loads from
 `{Custom templates directory}/{Subscription page template}` — by default
-`/var/lib/rebecca/templates/subscription/index.html`.
-
-Drop the latest build at that path:
+`/var/lib/rebecca/templates/subscription/index.html`. Drop the latest build there:
 
 ```bash
 wget -O /var/lib/rebecca/templates/subscription/index.html \
@@ -58,14 +54,10 @@ wget -O /var/lib/rebecca/templates/subscription/index.html \
 ```
 
 Make sure **Subscription page template** is set to `subscription/index.html` (the
-default). Alternatively, paste the file's contents into the **Template Creator** tab.
+default), or paste the file's contents into the **Template Creator** tab instead.
+Rebecca re-reads the template on every request — **no restart needed**.
 
-That's it. Rebecca re-reads the template on every request, so **no restart is
-needed** — just open any user's subscription URL to see it.
-
-### Updating
-
-Re-run the same `wget` command (or re-paste it in **Template Creator**) — the new file is picked up on the next page load.
+To update, just re-run the same `wget` command (or re-paste it).
 
 ---
 
@@ -73,23 +65,19 @@ Re-run the same `wget` command (or re-paste it in **Template Creator**) — the 
 
 ### White-label / rebranding without a rebuild
 
-Aurora reads the brand text in this order: the panel's **Subscription profile
-title** setting (`subscription_profile_title`), then the legacy `brand_name`
-binding, then the `<meta name="aurora-brand">` fallback baked into the build.
-As of the `dev` branch this template targets, neither binding is yet
-populated by Rebecca's pongo2 context — `subscription_profile_title` is added
-proactively so Aurora picks it up the moment the panel wires it in, with zero
-rebuild needed. Until then, or if your panel build provides neither, the
-default ("Aurora") lives as plain text in the built file and can be swapped on
-the server in one line:
+Aurora reads the brand text from `subscription_profile_title`, then `brand_name`,
+then a built-in default (see the context table below for both bindings — neither
+is populated by Rebecca's pongo2 context yet, so today the default applies on
+most panels). To rebrand a built file without a rebuild, swap the default in
+one line:
 
 ```bash
 sed -i 's/\bAurora\b/YourBrand/g' /var/lib/rebecca/templates/subscription/index.html
 ```
 
-This rewrites the whole-word, case-sensitive `Aurora` — the `<title>`, splash,
-header, and the `<meta name="aurora-brand">` default the app reads — while leaving
-lowercase internals (`aurora-bg`, `aurora_theme`, …) untouched.
+This rewrites the whole-word, case-sensitive `Aurora` — `<title>`, splash,
+header, and the `<meta name="aurora-brand">` default — while leaving lowercase
+internals (`aurora-bg`, `aurora_theme`, …) untouched.
 
 ### Apps list (`src/apps.json`)
 
@@ -139,24 +127,20 @@ npm run guard      # re-verify the directive guard on an existing build
 npm run dev        # watch Tailwind during development
 ```
 
-The preview server emulates Rebecca's pongo2 rendering with sample data —
-try `?state=expired|limited|disabled|on_hold|unlimited|forever|empty`,
-`?lang=fa`, `?theme=amoleddark`, `?brand=YourBrand`, `?title=YourBrand` (the
-higher-priority `subscription_profile_title` binding). A sample `/usage`
-endpoint feeds the dashboard (`USAGE=html` exercises the HTML-scrape fallback),
-and a sample `/sub/alice/info` + `…/ov/*.ovpn` pair feeds the OpenVPN files card
-(`INFO=json|empty|off` covers panels with, and without, the dev-branch routes).
+The preview server emulates Rebecca's pongo2 rendering with sample data — try
+`?state=expired|limited|disabled|on_hold|unlimited|forever|empty`, `?lang=fa`,
+`?theme=amoleddark`, `?brand=` / `?title=` (brand bindings), and `INFO=`/`USAGE=`
+env vars to exercise the OpenVPN and usage-dashboard fallback paths.
 
-The build (`scripts/build.mjs`):
-1. bundles + minifies the app (`src/app.js` + modules) with esbuild,
-2. bundles the QR module **separately** — embedded as an inert base64 blob and only decoded/imported the first time a QR code is opened,
-3. inlines the compiled Tailwind v4 + DaisyUI v5 CSS (only the components used), the web fonts (Inter **variable** + Arad as base64 `@font-face`), the Phosphor icons actually used (CSS mask data-URIs), and `apps.json` — producing a file with **no external requests**,
-4. base64-encodes all executable JS so the template engine never sees code containing `{{`/`{%` (pongo2/Jinja2 would try to evaluate it and crash the render),
-5. **enforces a directive allow-list**: the build fails if any directive appears outside the `#aurora-data` island, an unknown binding appears inside it, or anything references an external resource.
+The build (`scripts/build.mjs`) bundles and minifies the app with esbuild, inlines
+the compiled CSS/fonts/icons and `apps.json` (zero external requests), base64-encodes
+all executable JS so pongo2 never parses it as directives, and **enforces a
+directive allow-list** — the build fails on any stray directive, unknown island
+binding, or external resource reference. Fonts and libraries are pinned via
+`package-lock.json`, so `npm ci && npm run build` is fully reproducible and offline.
 
-Fonts and libraries are pinned via `package-lock.json`, so `npm ci && npm run build` is fully reproducible and offline.
-
-CI (`.github/workflows/build.yml`) builds and guards every push and PR, and attaches `index.html` to the GitHub Release on tags so `wget …/releases/latest/download/index.html` works.
+CI (`.github/workflows/build.yml`) builds and guards every push/PR, and attaches
+`index.html` to the GitHub Release on tags.
 
 ---
 

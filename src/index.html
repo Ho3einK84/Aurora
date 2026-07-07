@@ -368,6 +368,33 @@
             </div>
         </section>
 
+        <!-- ========================== VPN ACCESS ==========================
+             OpenVPN profile downloads + L2TP/IPsec & PPTP credentials, fed by
+             the panel's `.ovpn` links and the subscription /info endpoint
+             (Rebecca dev branch). Hidden unless the account has VPN hosts. -->
+        <section id="vpn-card" hidden class="reveal card glass mb-6 overflow-hidden rounded-[1.5rem] border-0 shadow-xl shadow-black/10">
+            <button class="flex w-full items-center justify-between gap-2 p-4 sm:px-5"
+                data-collapse="vpn-body" aria-expanded="true" aria-controls="vpn-body">
+                <span class="flex items-center gap-2 text-lg font-bold">
+                    <i class="ph ph-shield-check text-xl text-accent"></i>
+                    <span data-i18n="vpn_access">VPN access</span>
+                </span>
+                <i class="ph ph-caret-down chev text-xl text-base-content/50"></i>
+            </button>
+
+            <div id="vpn-body" class="collapsey open">
+                <div class="collapsey-inner">
+                    <div class="px-4 pb-4 sm:px-5 sm:pb-5">
+                        <!-- Protocol tabs (built at runtime) -->
+                        <div id="vpn-tabs" hidden class="no-scrollbar mb-3 flex gap-1.5 overflow-x-auto"
+                            role="tablist" aria-label="VPN protocol"></div>
+                        <div id="vpn-list" class="space-y-2.5"></div>
+                        <p id="vpn-note" class="mt-3 flex items-start gap-1.5 text-[11px] text-base-content/50"></p>
+                    </div>
+                </div>
+            </div>
+        </section>
+
         <!-- ============================== APPS ============================== -->
         <section id="apps-card" hidden class="reveal card glass mb-6 overflow-hidden rounded-[1.5rem] border-0 shadow-xl shadow-black/10">
             <button class="flex w-full items-center justify-between gap-2 p-4 sm:px-5"

@@ -13,6 +13,9 @@
    States: active | limited | expired | disabled | on_hold | unlimited | forever | empty
    The /usage route serves a sample 30-day history (USAGE=json|html|empty)
    so the dashboard, tooltips, forecast and alerts are all exercisable.
+   The /sub/alice/info route mirrors Rebecca dev's subscription info payload
+   (ov.downloads + l2tp + pptp; INFO=json|empty|off) and /sub/alice/ov/*.ovpn
+   serves a sample profile, so the VPN access card is fully exercisable too.
    =========================================================================== */
 
 import { readFile } from "node:fs/promises";
@@ -25,6 +28,7 @@ const OUT = join(ROOT, "dist", "index.html");
 const PORT = Number(process.env.PORT || 8787);
 const STATE = process.env.STATE || "active";
 const USAGE = process.env.USAGE || "json";
+const INFO = process.env.INFO || "json";
 
 const GB = 1024 ** 3;
 const DAY = 86400;
@@ -36,6 +40,56 @@ const SAMPLE_LINKS = [
     "ss://YWVzLTI1Ni1nY206cGFzc3dvcmQ@example.com:8388#Aurora%20France",
     "vless://99999999-8888-7777-6666-555555555555@example.de:8443?security=reality#Frankfurt%20DE%20%F0%9F%87%A9%F0%9F%87%AA",
 ];
+
+// Rebecca dev appends the OpenVPN profile download links to the links list.
+const OV_DOWNLOADS = (port) => [
+    `http://localhost:${port}/sub/alice/ov/Aurora-Germany-OV.ovpn`,
+    `http://localhost:${port}/sub/alice/ov/Aurora-Finland-OV.ovpn`,
+];
+
+/** Shaped like Rebecca dev's GET {sub}/info payload (user + ov/l2tp/pptp). */
+function sampleInfo(port) {
+    return {
+        user: { username: "alice_wonder", status: "active" },
+        ov: { downloads: OV_DOWNLOADS(port) },
+        l2tp: [
+            {
+                host_tag: "Aurora-Germany-L2TP",
+                inbound_tag: "l2tp-de",
+                remark: "Aurora Germany 🇩🇪 L2TP",
+                server: "de.example.com",
+                username: "alice_wonder",
+                password: "s3cr3t-l2tp-pass",
+                ipsec_psk: "aurora-shared-key",
+            },
+            {
+                host_tag: "Aurora-Finland-L2TP",
+                inbound_tag: "l2tp-fi",
+                remark: "Aurora Finland 🇫🇮 L2TP",
+                server: "fi.example.com",
+                username: "alice_wonder",
+                password: "s3cr3t-l2tp-pass",
+                ipsec_psk: "aurora-shared-key",
+            },
+        ],
+        pptp: [
+            {
+                host_tag: "Aurora-Germany-PPTP",
+                inbound_tag: "pptp-de",
+                remark: "Aurora Germany 🇩🇪 PPTP",
+                server: "de.example.com",
+                username: "alice_wonder",
+                password: "s3cr3t-pptp-pass",
+            },
+        ],
+    };
+}
+
+const SAMPLE_OVPN = [
+    "client", "dev tun", "proto udp", "remote de.example.com 1194",
+    "resolv-retry infinite", "nobind", "persist-key", "persist-tun",
+    "remote-cert-tls server", "auth-nocache", "verb 3", "auth-user-pass",
+].join("\n") + "\n";
 
 function ctxFor(state, brand) {
     const now = Math.floor(Date.now() / 1000);
@@ -151,9 +205,32 @@ createServer(async (req, res) => {
             usageResponse(res, url.searchParams.get("mode") || USAGE);
             return;
         }
+        if (url.pathname === "/sub/alice/info") {
+            const mode = url.searchParams.get("info") || INFO;
+            if (mode === "off") {
+                res.writeHead(404, { "content-type": "application/json; charset=utf-8" });
+                res.end(JSON.stringify({ detail: "Not Found" }));
+                return;
+            }
+            res.writeHead(200, { "content-type": "application/json; charset=utf-8" });
+            res.end(JSON.stringify(mode === "empty"
+                ? { user: {}, ov: { downloads: [] }, l2tp: [], pptp: [] }
+                : sampleInfo(PORT)));
+            return;
+        }
+        if (/^\/sub\/alice\/ov\/[^/]+\.ovpn$/.test(url.pathname)) {
+            res.writeHead(200, {
+                "content-type": "application/x-openvpn-profile",
+                "content-disposition": `attachment; filename="${url.pathname.split("/").pop()}"`,
+            });
+            res.end(SAMPLE_OVPN);
+            return;
+        }
         const tpl = await readFile(OUT, "utf8");
         const state = url.searchParams.get("state") || STATE;
-        const links = state === "empty" ? [] : SAMPLE_LINKS;
+        const info = url.searchParams.get("info") || INFO;
+        let links = state === "empty" ? [] : SAMPLE_LINKS;
+        if (state !== "empty" && info !== "off") links = links.concat(OV_DOWNLOADS(PORT));
         res.writeHead(200, { "content-type": "text/html; charset=utf-8" });
         res.end(render(tpl, ctxFor(state, url.searchParams.get("brand")), links));
     } catch (e) {
@@ -161,6 +238,6 @@ createServer(async (req, res) => {
         res.end(String(e));
     }
 }).listen(PORT, () => {
-    console.log(`Aurora preview → http://localhost:${PORT}  (state=${STATE}, usage=${USAGE})`);
-    console.log("Try ?state=expired|limited|disabled|on_hold|unlimited|forever|empty · ?lang=fa · ?theme=nord · ?brand=Nimbus");
+    console.log(`Aurora preview → http://localhost:${PORT}  (state=${STATE}, usage=${USAGE}, info=${INFO})`);
+    console.log("Try ?state=expired|limited|disabled|on_hold|unlimited|forever|empty · ?lang=fa · ?theme=nord · ?brand=Nimbus · ?info=empty|off");
 });

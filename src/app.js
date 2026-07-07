@@ -16,6 +16,7 @@ import {
 import { parseLinks, mountConfigs } from "./configs.js";
 import { mountApps } from "./apps.js";
 import { mountUsage } from "./usage.js";
+import { isOvpnLink, mountVpn } from "./vpn.js";
 
 /* --- Optional remote apps.json override -----------------------------------
    A default apps list is inlined at build time (window.AURORA_APPS). Point
@@ -43,6 +44,9 @@ function readContext() {
     if (!/^https?:\/\//i.test(subUrl)) {
         subUrl = location.origin + location.pathname.replace(/\/$/, "");
     }
+    // Rebecca (dev) appends OpenVPN `.ovpn` profile download URLs to the links
+    // list — split those out of the proxy-config rows and into the VPN card.
+    const allLinks = parseLinks(($("#aurora-links") || {}).textContent);
     return {
         username: (d.username || "").trim(),
         brandName: (d.brandName || "").trim() || defaultBrand(),
@@ -60,7 +64,8 @@ function readContext() {
         subUrl,
         usageUrl: (d.usageUrl || "").trim(),
         supportUrl: (d.supportUrl || "").trim(),
-        links: parseLinks(($("#aurora-links") || {}).textContent),
+        links: allLinks.filter((l) => !isOvpnLink(l)),
+        ovpnLinks: allLinks.filter(isOvpnLink),
     };
 }
 
@@ -89,6 +94,7 @@ let cardAnimated = false;
 let configsView = null;
 let appsView = null;
 let usageView = null;
+let vpnView = null;
 
 const t = (key) => (I18N[lang] && I18N[lang][key]) || I18N.en[key] || key;
 
@@ -547,6 +553,7 @@ function renderAllDynamic() {
     if (configsView) configsView.rerender();
     if (appsView) appsView.rerender();
     if (usageView) usageView.rerender();
+    if (vpnView) vpnView.rerender();
 }
 
 function renderOnlineBadge() {
@@ -599,6 +606,8 @@ async function init() {
         });
         usageView = mountUsage({ ctx: CTX, state: STATE, t, lang: () => lang });
         usageView.start();
+        vpnView = mountVpn({ ctx: CTX, ovpnLinks: CTX.ovpnLinks, t, lang: () => lang, openQr });
+        vpnView.start();
         loadAppsCatalogue().then((apps) => {
             appsView = mountApps({ apps, subUrl: CTX.subUrl, username: CTX.username, t });
         });

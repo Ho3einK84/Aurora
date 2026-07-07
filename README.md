@@ -31,6 +31,7 @@ Tailwind CSS v4 · DaisyUI v5 · vanilla JS (esbuild) · Phosphor Icons · qrcod
 - **Service card** — dual progress rings (data usage + time remaining, with urgent glow near the limits), traffic stats with animated count-ups, expiry, and a **live quota-reset countdown** (daily/weekly/monthly/yearly). Handles unlimited, never-expire, and `on_hold` accounts; expired/limited states are also derived client-side when the server snapshot is stale.
 - **Usage dashboard** — 30-day history chart fed by Rebecca's `usage_url`, with 50/80/90 % alerts, a **per-server breakdown**, a **depletion forecast** ("at this rate, data runs out …"), an offline-cached fallback, and auto-refresh every 5 minutes while the tab is visible.
 - **Configs** — collapsible list with copy, per-config QR, copy-all, **live search**, **protocol filter pills**, **group-by-country** (flag detection from remarks), **bulk select + copy**, and **`.txt` export**. Full keyboard support: ↑/↓ to move, Enter to copy, Space for QR, `Ctrl/Cmd+Shift+C` to copy everything.
+- **VPN access (OpenVPN · L2TP/IPsec · PPTP)** — a tabbed card for the classic-VPN protocols added on Rebecca's `dev` branch. `.ovpn` profiles get **download buttons** (plus copy + QR for the download URL); L2TP/IPsec and PPTP get **credential cards** (server / username / password / IPsec PSK) with per-field copy and masked secrets behind a reveal toggle. Fed by the `.ovpn` links the panel appends to `links` and by the subscription **`/info`** endpoint, with an offline-cached fallback. Hidden automatically when the account has no VPN hosts.
 - **Apps** — OS-grouped client catalogue (Android / iOS / Windows / macOS / Linux) with one-tap import deep links and downloads from `src/apps.json`, lazily rendered on scroll.
 - **Themes** — Aurora Dark, Amoled Dark, Aurora Light, Nord. Applied **before first paint** (no flash), persisted, and forceable via `?theme=nord`.
 - **i18n** — English / فارسی with full RTL ([Arad](https://github.com/MDarvishi5124/Arad) font), localized digits, and Jalali dates; forceable via `?lang=fa`.
@@ -135,7 +136,9 @@ npm run dev        # watch Tailwind during development
 The preview server emulates Rebecca's pongo2 rendering with sample data —
 try `?state=expired|limited|disabled|on_hold|unlimited|forever|empty`,
 `?lang=fa`, `?theme=amoleddark`, `?brand=YourBrand`. A sample `/usage`
-endpoint feeds the dashboard (`USAGE=html` exercises the HTML-scrape fallback).
+endpoint feeds the dashboard (`USAGE=html` exercises the HTML-scrape fallback),
+and a sample `/sub/alice/info` + `…/ov/*.ovpn` pair feeds the VPN access card
+(`INFO=json|empty|off` covers panels with, and without, the dev-branch routes).
 
 The build (`scripts/build.mjs`):
 1. bundles + minifies the app (`src/app.js` + modules) with esbuild,
@@ -158,6 +161,7 @@ aurora/
 │   ├── index.html      # markup + the pongo2 data-island (the ONLY directives)
 │   ├── app.js          # bootstrap, card, rings, countdown, theming, QR modal
 │   ├── configs.js      # config parsing, search/filter/group/select, list view
+│   ├── vpn.js          # VPN access: .ovpn downloads, L2TP/PPTP credentials (/info)
 │   ├── apps.js         # app catalogue, OS detection, import deep links
 │   ├── usage.js        # usage dashboard: fetch, cache, chart, forecast
 │   ├── i18n.js         # EN/FA dictionaries, digits, dates
@@ -191,13 +195,35 @@ The page binds to the real pongo2 context Rebecca passes (`internal/app/user/sub
 | `user.expire` | int64 unix / falsy | falsy ⇒ never expires |
 | `user.online_count` | int | shown as a presence badge when > 0 |
 | `user.service_name` | string | optional service label |
-| `user.links` / `links` | []string | raw config URIs |
+| `user.links` / `links` | []string | raw config URIs — on `dev`, OpenVPN hosts append `https://…/ov/{host_tag}.ovpn` download links |
 | `user.subscription_url` | string | primary sub URL |
 | `usage_url`, `support_url` | string | usage feeds the dashboard |
 | `brand_name` | string | white-label name (optional) |
 | `remaining_days` | int64 | precomputed fallback (live value derived from `expire`) |
 
 All `now()`-based logic (countdowns, ring depletion, forecasts) runs client-side.
+
+### VPN info endpoint (`dev` branch)
+
+L2TP/IPsec and PPTP are **not** part of the pongo2 context — Rebecca exposes them
+on the public subscription info route, which Aurora fetches at runtime
+(`{subscription_url}/info`, `internal/app/user/subscription.go → SubscriptionInfo`):
+
+```jsonc
+{
+  "user": { /* UserDetail */ },
+  "ov":   { "downloads": ["https://…/sub/{token}/ov/{host_tag}.ovpn", "…"] },
+  "l2tp": [ { "host_tag": "…", "inbound_tag": "…", "remark": "…",
+              "server": "…", "username": "…", "password": "…", "ipsec_psk": "…" } ],
+  "pptp": [ { "host_tag": "…", "inbound_tag": "…", "remark": "…",
+              "server": "…", "username": "…", "password": "…" } ]
+}
+```
+
+`.ovpn` profiles themselves are served at `GET {sub_path}/{identifier}/ov/{host_tag}.ovpn`
+(`application/x-openvpn-profile`). On panels without these routes the fetch
+fails silently and the VPN card simply stays hidden (or shows only the `.ovpn`
+links found in `links`), so the template remains fully backward-compatible.
 
 ---
 

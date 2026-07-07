@@ -606,7 +606,7 @@ async function init() {
         });
         usageView = mountUsage({ ctx: CTX, state: STATE, t, lang: () => lang });
         usageView.start();
-        vpnView = mountVpn({ ctx: CTX, ovpnLinks: CTX.ovpnLinks, t, lang: () => lang, openQr });
+        vpnView = mountVpn({ ctx: CTX, ovpnLinks: CTX.ovpnLinks, t, lang: () => lang });
         vpnView.start();
         loadAppsCatalogue().then((apps) => {
             appsView = mountApps({ apps, subUrl: CTX.subUrl, username: CTX.username, t });

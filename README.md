@@ -144,7 +144,7 @@ try `?state=expired|limited|disabled|on_hold|unlimited|forever|empty`,
 `?lang=fa`, `?theme=amoleddark`, `?brand=YourBrand`, `?title=YourBrand` (the
 higher-priority `subscription_profile_title` binding). A sample `/usage`
 endpoint feeds the dashboard (`USAGE=html` exercises the HTML-scrape fallback),
-and a sample `/sub/alice/info` + `…/ov/*.ovpn` pair feeds the VPN access card
+and a sample `/sub/alice/info` + `…/ov/*.ovpn` pair feeds the OpenVPN files card
 (`INFO=json|empty|off` covers panels with, and without, the dev-branch routes).
 
 The build (`scripts/build.mjs`):
@@ -168,7 +168,7 @@ aurora/
 │   ├── index.html      # markup + the pongo2 data-island (the ONLY directives)
 │   ├── app.js          # bootstrap, card, rings, countdown, theming, QR modal
 │   ├── configs.js      # config parsing, search/filter/group/select, list view
-│   ├── vpn.js          # VPN access: .ovpn downloads, L2TP/PPTP credentials (/info)
+│   ├── vpn.js          # OpenVPN files: .ovpn downloads, L2TP/PPTP credentials (/info)
 │   ├── apps.js         # app catalogue, OS detection, import deep links
 │   ├── usage.js        # usage dashboard: fetch, cache, chart, forecast
 │   ├── i18n.js         # EN/FA dictionaries, digits, dates
@@ -213,25 +213,40 @@ All `now()`-based logic (countdowns, ring depletion, forecasts) runs client-side
 
 ### VPN info endpoint (`dev` branch)
 
-L2TP/IPsec and PPTP are **not** part of the pongo2 context — Rebecca exposes them
-on the public subscription info route, which Aurora fetches at runtime
-(`{subscription_url}/info`, `internal/app/user/subscription.go → SubscriptionInfo`):
+As of `dev` @ `bbb57da`/`4579d6d`, Rebecca's pongo2 context *also* exposes
+`openvpn`, `l2tp`, `pptp` (and a combined `vpn`) — the same structures below.
+Aurora deliberately does **not** bind these as new template directives: they're
+nested arrays of objects, which would need a much larger, harder-to-guard
+directive surface than the flat scalar bindings above. Instead Aurora sources
+this data from the public subscription info route at runtime
+(`{subscription_url}/info`, `internal/app/user/subscription.go → SubscriptionInfo`),
+which returns the identical, independently-versioned payload:
 
 ```jsonc
 {
-  "user": { /* UserDetail */ },
-  "ov":   { "downloads": ["https://…/sub/{token}/ov/{host_tag}.ovpn", "…"] },
-  "l2tp": [ { "host_tag": "…", "inbound_tag": "…", "remark": "…",
-              "server": "…", "username": "…", "password": "…", "ipsec_psk": "…" } ],
-  "pptp": [ { "host_tag": "…", "inbound_tag": "…", "remark": "…",
-              "server": "…", "username": "…", "password": "…" } ]
+  "user":    { /* UserDetail */ },
+  "openvpn": {
+    "downloads": ["https://…/sub/{token}/ov/{host_tag}.ovpn", "…"],
+    "profiles":  [ { "host_tag": "…", "inbound_tag": "…", "remark": "…",
+                      "filename": "…", "download_url": "…" } ]
+  },
+  "l2tp": [ { "host_tag": "…", "host_name": "…", "inbound_tag": "…", "remark": "…",
+              "server": "…", "address": "…", "port": 1701, "ike_port": 500,
+              "natt_port": 4500, "tunnel_port": 1702,
+              "username": "…", "password": "…", "ipsec_psk": "…" } ],
+  "pptp": [ { "host_tag": "…", "host_name": "…", "inbound_tag": "…", "remark": "…",
+              "server": "…", "address": "…", "port": 1723,
+              "username": "…", "password": "…" } ]
 }
 ```
 
-`.ovpn` profiles themselves are served at `GET {sub_path}/{identifier}/ov/{host_tag}.ovpn`
+`openvpn` was named `ov` on older `dev` builds (pre `4579d6d`) — Aurora reads
+either key, so it works against both schemas. `.ovpn` profiles themselves are
+served at `GET {sub_path}/{identifier}/ov/{host_tag}.ovpn`
 (`application/x-openvpn-profile`). On panels without these routes the fetch
-fails silently and the VPN card simply stays hidden (or shows only the `.ovpn`
-links found in `links`), so the template remains fully backward-compatible.
+fails silently and the OpenVPN files card simply stays hidden (or shows only
+the `.ovpn` links found in `links`), so the template remains fully
+backward-compatible.
 
 ---
 

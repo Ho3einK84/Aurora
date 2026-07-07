@@ -175,7 +175,7 @@ const fontCss = [
 /* ------------- Phosphor icons → CSS mask data-URIs (used glyphs only) ----- */
 
 const jsSources = ["src/app.js", "src/ui.js", "src/i18n.js", "src/format.js", "src/store.js",
-    "src/configs.js", "src/apps.js", "src/usage.js"]
+    "src/configs.js", "src/apps.js", "src/usage.js", "src/vpn.js"]
     .map((p) => readFileSync(r(p), "utf8")).join("\n");
 
 const usedIcons = [...new Set(

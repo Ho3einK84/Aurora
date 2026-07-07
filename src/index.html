@@ -10,10 +10,12 @@
     <title>Aurora</title>
 
     <!--
-      Default brand name. The panel's brand_name binding (data island below)
-      wins when present; when it's empty this meta is the fallback shown in the
-      splash, header, title and PWA manifest. To rebrand an already-built
-      dist/index.html without rebuilding:  sed -i 's/\bAurora\b/YourBrand/g' index.html
+      Default brand name. The panel's "Subscription profile title" setting
+      (subscription_profile_title binding, data island below) wins when
+      present, then the legacy brand_name binding; when both are empty this
+      meta is the fallback shown in the splash, header, title and PWA
+      manifest. To rebrand an already-built dist/index.html without
+      rebuilding:  sed -i 's/\bAurora\b/YourBrand/g' index.html
     -->
     <meta name="aurora-brand" content="Aurora" />
 
@@ -102,6 +104,7 @@
         data-support-url="{{ support_url }}"
         data-usage-url="{{ usage_url }}"
         data-brand-name="{{ brand_name }}"
+        data-profile-title="{{ subscription_profile_title }}"
         data-online-count="{{ user.online_count }}"
         data-service-name="{{ user.service_name }}">
         <script type="text/plain" id="aurora-links">{% for link in links %}{{ link }}

@@ -18,9 +18,9 @@ Tailwind CSS v4 · DaisyUI v5 · vanilla JS (esbuild) · Phosphor Icons · qrcod
 
 <div align="center">
 
-![Aurora subscription page](assets/screenshots/preview-v2.0.png)
+![Aurora subscription page](assets/screenshots/preview-v3.2.png)
 
-*Version **2.0** — Aurora Dark.*
+*Version **3.2** — Aurora Dark.*
 
 </div>
 
@@ -35,7 +35,7 @@ Tailwind CSS v4 · DaisyUI v5 · vanilla JS (esbuild) · Phosphor Icons · qrcod
 - **Apps** — OS-grouped client catalogue (Android / iOS / Windows / macOS / Linux) with one-tap import deep links and downloads from `src/apps.json`, lazily rendered on scroll.
 - **Themes** — Aurora Dark, Amoled Dark, Aurora Light, Nord. Applied **before first paint** (no flash), persisted, and forceable via `?theme=nord`.
 - **i18n** — English / فارسی with full RTL ([Arad](https://github.com/MDarvishi5124/Arad) font), localized digits, and Jalali dates; forceable via `?lang=fa`.
-- **White-label** — the panel's `brand_name` binding drives the splash, header, title, and PWA manifest. No binding? Rebrand a built file in place — see below.
+- **White-label** — the panel's **Subscription profile title** setting (`subscription_profile_title` binding) drives the splash, header, title, and PWA manifest, with the legacy `brand_name` binding as a fallback. Neither bound? Rebrand a built file in place — see below.
 - **PWA-ready** — a manifest is registered at runtime (brand-named, theme-colored) so "Add to Home Screen" looks native.
 - **Resilient** — **zero external requests**: CSS, fonts, icons, and all JS are inlined. Offline banner, visible error state if boot ever fails, and graceful expired/limited/disabled/on-hold/empty states.
 - **Accessible** — ARIA labels throughout, focus-trapped native QR dialog, keyboard navigation, `prefers-reduced-motion` respected.
@@ -73,9 +73,15 @@ Re-run the same `wget` command (or re-paste it in **Template Creator**) — the 
 
 ### White-label / rebranding without a rebuild
 
-When Rebecca passes a `brand_name`, Aurora uses it everywhere automatically. If your
-panel build doesn't provide one, the default ("Aurora") lives as plain text in the
-built file and can be swapped on the server in one line:
+Aurora reads the brand text in this order: the panel's **Subscription profile
+title** setting (`subscription_profile_title`), then the legacy `brand_name`
+binding, then the `<meta name="aurora-brand">` fallback baked into the build.
+As of the `dev` branch this template targets, neither binding is yet
+populated by Rebecca's pongo2 context — `subscription_profile_title` is added
+proactively so Aurora picks it up the moment the panel wires it in, with zero
+rebuild needed. Until then, or if your panel build provides neither, the
+default ("Aurora") lives as plain text in the built file and can be swapped on
+the server in one line:
 
 ```bash
 sed -i 's/\bAurora\b/YourBrand/g' /var/lib/rebecca/templates/subscription/index.html
@@ -135,7 +141,8 @@ npm run dev        # watch Tailwind during development
 
 The preview server emulates Rebecca's pongo2 rendering with sample data —
 try `?state=expired|limited|disabled|on_hold|unlimited|forever|empty`,
-`?lang=fa`, `?theme=amoleddark`, `?brand=YourBrand`. A sample `/usage`
+`?lang=fa`, `?theme=amoleddark`, `?brand=YourBrand`, `?title=YourBrand` (the
+higher-priority `subscription_profile_title` binding). A sample `/usage`
 endpoint feeds the dashboard (`USAGE=html` exercises the HTML-scrape fallback),
 and a sample `/sub/alice/info` + `…/ov/*.ovpn` pair feeds the VPN access card
 (`INFO=json|empty|off` covers panels with, and without, the dev-branch routes).
@@ -198,7 +205,8 @@ The page binds to the real pongo2 context Rebecca passes (`internal/app/user/sub
 | `user.links` / `links` | []string | raw config URIs — on `dev`, OpenVPN hosts append `https://…/ov/{host_tag}.ovpn` download links |
 | `user.subscription_url` | string | primary sub URL |
 | `usage_url`, `support_url` | string | usage feeds the dashboard |
-| `brand_name` | string | white-label name (optional) |
+| `brand_name` | string | legacy white-label name (optional) |
+| `subscription_profile_title` | string | the panel's **Subscription profile title** setting (optional) — not yet populated by Rebecca's pongo2 context; bound proactively for forward compatibility. Takes priority over `brand_name` when present. |
 | `remaining_days` | int64 | precomputed fallback (live value derived from `expire`) |
 
 All `now()`-based logic (countdowns, ring depletion, forecasts) runs client-side.

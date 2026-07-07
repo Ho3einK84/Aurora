@@ -91,7 +91,7 @@ const SAMPLE_OVPN = [
     "remote-cert-tls server", "auth-nocache", "verb 3", "auth-user-pass",
 ].join("\n") + "\n";
 
-function ctxFor(state, brand) {
+function ctxFor(state, brand, profileTitle) {
     const now = Math.floor(Date.now() / 1000);
     const base = {
         "user.username": "alice_wonder",
@@ -108,6 +108,10 @@ function ctxFor(state, brand) {
         usage_url: `http://localhost:${PORT}/usage`,
         support_url: "https://t.me/support",
         brand_name: brand || "",
+        // Not yet populated by Rebecca's real pongo2 context — exercised here
+        // so Aurora is ready the day the panel wires "Subscription profile
+        // title" into it.
+        subscription_profile_title: profileTitle || "",
     };
     switch (state) {
         case "expired":
@@ -232,12 +236,16 @@ createServer(async (req, res) => {
         let links = state === "empty" ? [] : SAMPLE_LINKS;
         if (state !== "empty" && info !== "off") links = links.concat(OV_DOWNLOADS(PORT));
         res.writeHead(200, { "content-type": "text/html; charset=utf-8" });
-        res.end(render(tpl, ctxFor(state, url.searchParams.get("brand")), links));
+        res.end(render(
+            tpl,
+            ctxFor(state, url.searchParams.get("brand"), url.searchParams.get("title")),
+            links
+        ));
     } catch (e) {
         res.writeHead(500);
         res.end(String(e));
     }
 }).listen(PORT, () => {
     console.log(`Aurora preview → http://localhost:${PORT}  (state=${STATE}, usage=${USAGE}, info=${INFO})`);
-    console.log("Try ?state=expired|limited|disabled|on_hold|unlimited|forever|empty · ?lang=fa · ?theme=nord · ?brand=Nimbus · ?info=empty|off");
+    console.log("Try ?state=expired|limited|disabled|on_hold|unlimited|forever|empty · ?lang=fa · ?theme=nord · ?brand=Nimbus · ?title=YourBrand · ?info=empty|off");
 });

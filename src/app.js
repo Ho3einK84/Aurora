@@ -47,9 +47,13 @@ function readContext() {
     // Rebecca (dev) appends OpenVPN `.ovpn` profile download URLs to the links
     // list — split those out of the proxy-config rows and into the VPN card.
     const allLinks = parseLinks(($("#aurora-links") || {}).textContent);
+    // Brand text priority: the panel's "Subscription profile title" setting
+    // (subscription_profile_title) > the legacy brand_name binding > the
+    // <meta name="aurora-brand"> fallback baked into the build.
+    const brandName = (d.profileTitle || "").trim() || (d.brandName || "").trim() || defaultBrand();
     return {
         username: (d.username || "").trim(),
-        brandName: (d.brandName || "").trim() || defaultBrand(),
+        brandName,
         serviceName: (d.serviceName || "").trim(),
         onlineCount: num(d.onlineCount),
         status: (d.status || "").trim().toLowerCase(),

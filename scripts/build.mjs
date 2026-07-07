@@ -50,6 +50,7 @@ const ALLOWED_DIRECTIVES = new Set([
     "{{ support_url }}",
     "{{ usage_url }}",
     "{{ brand_name }}",
+    "{{ subscription_profile_title }}",
     "{{ user.online_count }}",
     "{{ user.service_name }}",
     "{{ link }}",

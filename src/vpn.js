@@ -12,9 +12,9 @@
            pptp: [{ host_tag, inbound_tag, remark, server, username,
                     password }…] }
 
-   This module renders a tabbed "VPN access" card: download buttons (+ copy /
-   QR) for OpenVPN profiles and copy-friendly credential cards for L2TP/IPsec
-   and PPTP, with masked secrets. The `.ovpn` links found in the data island
+   This module renders a tabbed "OpenVPN files" card: download + copy-link
+   buttons for OpenVPN profiles and copy-friendly credential cards for
+   L2TP/IPsec and PPTP, with masked secrets. The `.ovpn` links found in the data island
    paint immediately; the /info payload then refreshes/extends them. The last
    good payload is cached per user for offline visits.
    =========================================================================== */
@@ -72,15 +72,14 @@ function normCreds(row, withPsk) {
 /* ---------------------------------------------------------------- module */
 
 /**
- * Mount the VPN access section. `deps`:
+ * Mount the OpenVPN files section. `deps`:
  *   ctx        — parsed data island (subUrl, username)
  *   ovpnLinks  — `.ovpn` download URLs already present in the links list
  *   t(key), lang() — i18n accessors
- *   openQr(title, text) — QR modal service
  * Returns { start, rerender }.
  */
 export function mountVpn(deps) {
-    const { ctx, t, openQr } = deps;
+    const { ctx, t } = deps;
     const cacheKey = `${CACHE_KEY}:${ctx.username || ""}`;
 
     let ovpn = (deps.ovpnLinks || []).map(normOvpn).filter(Boolean);
@@ -207,8 +206,6 @@ export function mountVpn(deps) {
             `</div>` +
             `<button class="btn btn-circle btn-ghost btn-sm" data-copy="${escapeAttr(profile.url)}" aria-label="${escapeAttr(t("copy"))}">` +
             `<i class="ph ph-copy text-lg"></i></button>` +
-            `<button class="btn btn-circle btn-ghost btn-sm" data-qr="${escapeAttr(profile.url)}" data-qr-title="${escapeAttr(profile.name)}" aria-label="${escapeAttr(t("qrcode"))}">` +
-            `<i class="ph ph-qr-code text-lg"></i></button>` +
             `<a class="btn btn-sm btn-primary gap-1.5 rounded-xl font-semibold" href="${escapeAttr(profile.url)}" download>` +
             `<i class="ph ph-download-simple text-base"></i><span class="hidden sm:inline">${escapeHtml(t("ovpn_download"))}</span></a>` +
             `</div></div>`;
@@ -267,11 +264,6 @@ export function mountVpn(deps) {
                 if (revealed.has(key)) revealed.delete(key);
                 else revealed.add(key);
                 render();
-            });
-        });
-        $$("[data-qr]", listEl).forEach((btn) => {
-            btn.addEventListener("click", () => {
-                openQr(btn.getAttribute("data-qr-title") || t("qrcode"), btn.getAttribute("data-qr"));
             });
         });
     }

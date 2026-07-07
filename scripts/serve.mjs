@@ -13,9 +13,11 @@
    States: active | limited | expired | disabled | on_hold | unlimited | forever | empty
    The /usage route serves a sample 30-day history (USAGE=json|html|empty)
    so the dashboard, tooltips, forecast and alerts are all exercisable.
-   The /sub/alice/info route mirrors Rebecca dev's subscription info payload
-   (ov.downloads + l2tp + pptp; INFO=json|empty|off) and /sub/alice/ov/*.ovpn
-   serves a sample profile, so the VPN access card is fully exercisable too.
+   The /sub/alice/info route mirrors Rebecca dev's finalized subscription info
+   payload (openvpn.downloads + l2tp + pptp; INFO=json|empty|off) and
+   /sub/alice/ov/*.ovpn serves a sample profile, so the OpenVPN files card is
+   fully exercisable too. ?title=YourBrand emulates the panel's "Subscription
+   profile title" setting once Rebecca wires it into the pongo2 context.
    =========================================================================== */
 
 import { readFile } from "node:fs/promises";
@@ -47,26 +49,42 @@ const OV_DOWNLOADS = (port) => [
     `http://localhost:${port}/sub/alice/ov/Aurora-Finland-OV.ovpn`,
 ];
 
-/** Shaped like Rebecca dev's GET {sub}/info payload (user + ov/l2tp/pptp). */
+/**
+ * Shaped like Rebecca dev's GET {sub}/info payload (user + openvpn/l2tp/pptp),
+ * finalized schema as of commit 4579d6d: `openvpn` (not `ov`) plus the richer
+ * L2TP/PPTP fields (host_name, address, port, ike_port, natt_port, tunnel_port).
+ */
 function sampleInfo(port) {
     return {
         user: { username: "alice_wonder", status: "active" },
-        ov: { downloads: OV_DOWNLOADS(port) },
+        openvpn: { downloads: OV_DOWNLOADS(port) },
         l2tp: [
             {
                 host_tag: "Aurora-Germany-L2TP",
+                host_name: "Aurora Germany 🇩🇪 L2TP",
                 inbound_tag: "l2tp-de",
                 remark: "Aurora Germany 🇩🇪 L2TP",
                 server: "de.example.com",
+                address: "de.example.com",
+                port: 1701,
+                ike_port: 500,
+                natt_port: 4500,
+                tunnel_port: 1702,
                 username: "alice_wonder",
                 password: "s3cr3t-l2tp-pass",
                 ipsec_psk: "aurora-shared-key",
             },
             {
                 host_tag: "Aurora-Finland-L2TP",
+                host_name: "Aurora Finland 🇫🇮 L2TP",
                 inbound_tag: "l2tp-fi",
                 remark: "Aurora Finland 🇫🇮 L2TP",
                 server: "fi.example.com",
+                address: "fi.example.com",
+                port: 1701,
+                ike_port: 500,
+                natt_port: 4500,
+                tunnel_port: 1702,
                 username: "alice_wonder",
                 password: "s3cr3t-l2tp-pass",
                 ipsec_psk: "aurora-shared-key",
@@ -75,9 +93,12 @@ function sampleInfo(port) {
         pptp: [
             {
                 host_tag: "Aurora-Germany-PPTP",
+                host_name: "Aurora Germany 🇩🇪 PPTP",
                 inbound_tag: "pptp-de",
                 remark: "Aurora Germany 🇩🇪 PPTP",
                 server: "de.example.com",
+                address: "de.example.com",
+                port: 1723,
                 username: "alice_wonder",
                 password: "s3cr3t-pptp-pass",
             },
@@ -218,7 +239,7 @@ createServer(async (req, res) => {
             }
             res.writeHead(200, { "content-type": "application/json; charset=utf-8" });
             res.end(JSON.stringify(mode === "empty"
-                ? { user: {}, ov: { downloads: [] }, l2tp: [], pptp: [] }
+                ? { user: {}, openvpn: { downloads: [] }, l2tp: [], pptp: [] }
                 : sampleInfo(PORT)));
             return;
         }

@@ -6,11 +6,14 @@
      • `.ovpn` profile download links (https://…/sub/{token}/ov/{tag}.ovpn) are
        appended to the template's `links` list and served by the panel;
      • the subscription `/info` endpoint returns
-         { user, ov: { downloads: [url…] },
-           l2tp: [{ host_tag, inbound_tag, remark, server, username,
+         { user, openvpn: { downloads: [url…], profiles: [{…}…] },
+           l2tp: [{ host_tag, host_name, inbound_tag, remark, server, address,
+                    port, ike_port, natt_port, tunnel_port, username,
                     password, ipsec_psk }…],
-           pptp: [{ host_tag, inbound_tag, remark, server, username,
-                    password }…] }
+           pptp: [{ host_tag, host_name, inbound_tag, remark, server, address,
+                    port, username, password }…] }
+     The `openvpn` key was `ov` on older `dev` builds (pre `4579d6d`) — both
+     are read here so this template works against either schema.
 
    This module renders a tabbed "OpenVPN files" card: download + copy-link
    buttons for OpenVPN profiles and copy-friendly credential cards for
@@ -99,8 +102,10 @@ export function mountVpn(deps) {
         if (!data || typeof data !== "object") return false;
         let touched = false;
         // The island's `.ovpn` links and /info come from the same panel; when
-        // /info omits or empties `ov.downloads`, keep the island-derived list.
-        const dl = data.ov && Array.isArray(data.ov.downloads) ? data.ov.downloads : null;
+        // /info omits or empties the downloads list, keep the island-derived
+        // list. `openvpn` is the current key; `ov` is the pre-4579d6d alias.
+        const ovSource = data.openvpn || data.ov;
+        const dl = ovSource && Array.isArray(ovSource.downloads) ? ovSource.downloads : null;
         if (dl && dl.length) {
             ovpn = dl.map(normOvpn).filter(Boolean);
             touched = true;
@@ -129,7 +134,7 @@ export function mountVpn(deps) {
             const data = await res.json();
             if (applyInfo(data)) {
                 storeSet(cacheKey, JSON.stringify({
-                    ov: { downloads: ovpn.map((o) => o.url) },
+                    openvpn: { downloads: ovpn.map((o) => o.url) },
                     l2tp: data.l2tp || [],
                     pptp: data.pptp || [],
                 }));

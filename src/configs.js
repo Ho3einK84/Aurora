@@ -7,11 +7,22 @@ import { b64ToUtf8, escapeHtml, escapeAttr } from "./format.js";
 import { locNum } from "./i18n.js";
 import { $, $$, setHidden, copyText, toast, flashCopied } from "./ui.js";
 
+// pongo2 (the panel's template engine) autoescapes {{ link }} even though
+// the surrounding <script type="text/plain"> is raw text the browser never
+// entity-decodes — reverse exactly the 5 chars its htmlEscapeReplacer
+// touches so a config's `path=`/`host=` query params survive intact.
+const HTML_ENTITIES = { "&amp;": "&", "&lt;": "<", "&gt;": ">", "&quot;": '"', "&#39;": "'" };
+
+/** Undo pongo2's HTML-entity autoescaping of a raw config URI. */
+export function decodeHtmlEntities(s) {
+    return String(s).replace(/&amp;|&lt;|&gt;|&quot;|&#39;/g, (e) => HTML_ENTITIES[e]);
+}
+
 /** Parse the newline-separated links block, dropping script-bearing schemes. */
 export function parseLinks(rawText) {
     return String(rawText || "")
         .split(/\r?\n/)
-        .map((s) => s.trim())
+        .map((s) => decodeHtmlEntities(s.trim()))
         .filter((s) => {
             if (!s || !/^[a-z][a-z0-9+.-]*:/i.test(s)) return false;
             const scheme = s.slice(0, s.indexOf(":")).toLowerCase();

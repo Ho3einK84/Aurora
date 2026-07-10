@@ -9,7 +9,7 @@
 
 import { num, hasValue, fmtBytes, escapeHtml, escapeAttr } from "./format.js";
 import { locNum, locPct, fmtDayMonth, fmtClock } from "./i18n.js";
-import { $, setHidden } from "./ui.js";
+import { $, $$, setHidden } from "./ui.js";
 import { storeGet, storeSet } from "./store.js";
 
 const CACHE_KEY = "aurora_usage";

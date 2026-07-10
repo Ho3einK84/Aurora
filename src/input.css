@@ -410,6 +410,17 @@ html[dir="rtl"] {
     }
   }
 
+  /* Popover glassmorphism — stronger than the default `.glass` so the content
+     behind the menu is comfortably obscured in every theme, including the
+     two dark variants (Aurora Dark / Amoled Dark) where base-100 is already
+     very dark. Saturation is bumped to keep the brand hue from washing out. */
+  .pop-menu {
+    background: color-mix(in oklch, var(--color-base-100) 60%, transparent);
+    backdrop-filter: blur(28px) saturate(160%);
+    -webkit-backdrop-filter: blur(28px) saturate(160%);
+    border: 1px solid color-mix(in oklch, var(--color-base-content) 14%, transparent);
+  }
+
   /* Theme popover entrance. */
   .pop-menu:not([hidden]) {
     animation: aurora-pop 0.16s ease;
@@ -438,6 +449,12 @@ html[dir="rtl"] {
   .glass {
     backdrop-filter: blur(12px) saturate(130%);
     -webkit-backdrop-filter: blur(12px) saturate(130%);
+  }
+  /* Popovers still need to read as "elevated glass" on touch — keep a
+     reasonable blur so the page beneath doesn't bleed through. */
+  .pop-menu {
+    backdrop-filter: blur(20px) saturate(150%);
+    -webkit-backdrop-filter: blur(20px) saturate(150%);
   }
 }
 

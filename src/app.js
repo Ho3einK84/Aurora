@@ -170,6 +170,10 @@ function renderLangMenu() {
 }
 
 function openLangMenu() {
+    // Opening the language menu must dismiss the theme menu first so the two
+    // popovers never overlap (mobile tap targets are tight, and the resulting
+    // stacked glass is hard to dismiss on touch).
+    if (!$("#theme-list").hidden) closeThemeMenu();
     setHidden($("#lang-list"), false);
     $("#lang-toggle").setAttribute("aria-expanded", "true");
 }
@@ -235,6 +239,9 @@ function renderThemeMenu() {
 }
 
 function openThemeMenu() {
+    // Mirror of openLangMenu — close the language menu first so the two
+    // popovers never stack. See openLangMenu for context.
+    if (!$("#lang-list").hidden) closeLangMenu();
     setHidden($("#theme-list"), false);
     $("#theme-toggle").setAttribute("aria-expanded", "true");
 }

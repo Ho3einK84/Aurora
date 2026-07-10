@@ -16,9 +16,9 @@ Glassmorphism · usage dashboard · EN/FA RTL · white-label · Tailwind v4 + Da
 
 <div align="center">
 
-![Aurora subscription page](assets/screenshots/preview-v3.2.png)
+![Aurora subscription page](assets/screenshots/preview-v3.3.png)
 
-*Version **3.2** — Aurora Light.*
+*Version **3.3** — Aurora Light.*
 
 </div>
 

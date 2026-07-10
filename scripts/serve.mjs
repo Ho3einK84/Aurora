@@ -123,6 +123,8 @@ function ctxFor(state, brand, profileTitle) {
         "user.used_traffic": String(Math.floor(21.4 * GB)),
         "user.expire": String(now + 18 * DAY),
         "user.online_count": "3",
+        "user.online_at": new Date(Date.now() - 2 * 60_000).toISOString(),
+        "user.created_at": new Date(Date.now() - 240 * 86400_000).toISOString(),
         "user.service_name": "Nebula 50GB",
         remaining_days: "18",
         "user.subscription_url": `http://localhost:${PORT}/sub/alice`,
@@ -149,6 +151,7 @@ function ctxFor(state, brand, profileTitle) {
         case "disabled":
             base["user.status"] = "disabled";
             base["user.status_class"] = "disabled";
+            base["user.online_at"] = "";
             break;
         case "on_hold":
             base["user.status"] = "on_hold";

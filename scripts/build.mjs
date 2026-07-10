@@ -52,6 +52,8 @@ const ALLOWED_DIRECTIVES = new Set([
     "{{ brand_name }}",
     "{{ subscription_profile_title }}",
     "{{ user.online_count }}",
+    "{{ user.online_at }}",
+    "{{ user.created_at }}",
     "{{ user.service_name }}",
     "{{ link }}",
     "{% for link in links %}",
@@ -204,6 +206,25 @@ const iconBase =
     "background-color:currentColor;-webkit-mask:var(--ph) center/contain no-repeat;" +
     "mask:var(--ph) center/contain no-repeat}";
 
+/* --------- language flag (Lion and Sun) → data-URI in a small CSS class --- */
+
+/**
+ * Inlines the Iran historical flag (Lion and Sun, standard variant) as a
+ * CSS background-image data-URI so the language menu renders the real
+ * artwork without any runtime request. Phosphor's mask-based pipeline
+ * above is monochrome; a flag has its own colours, so this one is a plain
+ * `<span class="lang-flag lang-flag-fa">` with a `background-image` rule.
+ */
+const iranFlagFile = r("assets/icons/iran-lion-sun.svg");
+if (!existsSync(iranFlagFile)) {
+    throw new Error("Missing assets/icons/iran-lion-sun.svg — re-download from flagofiran.com.");
+}
+const iranFlagCss =
+    ".lang-flag{display:inline-block;width:1.25em;height:1.25em;flex-shrink:0;" +
+    "background-size:contain;background-position:center;background-repeat:no-repeat;" +
+    "border-radius:2px;vertical-align:middle}" +
+    `.lang-flag-fa{background-image:url("${svgToDataUri(readFileSync(iranFlagFile, "utf8"))}")}`;
+
 /* -------------------------------------------------------------- assemble */
 
 /**
@@ -213,7 +234,7 @@ const iconBase =
  */
 const neutralizeCss = (s) => s.replace(/\{\{|\}\}|\{%|%\}|\{#|#\}/g, (m) => m[0] + " " + m[1]);
 
-const styleTag = `<style>\n${neutralizeCss(css)}\n${fontCss}\n${iconBase}\n${iconRules}\n</style>`;
+const styleTag = `<style>\n${neutralizeCss(css)}\n${fontCss}\n${iconBase}\n${iconRules}\n${iranFlagCss}\n</style>`;
 
 const b64 = (s) => Buffer.from(s, "utf8").toString("base64");
 const appB64 = b64(appJs);

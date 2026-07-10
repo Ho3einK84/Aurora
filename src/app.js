@@ -6,7 +6,7 @@
    and base64-injected at runtime so pongo2 never parses this source.
    =========================================================================== */
 
-import { I18N, locNum, locPct, fmtDate } from "./i18n.js";
+import { I18N, locNum, locPct, fmtDate, fmtRelative } from "./i18n.js";
 import { num, hasValue, clamp, fmtBytes, fmtBytesStr, escapeHtml } from "./format.js";
 import { storeGet, storeSet } from "./store.js";
 import {
@@ -56,6 +56,8 @@ function readContext() {
         brandName,
         serviceName: (d.serviceName || "").trim(),
         onlineCount: num(d.onlineCount),
+        onlineAt: (d.onlineAt || "").trim(),
+        createdAt: (d.createdAt || "").trim(),
         status: (d.status || "").trim().toLowerCase(),
         statusClass: (d.statusClass || "").trim().toLowerCase(),
         usedTraffic: num(d.used),
@@ -118,12 +120,78 @@ function applyI18n() {
     $$("[data-i18n-dyn]").forEach((el) => { el.textContent = t(el.getAttribute("data-i18n-dyn")); });
 }
 
+/**
+ * Supported languages. The popover is built from this list, the head-resolver
+ * (src/index.html) reads the same IDs to apply the saved/queried language
+ * before first paint, and `lang` defaults to its first entry ("en").
+ *
+ * Each entry uses `flag` (a Unicode emoji) for an inline glyph, except when a
+ * real historical flag is required: in that case `flagClass` (a CSS class
+ * driven by the build) replaces the emoji. The Persian entry opts into the
+ * Lion-and-Sun data-URI injected by `scripts/build.mjs`.
+ */
+const LANGS = [
+    { id: "en", short: "EN", label: "English", flag: "🇺🇸" },
+    { id: "fa", short: "فا", label: "فارسی", flagClass: "lang-flag lang-flag-fa",
+        flagTitle: "Iran historical flag (Lion and Sun)" },
+    { id: "ru", short: "RU", label: "Русский", flag: "🇷🇺" },
+    { id: "zh", short: "中", label: "中文", flag: "🇨🇳" },
+];
+
 function setLang(next, persist) {
     lang = I18N[next] ? next : "en";
     if (persist) storeSet("aurora_lang", lang);
-    $("#lang-label").textContent = lang === "en" ? "EN" : "فا";
+    $("#lang-label").textContent = LANGS.find((l) => l.id === lang)?.short || "EN";
     applyI18n();
     renderAllDynamic();
+    renderLangMenu();
+}
+
+function renderLangMenu() {
+    const list = $("#lang-list");
+    list.innerHTML = LANGS.map((lg) => {
+        // Image-based icon (Persian Lion-and-Sun) or fallback to the emoji span.
+        const flagSpan = lg.flagClass
+            ? `<span class="${lg.flagClass}" role="img"${lg.flagTitle ? ` aria-label="${lg.flagTitle}" title="${lg.flagTitle}"` : ` aria-hidden="true"`}></span>`
+            : `<span class="text-base leading-none" aria-hidden="true">${lg.flag}</span>`;
+        return `<li><button data-lang-id="${lg.id}" class="justify-between rounded-xl${lg.id === lang ? " active font-semibold" : ""}">` +
+            `<span class="flex items-center gap-2">` +
+            flagSpan +
+            `<span>${lg.label}</span></span>` +
+            (lg.id === lang ? `<i class="ph ph-check text-base text-primary"></i>` : "") +
+            `</button></li>`;
+    }).join("");
+    $$("[data-lang-id]", list).forEach((btn) => {
+        btn.addEventListener("click", () => {
+            setLang(btn.getAttribute("data-lang-id"), true);
+            closeLangMenu();
+        });
+    });
+}
+
+function openLangMenu() {
+    setHidden($("#lang-list"), false);
+    $("#lang-toggle").setAttribute("aria-expanded", "true");
+}
+
+function closeLangMenu() {
+    setHidden($("#lang-list"), true);
+    $("#lang-toggle").setAttribute("aria-expanded", "false");
+}
+
+function wireLangMenu() {
+    $("#lang-toggle").addEventListener("click", (e) => {
+        e.stopPropagation();
+        if ($("#lang-list").hidden) openLangMenu();
+        else closeLangMenu();
+    });
+    document.addEventListener("click", (e) => {
+        if (!$("#lang-menu").contains(e.target)) closeLangMenu();
+        if (!$("#theme-menu").contains(e.target)) closeThemeMenu();
+    });
+    document.addEventListener("keydown", (e) => {
+        if (e.key === "Escape") { closeLangMenu(); closeThemeMenu(); }
+    });
 }
 
 /* ------------------------------------------------------------------ theme */
@@ -198,7 +266,13 @@ function resolvePrefs() {
     const sLang = storeGet("aurora_lang");
     if (I18N[qLang]) lang = qLang;
     else if (I18N[sLang]) lang = sLang;
-    else if ((navigator.language || "").toLowerCase().startsWith("fa")) lang = "fa";
+    else {
+        // Best-effort: browser locale prefix → Aurora dictionary.
+        const nav = (navigator.language || "").toLowerCase();
+        if (nav.startsWith("fa")) lang = "fa";
+        else if (nav.startsWith("ru")) lang = "ru";
+        else if (nav.startsWith("zh")) lang = "zh";
+    }
 
     const qTheme = params.get("theme");
     const sTheme = storeGet("aurora_theme");
@@ -335,6 +409,7 @@ function renderCard() {
     // ---- time ring + expiry
     const timeFill = $("#ring-time-fill");
     const expireCell = $("#stat-expire");
+    const expireRel = $("#stat-expire-rel");
     if (neverExpire) {
         timeFill.style.stroke = "var(--color-accent)";
         setRing(timeFill, 100);
@@ -342,6 +417,7 @@ function renderCard() {
         $("#ring-time").classList.remove("is-urgent");
         expireCell.textContent = t("never");
         expireCell.classList.remove("text-error");
+        expireRel.textContent = "";
     } else {
         const nowSec = Date.now() / 1000;
         const remainingSec = Math.max(0, CTX.expire - nowSec);
@@ -363,6 +439,9 @@ function renderCard() {
         $("#ring-time-val").textContent = locNum(days, lang);
         expireCell.textContent = fmtDate(new Date(CTX.expire * 1000), lang);
         expireCell.classList.toggle("text-error", days <= 3);
+        // Relative hint under the date: "in 3 days" / "expired 2 days ago".
+        // `fmtRelative` handles both past and future from the current clock.
+        expireRel.textContent = fmtRelative(new Date(CTX.expire * 1000), lang);
     }
     $("#ring-time-unit").textContent = t("days");
 
@@ -554,6 +633,7 @@ function renderAllDynamic() {
     renderBrand();
     renderOnlineBadge();
     renderCard();
+    renderUserDetails();
     if (configsView) configsView.rerender();
     if (appsView) appsView.rerender();
     if (usageView) usageView.rerender();
@@ -570,6 +650,61 @@ function renderOnlineBadge() {
     }
 }
 
+/* --------------------------------------------------------- user details */
+
+/**
+ * Parse the panel's `user.online_at` / `user.created_at` payloads — they may
+ * arrive as an ISO string, an ISO with a trailing "Z", or a unix-seconds
+ * integer. Anything we can't parse is silently treated as "not set" so an
+ * older panel never throws here.
+ */
+function parsePanelDate(raw) {
+    if (!raw) return null;
+    const s = String(raw).trim();
+    if (!s) return null;
+    // Pure digits → unix seconds (Rebecca's `online_at` for "never" is 0).
+    if (/^\d+$/.test(s)) {
+        const sec = num(s);
+        return sec > 0 ? new Date(sec * 1000) : null;
+    }
+    const d = new Date(s.endsWith("Z") || /[+-]\d{2}:?\d{2}$/.test(s) ? s : s + "Z");
+    return isNaN(d) ? null : d;
+}
+
+/** "Last online" / "Member since" row. Stays hidden when both are missing. */
+function renderUserDetails() {
+    const row = $("#user-details");
+    const online = parsePanelDate(CTX.onlineAt);
+    const member = parsePanelDate(CTX.createdAt);
+    if (!online && !member) {
+        setHidden(row, true);
+        return;
+    }
+    setHidden(row, false);
+
+    const liveCell = row.firstElementChild;
+    const memberCell = liveCell && liveCell.nextElementSibling;
+    const lastEl = $("#last-online");
+    const memberEl = $("#member-since");
+
+    if (online) {
+        // Treat < 30s as "online now" so an actively-used account gets the
+        // brighter treatment even when online_at refreshes slowly.
+        const fresh = Date.now() - online.getTime() < 30_000;
+        lastEl.textContent = fresh
+            ? t("online_just_now")
+            : fmtRelative(online, lang);
+    } else {
+        lastEl.textContent = t("online_never");
+    }
+    if (member) {
+        memberEl.textContent = fmtDate(member, lang);
+    }
+    // Hide the half-row whose data is missing instead of leaving an empty cell.
+    if (!online) setHidden(liveCell, true); else setHidden(liveCell, false);
+    if (!member) setHidden(memberCell, true); else setHidden(memberCell, false);
+}
+
 /* -------------------------------------------------------------- bootstrap */
 
 async function init() {
@@ -581,7 +716,8 @@ async function init() {
         setTheme(theme, false);
         setLang(lang, false); // applies i18n and the first dynamic render
 
-        $("#lang-toggle").addEventListener("click", () => setLang(lang === "en" ? "fa" : "en", true));
+        wireLangMenu();
+        renderLangMenu();
         wireThemeMenu();
         wireQrModal();
         wireCollapses();
@@ -597,6 +733,13 @@ async function init() {
         if (CTX.supportUrl) {
             support.href = CTX.supportUrl;
             setHidden(support, false);
+        }
+        // External raw usage link — same endpoint `mountUsage` already polls
+        // for the chart; expose it as a "View raw data" footer button.
+        const usageLink = $("#usage-link");
+        if (usageLink && CTX.usageUrl) {
+            usageLink.href = CTX.usageUrl;
+            setHidden(usageLink, false);
         }
 
         // Sections. Configs mounts synchronously; apps waits on the (optional)

@@ -95,6 +95,7 @@ export function mountUsage(deps) {
     let nodes = null;       // per-server rows, or null
     let updatedAt = 0;      // epoch ms of the data shown
     let stale = false;      // true when showing a cached copy
+    let rangeDays = 30;     // 7/30/90 — the user-toggleable chart window
 
     async function load() {
         if (!ctx.usageUrl) return;
@@ -152,11 +153,34 @@ export function mountUsage(deps) {
         }
         setHidden(card, false);
 
+        renderRangePills();
         renderChart();
         renderForecast();
         renderAlert();
         renderNodes();
         renderUpdated();
+    }
+
+    function renderRangePills() {
+        // Sync the three range pills with the current `rangeDays`; one-time
+        // wiring for clicks lives in `wireRangePills` (called from `start`).
+        $$("#usage-range .range-pill").forEach((btn) => {
+            const days = num(btn.getAttribute("data-range"));
+            const active = days === rangeDays;
+            btn.classList.toggle("active", active);
+            btn.setAttribute("aria-selected", String(active));
+        });
+    }
+
+    function wireRangePills() {
+        $$("#usage-range .range-pill").forEach((btn) => {
+            btn.addEventListener("click", () => {
+                const next = num(btn.getAttribute("data-range")) || 30;
+                if (next === rangeDays) return;
+                rangeDays = next;
+                render();
+            });
+        });
     }
 
     function renderChart() {
@@ -168,7 +192,10 @@ export function mountUsage(deps) {
             period.textContent = "";
             return;
         }
-        const rows = history.slice().sort((a, b) => dateOf(a) - dateOf(b)).slice(-30);
+        // Take the most recent N days so the bar widths stay consistent across
+        // ranges — the visual density (more bars for 90D, fewer for 7D) carries
+        // the "this is a wider window" signal.
+        const rows = history.slice().sort((a, b) => dateOf(a) - dateOf(b)).slice(-rangeDays);
         const max = Math.max(1, ...rows.map(usageValOf));
 
         const W = 300, H = 80, pad = 3;
@@ -310,6 +337,7 @@ export function mountUsage(deps) {
         async start() {
             await load();
             render();
+            wireRangePills();
             startAutoRefresh();
         },
         rerender: render,

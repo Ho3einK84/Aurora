@@ -79,6 +79,18 @@
     "link": "https://github.com/MatsuriDayo/nekoray/releases/latest"
   },
   {
+    "name": "Clash Verge Rev",
+    "urlScheme": "clash-verge://install-config?url={url_enc}",
+    "os": ["Windows", "macOS", "Linux"],
+    "link": "https://github.com/clash-verge-rev/clash-verge-rev/releases/latest"
+  },
+  {
+    "name": "ClashX",
+    "urlScheme": "clashx://install-config?url={url_enc}",
+    "os": ["macOS"],
+    "link": "https://github.com/cometkim/clashx/releases/latest"
+  },
+  {
     "name": "OpenVPN Connect",
     "os": ["Android", "iOS", "Windows", "macOS", "Linux"],
     "link": "https://openvpn.net/client/",

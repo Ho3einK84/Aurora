@@ -39,13 +39,18 @@
                     if (matchMedia("(prefers-color-scheme: light)").matches) t = "auroralight";
                 }
                 if (themes.indexOf(t) >= 0) doc.setAttribute("data-theme", t);
+                var langs = ["en", "fa", "ru", "zh"];
                 var l = q.get("lang");
-                if (l !== "en" && l !== "fa") {
+                if (langs.indexOf(l) < 0) {
                     l = null;
                     try { l = localStorage.getItem("aurora_lang"); } catch (e) { l = null; }
                 }
-                if (l !== "en" && l !== "fa") {
-                    l = (navigator.language || "").toLowerCase().indexOf("fa") === 0 ? "fa" : "en";
+                if (langs.indexOf(l) < 0) {
+                    var nav = (navigator.language || "").toLowerCase();
+                    if (nav.indexOf("fa") === 0) l = "fa";
+                    else if (nav.indexOf("ru") === 0) l = "ru";
+                    else if (nav.indexOf("zh") === 0) l = "zh";
+                    else l = "en";
                 }
                 doc.lang = l;
                 doc.dir = l === "fa" ? "rtl" : "ltr";
@@ -106,6 +111,8 @@
         data-brand-name="{{ brand_name }}"
         data-profile-title="{{ subscription_profile_title }}"
         data-online-count="{{ user.online_count }}"
+        data-online-at="{{ user.online_at }}"
+        data-created-at="{{ user.created_at }}"
         data-service-name="{{ user.service_name }}">
         <script type="text/plain" id="aurora-links">{% for link in links %}{{ link }}
 {% endfor %}</script>
@@ -159,12 +166,17 @@
             </div>
 
             <div class="flex shrink-0 items-center gap-2">
-                <!-- Language switcher -->
-                <button id="lang-toggle" class="btn btn-sm btn-ghost glass gap-1.5 font-semibold"
-                    data-i18n-label="switch_lang">
-                    <i class="ph ph-globe text-lg opacity-70"></i>
-                    <span id="lang-label">EN</span>
-                </button>
+                <!-- Language switcher popover -->
+                <div id="lang-menu" class="relative">
+                    <button id="lang-toggle" class="btn btn-sm btn-ghost glass gap-1.5 font-semibold"
+                        aria-haspopup="true" aria-expanded="false" data-i18n-label="switch_lang">
+                        <i class="ph ph-globe text-lg opacity-70"></i>
+                        <span id="lang-label">EN</span>
+                    </button>
+                    <ul id="lang-list" hidden
+                        class="menu glass pop-menu absolute end-0 z-[100] mt-2 w-44 gap-0.5 rounded-2xl p-2 shadow-2xl shadow-black/30">
+                    </ul>
+                </div>
 
                 <!-- Theme switcher popover -->
                 <div id="theme-menu" class="relative">
@@ -241,6 +253,7 @@
                     <div class="rounded-2xl bg-base-100/40 p-3.5">
                         <p class="text-[11px] uppercase tracking-wide text-base-content/50" data-i18n="expires">Expires</p>
                         <p id="stat-expire" class="mt-1 text-lg font-bold"></p>
+                        <p id="stat-expire-rel" class="mt-0.5 text-[11px] font-medium text-base-content/50"></p>
                     </div>
                 </div>
 
@@ -250,6 +263,25 @@
                     <div class="flex justify-between text-[11px] text-base-content/50">
                         <span id="usage-caption"></span>
                         <span id="usage-pct"></span>
+                    </div>
+                </div>
+
+                <!-- User details: last online + member since -->
+                <div id="user-details" hidden
+                    class="grid grid-cols-1 gap-2 sm:grid-cols-2 sm:gap-3">
+                    <div class="flex items-center gap-2.5 rounded-2xl bg-base-100/40 px-3.5 py-2.5">
+                        <i class="ph ph-pulse shrink-0 text-base text-success"></i>
+                        <div class="min-w-0 flex-1">
+                            <p class="text-[11px] uppercase tracking-wide text-base-content/50" data-i18n="last_online">Last online</p>
+                            <p id="last-online" class="truncate text-sm font-semibold"></p>
+                        </div>
+                    </div>
+                    <div class="flex items-center gap-2.5 rounded-2xl bg-base-100/40 px-3.5 py-2.5">
+                        <i class="ph ph-calendar-blank shrink-0 text-base text-base-content/40"></i>
+                        <div class="min-w-0 flex-1">
+                            <p class="text-[11px] uppercase tracking-wide text-base-content/50" data-i18n="member_since">Member since</p>
+                            <p id="member-since" class="truncate text-sm font-semibold"></p>
+                        </div>
                     </div>
                 </div>
 
@@ -283,6 +315,12 @@
             <div id="usage-body" class="collapsey open">
                 <div class="collapsey-inner">
                     <div class="space-y-3 px-4 pb-4 sm:px-5 sm:pb-5">
+                        <div id="usage-range" role="tablist" aria-label="Usage range"
+                            class="no-scrollbar -mb-1 flex gap-1.5 overflow-x-auto">
+                            <button role="tab" class="range-pill" data-range="7" aria-selected="false" data-i18n="usage_range_7d">7D</button>
+                            <button role="tab" class="range-pill" data-range="30" aria-selected="true" data-i18n="usage_range_30d">30D</button>
+                            <button role="tab" class="range-pill" data-range="90" aria-selected="false" data-i18n="usage_range_90d">90D</button>
+                        </div>
                         <div id="usage-chart" class="usage-chart" role="img"></div>
                         <p id="usage-forecast" hidden class="flex items-center gap-2 text-[12px] text-base-content/60">
                             <i class="ph ph-hourglass-medium text-base text-accent"></i>
@@ -420,7 +458,13 @@
         </section>
 
         <!-- ============================= FOOTER ============================= -->
-        <footer class="reveal mt-8 flex flex-col items-center gap-3 text-center">
+        <footer class="reveal mt-8 flex flex-col items-center gap-2 text-center">
+            <a id="usage-link" hidden target="_blank" rel="noopener"
+                class="btn btn-ghost btn-sm glass gap-2 rounded-2xl"
+                data-i18n-label="usage_api">
+                <i class="ph ph-chart-line-up text-base"></i>
+                <span data-i18n="usage_api">Usage data</span>
+            </a>
             <a id="support-link" hidden target="_blank" rel="noopener"
                 class="btn btn-ghost btn-sm glass gap-2 rounded-2xl">
                 <i class="ph ph-lifebuoy text-base"></i>

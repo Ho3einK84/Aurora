@@ -336,6 +336,28 @@ html[dir="rtl"] {
     color: var(--color-primary);
   }
 
+  /* Range pills (7D / 30D / 90D) — slightly smaller than filter pills. */
+  .range-pill {
+    flex-shrink: 0;
+    border-radius: 9999px;
+    padding: 0.25rem 0.7rem;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.02em;
+    color: color-mix(in oklch, var(--color-base-content) 55%, transparent);
+    background: color-mix(in oklch, var(--color-base-100) 55%, transparent);
+    border: 1px solid color-mix(in oklch, var(--color-base-content) 10%, transparent);
+    transition: background 0.2s ease, color 0.2s ease, border-color 0.2s ease;
+  }
+  .range-pill:hover {
+    color: color-mix(in oklch, var(--color-base-content) 85%, transparent);
+  }
+  .range-pill.active {
+    background: color-mix(in oklch, var(--color-accent) 16%, transparent);
+    border-color: color-mix(in oklch, var(--color-accent) 35%, transparent);
+    color: var(--color-accent);
+  }
+
   /* Toolbar toggles (group / select) when engaged. */
   .tool-active {
     background: color-mix(in oklch, var(--color-primary) 16%, transparent) !important;

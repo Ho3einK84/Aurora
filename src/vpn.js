@@ -1,12 +1,20 @@
 /* ===========================================================================
-   Aurora VPN access — OpenVPN / L2TP / PPTP support for the Rebecca panel
-   (`dev` branch).
+   Aurora VPN access — OpenVPN / WireGuard / L2TP / PPTP support for the
+   Rebecca panel (`dev` branch).
 
    Rebecca exposes the classic-VPN data in two places:
      • `.ovpn` profile download links (https://…/sub/{token}/ov/{tag}.ovpn) are
        appended to the template's `links` list and served by the panel;
      • the subscription `/info` endpoint returns
          { user, openvpn: { downloads: [url…], profiles: [{…}…] },
+           wireguard: {
+             downloads: [url…],   // .conf file download URLs
+             links:     [uri…],   // wireguard://<privatekey>@host:port?… URIs
+             profiles: [{ host_tag, host_name, inbound_tag, remark, filename,
+                          download_url, link, body, server, address, port,
+                          client_address, client_public_key,
+                          server_public_key }…]
+           },
            l2tp: [{ host_tag, host_name, inbound_tag, remark, server, address,
                     port, ike_port, natt_port, tunnel_port, username,
                     password, ipsec_psk }…],
@@ -15,11 +23,17 @@
      The `openvpn` key was `ov` on older `dev` builds (pre `4579d6d`) — both
      are read here so this template works against either schema.
 
+   WireGuard's `link`, `body` and `download_url` are as sensitive as an .ovpn
+   file (the private key is embedded) — treated like OpenVPN downloads
+   (visible, copyable, not masked). `client_public_key` and
+   `server_public_key` are public keys — displayed plainly, no mask/reveal.
+
    This module renders a tabbed "OpenVPN files" card: download + copy-link
-   buttons for OpenVPN profiles and copy-friendly credential cards for
-   L2TP/IPsec and PPTP, with masked secrets. The `.ovpn` links found in the data island
-   paint immediately; the /info payload then refreshes/extends them. The last
-   good payload is cached per user for offline visits.
+   buttons for OpenVPN profiles, download + copy + config buttons for
+   WireGuard profiles, and copy-friendly credential cards for
+   L2TP/IPsec and PPTP, with masked secrets. The `.ovpn` links found in the
+   data island paint immediately; the /info payload then refreshes/extends
+   them. The last good payload is cached per user for offline visits.
    =========================================================================== */
 
 import { escapeHtml, escapeAttr } from "./format.js";
@@ -72,6 +86,23 @@ function normCreds(row, withPsk) {
     return item.server || item.username ? item : null;
 }
 
+function normWg(row) {
+    if (!row || typeof row !== "object") return null;
+    const item = {
+        downloadUrl: clean(row.download_url),
+        link: clean(row.link),
+        body: clean(row.body),
+        name: clean(row.remark) || clean(row.filename) || clean(row.host_name) || "WireGuard",
+        server: clean(row.server),
+        address: clean(row.address),
+        port: row.port || "",
+        clientAddress: clean(row.client_address),
+        clientPublicKey: clean(row.client_public_key),
+        serverPublicKey: clean(row.server_public_key),
+    };
+    return item.downloadUrl || item.link || item.body || item.server ? item : null;
+}
+
 /* ---------------------------------------------------------------- module */
 
 /**
@@ -86,6 +117,7 @@ export function mountVpn(deps) {
     const cacheKey = `${CACHE_KEY}:${ctx.username || ""}`;
 
     let ovpn = (deps.ovpnLinks || []).map(normOvpn).filter(Boolean);
+    let wg = [];
     let l2tp = [];
     let pptp = [];
     let activeTab = "";
@@ -109,6 +141,29 @@ export function mountVpn(deps) {
         if (dl && dl.length) {
             ovpn = dl.map(normOvpn).filter(Boolean);
             touched = true;
+        }
+        // WireGuard: prefer structured profiles; fall back to downloads/links arrays.
+        const wgSource = data.wireguard;
+        if (wgSource && typeof wgSource === "object") {
+            if (Array.isArray(wgSource.profiles) && wgSource.profiles.length) {
+                wg = wgSource.profiles.map(normWg).filter(Boolean);
+                touched = true;
+            } else if (!wg.length) {
+                // Fallback: synthesise minimal entries from downloads/links.
+                const wgDl = Array.isArray(wgSource.downloads) ? wgSource.downloads : [];
+                const wgLinks = Array.isArray(wgSource.links) ? wgSource.links : [];
+                const fallback = [];
+                const max = Math.max(wgDl.length, wgLinks.length);
+                for (let i = 0; i < max; i++) {
+                    const item = normWg({
+                        download_url: wgDl[i],
+                        link: wgLinks[i],
+                        remark: wgDl[i] ? ovpnLabel(wgDl[i]).replace(/\.ovpn$/i, "").replace(/\.conf$/i, "") : "",
+                    });
+                    if (item) fallback.push(item);
+                }
+                if (fallback.length) { wg = fallback; touched = true; }
+            }
         }
         if (Array.isArray(data.l2tp)) {
             l2tp = data.l2tp.map((r) => normCreds(r, true)).filter(Boolean);
@@ -135,6 +190,7 @@ export function mountVpn(deps) {
             if (applyInfo(data)) {
                 storeSet(cacheKey, JSON.stringify({
                     openvpn: { downloads: ovpn.map((o) => o.url) },
+                    wireguard: data.wireguard || {},
                     l2tp: data.l2tp || [],
                     pptp: data.pptp || [],
                 }));
@@ -151,6 +207,7 @@ export function mountVpn(deps) {
 
     const TABS = [
         ["ovpn", "OpenVPN", () => ovpn.length],
+        ["wg", "WireGuard", () => wg.length],
         ["l2tp", "L2TP/IPsec", () => l2tp.length],
         ["pptp", "PPTP", () => pptp.length],
     ];
@@ -216,6 +273,51 @@ export function mountVpn(deps) {
             `</div></div>`;
     }
 
+    function wgRow(profile) {
+        const buttons = [];
+        if (profile.link) {
+            buttons.push(
+                `<button class="btn btn-circle btn-ghost btn-sm" data-copy="${escapeAttr(profile.link)}" ` +
+                `aria-label="${escapeAttr(t("copy_link"))}"><i class="ph ph-link text-lg"></i></button>`
+            );
+        }
+        if (profile.body) {
+            buttons.push(
+                `<button class="btn btn-circle btn-ghost btn-sm" data-copy="${escapeAttr(profile.body)}" ` +
+                `aria-label="${escapeAttr(t("copy_config"))}"><i class="ph ph-file-text text-lg"></i></button>`
+            );
+        }
+        if (profile.downloadUrl) {
+            buttons.push(
+                `<a class="btn btn-sm btn-primary gap-1.5 rounded-xl font-semibold" ` +
+                `href="${escapeAttr(profile.downloadUrl)}" download>` +
+                `<i class="ph ph-download-simple text-base"></i>` +
+                `<span class="hidden sm:inline">${escapeHtml(t("ovpn_download"))}</span></a>`
+            );
+        }
+        return `<div class="group card glass lift rounded-2xl border-0">` +
+            `<div class="flex items-center gap-3 p-3">` +
+            `<div class="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-gradient-to-br from-primary/20 to-secondary/20 text-[10px] font-bold text-primary">WG</div>` +
+            `<div class="min-w-0 flex-1">` +
+            `<p class="truncate text-sm font-semibold" dir="auto">${escapeHtml(profile.name)}</p>` +
+            (profile.downloadUrl
+                ? `<p class="truncate text-start font-mono text-[11px] text-base-content/40" dir="ltr">${escapeHtml(profile.downloadUrl)}</p>`
+                : profile.link
+                    ? `<p class="truncate text-start font-mono text-[11px] text-base-content/40" dir="ltr">${escapeHtml(profile.link)}</p>`
+                    : "") +
+            `</div>` +
+            buttons.join("") +
+            `</div>` +
+            `<div class="grid grid-cols-1 gap-2 px-3 pb-3 sm:grid-cols-2">` +
+            fieldRow("vpn_server", profile.server, { icon: "ph-hard-drives", key: `wg:server:${profile.server}` }) +
+            fieldRow("wg_address", profile.address, { icon: "ph-globe", key: `wg:address:${profile.address}` }) +
+            fieldRow("wg_port", profile.port ? String(profile.port) : "", { icon: "ph-plug", key: `wg:port:${profile.port}` }) +
+            fieldRow("wg_client_address", profile.clientAddress, { icon: "ph-network", key: `wg:clientAddr:${profile.clientAddress}` }) +
+            fieldRow("wg_client_pubkey", profile.clientPublicKey, { icon: "ph-key", key: `wg:clientPub:${profile.clientPublicKey}` }) +
+            fieldRow("wg_server_pubkey", profile.serverPublicKey, { icon: "ph-lock-key", key: `wg:serverPub:${profile.serverPublicKey}` }) +
+            `</div></div>`;
+    }
+
     function credsRow(item, tab, index) {
         const badge = tab === "l2tp" ? "L2TP" : "PPTP";
         const keyOf = (field) => `${tab}:${index}:${field}`;
@@ -247,6 +349,7 @@ export function mountVpn(deps) {
 
         const rows =
             activeTab === "ovpn" ? ovpn.map(ovpnRow)
+            : activeTab === "wg" ? wg.map(wgRow)
             : activeTab === "l2tp" ? l2tp.map((r, i) => credsRow(r, "l2tp", i))
             : pptp.map((r, i) => credsRow(r, "pptp", i));
         listEl.innerHTML = rows.join("");

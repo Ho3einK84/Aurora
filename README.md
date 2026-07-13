@@ -18,7 +18,7 @@ Glassmorphism · usage dashboard · EN/FA RTL · white-label · Tailwind v4 + Da
 
 ![Aurora subscription page](assets/screenshots/preview-v3.3.png)
 
-*Version **3.4.0** — Aurora Dark.*
+*v3.3 · Aurora Dark — screenshot predates v3.4 WireGuard support.*
 
 </div>
 

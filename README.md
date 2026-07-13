@@ -29,7 +29,7 @@ Glassmorphism · usage dashboard · EN/FA RTL · white-label · Tailwind v4 + Da
 - **Service card** — usage/time rings, animated stats, live quota-reset countdown. Handles unlimited, never-expire, `on_hold`, and client-derived expired/limited states.
 - **Usage dashboard** — 30-day chart, threshold alerts, per-server breakdown, depletion forecast, offline cache, 5-min auto-refresh.
 - **Configs** — search, protocol filters, group-by-country, bulk select + copy, `.txt` export, full keyboard support.
-- **OpenVPN files** (OpenVPN · L2TP/IPsec · PPTP) — download/copy `.ovpn` profiles and masked credential cards, fed by the panel's `/info` endpoint (see reference below); hidden without VPN hosts.
+- **VPN files** (OpenVPN · WireGuard · L2TP/IPsec · PPTP) — download/copy `.ovpn` profiles and masked credential cards, fed by the panel's `/info` endpoint (see reference below); WireGuard gets its own structured tab with download, copy-link, and copy-config actions (no mask/reveal — same trust level as OpenVPN); hidden without VPN hosts.
 - **Apps** — OS-grouped client catalogue with one-tap import, from `src/apps.json`.
 - **Themes & i18n** — 4 themes, EN/فارسی with full RTL, forceable via `?theme=`/`?lang=fa`.
 - **White-label** — brand text from the panel's Subscription profile title, with fallbacks (see Customization below).
@@ -100,7 +100,7 @@ aurora/
 │   ├── index.html      # markup + the pongo2 data-island (the ONLY directives)
 │   ├── app.js          # bootstrap, card, rings, countdown, theming, QR modal
 │   ├── configs.js      # config parsing, search/filter/group/select, list view
-│   ├── vpn.js          # OpenVPN files: .ovpn downloads, L2TP/PPTP credentials (/info)
+│   ├── vpn.js          # VPN files: OpenVPN .ovpn downloads, WireGuard configs, L2TP/PPTP credentials (/info)
 │   ├── apps.js         # app catalogue, OS detection, import deep links
 │   ├── usage.js        # usage dashboard: fetch, cache, chart, forecast
 │   ├── i18n.js         # EN/FA dictionaries, digits, dates
@@ -134,7 +134,7 @@ The page binds to the real pongo2 context Rebecca passes (`internal/app/user/sub
 | `user.expire` | int64 unix / falsy | falsy ⇒ never expires |
 | `user.online_count` | int | shown as a presence badge when > 0 |
 | `user.service_name` | string | optional service label |
-| `user.links` / `links` | []string | raw config URIs — on `dev`, OpenVPN hosts append `https://…/ov/{host_tag}.ovpn` download links |
+| `user.links` / `links` | []string | raw config URIs — on `dev`, OpenVPN hosts append `https://…/ov/{host_tag}.ovpn` download links and WireGuard hosts append `https://…/wg/{host_tag}.conf` download links + `wireguard://…` URIs |
 | `user.subscription_url` | string | primary sub URL |
 | `usage_url`, `support_url` | string | usage feeds the dashboard |
 | `brand_name` | string | legacy white-label name (optional) |
@@ -162,6 +162,16 @@ which returns the identical, independently-versioned payload:
     "profiles":  [ { "host_tag": "…", "inbound_tag": "…", "remark": "…",
                       "filename": "…", "download_url": "…" } ]
   },
+  "wireguard": {
+    "downloads": ["https://…/sub/{token}/wg/{host_tag}.conf", "…"],
+    "links":     ["wireguard://<privatekey>@host:port?address=…&publickey=…&reserved=0,0,0&…#remark", "…"],
+    "profiles":  [ { "host_tag": "…", "host_name": "…", "inbound_tag": "…",
+                      "remark": "…", "filename": "…", "download_url": "…",
+                      "link": "wireguard://…", "body": "[Interface]\nPrivateKey = …\n…",
+                      "server": "…", "address": "…", "port": 51820,
+                      "client_address": "10.x.x.x/32",
+                      "client_public_key": "…", "server_public_key": "…" } ]
+  },
   "l2tp": [ { "host_tag": "…", "host_name": "…", "inbound_tag": "…", "remark": "…",
               "server": "…", "address": "…", "port": 1701, "ike_port": 500,
               "natt_port": 4500, "tunnel_port": 1702,
@@ -179,6 +189,25 @@ served at `GET {sub_path}/{identifier}/ov/{host_tag}.ovpn`
 fails silently and the OpenVPN files card simply stays hidden (or shows only
 the `.ovpn` links found in `links`), so the template remains fully
 backward-compatible.
+
+The `wireguard` object mirrors the `openvpn` structure with an extra `body`
+field. Key points:
+
+- The `wireguard://` URI scheme carries the client's private key in the
+  userinfo segment (`wireguard://<privatekey>@host:port?…`). Treat `link`,
+  `body` and `download_url` as secret-bearing — the same trust level as an
+  `.ovpn` file (visible, copyable, not masked in the UI).
+- `client_public_key` and `server_public_key` are **public** keys, not
+  secrets — they are displayed plainly with no reveal/mask toggle.
+- `body` is the full `.conf` file text (new as of the latest dev commits).
+  Aurora uses it for the "Copy config" button. Older payloads without `body`
+  simply omit that button; profiles still render via `download_url`/`link`.
+- `downloads` and `links` are flat arrays that duplicate the per-profile
+  values for backward compatibility — they are only used as a fallback when
+  `profiles` is empty.
+- On panels without WireGuard hosts, the WireGuard tab simply doesn't appear
+  (zero-count tabs are hidden), consistent with how the L2TP/PPTP tabs
+  already behave.
 
 ---
 

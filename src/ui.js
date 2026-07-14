@@ -6,8 +6,15 @@
 export const $ = (sel, root = document) => root.querySelector(sel);
 export const $$ = (sel, root = document) => Array.from(root.querySelectorAll(sel));
 
-export const reduceMotion =
+export let reduceMotion =
     typeof matchMedia === "function" && matchMedia("(prefers-reduced-motion: reduce)").matches;
+if (typeof matchMedia === "function") {
+    try {
+        matchMedia("(prefers-reduced-motion: reduce)").addEventListener("change", (e) => {
+            reduceMotion = e.matches;
+        });
+    } catch (_) { /* older engines */ }
+}
 
 export function setHidden(el, hidden) {
     if (el) el.hidden = !!hidden;

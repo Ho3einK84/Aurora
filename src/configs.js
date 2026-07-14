@@ -200,6 +200,7 @@ export function mountConfigs(deps) {
         el.className = "group card glass lift cfg-row rounded-2xl border-0";
         el.tabIndex = 0;
         el.dataset.link = r.link;
+        const canShare = typeof navigator.share === "function";
         el.innerHTML =
             `<div class="flex items-center gap-3 p-3">` +
             `<label class="cfg-check${selecting ? "" : " hidden"}">` +
@@ -210,6 +211,10 @@ export function mountConfigs(deps) {
             `<p class="truncate text-sm font-semibold" dir="auto">${escapeHtml(r.name)}</p>` +
             `<p class="truncate text-start font-mono text-[11px] text-base-content/40" dir="ltr">${escapeHtml(r.link)}</p>` +
             `</div>` +
+            (canShare
+                ? `<button class="btn btn-circle btn-ghost btn-sm" data-act="share" aria-label="Share">` +
+                  `<i class="ph ph-share-network text-lg"></i></button>`
+                : "") +
             `<button class="btn btn-circle btn-ghost btn-sm" data-act="copy" aria-label="${escapeAttr(t("copy"))}">` +
             `<i class="ph ph-copy text-lg"></i></button>` +
             `<button class="btn btn-circle btn-ghost btn-sm" data-act="qr" aria-label="${escapeAttr(t("qrcode"))}">` +
@@ -225,6 +230,15 @@ export function mountConfigs(deps) {
                 setTimeout(() => { icon.className = "ph ph-copy text-lg"; }, 1600);
             }
         });
+        const shareBtn = el.querySelector('[data-act="share"]');
+        if (shareBtn) {
+            shareBtn.addEventListener("click", async (e) => {
+                e.stopPropagation();
+                try {
+                    await navigator.share({ title: r.name, text: r.link });
+                } catch (_) { /* user cancelled — ignore */ }
+            });
+        }
         el.querySelector('[data-act="qr"]').addEventListener("click", (e) => {
             e.stopPropagation();
             openQr(r.name, r.link);
@@ -332,6 +346,21 @@ export function mountConfigs(deps) {
         toast(t("export_done"));
     });
 
+    $("#config-export-json").addEventListener("click", () => {
+        if (!rows.length) return;
+        const data = rows.map((r) => ({ name: r.name, protocol: r.proto, link: r.link }));
+        const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json;charset=utf-8" });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = (deps.username || "aurora").replace(/[^a-z0-9_-]+/gi, "_") + "-configs.json";
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        setTimeout(() => URL.revokeObjectURL(url), 1000);
+        toast(t("export_done"));
+    });
+
     // Keyboard navigation: ↑/↓ move, Enter copies, Space opens the QR.
     listEl.addEventListener("keydown", (e) => {
         const items = $$(".cfg-row", listEl);
@@ -372,7 +401,7 @@ export function mountConfigs(deps) {
     });
 
     const disabled = !rows.length;
-    ["#copy-all", "#config-group", "#config-select", "#config-export"].forEach((sel) => {
+    ["#copy-all", "#config-group", "#config-select", "#config-export", "#config-export-json"].forEach((sel) => {
         const el = $(sel);
         if (el) el.disabled = disabled;
     });

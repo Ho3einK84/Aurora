@@ -38,6 +38,30 @@ function defaultBrand() {
     return (meta && meta.content.trim()) || "Aurora";
 }
 
+/**
+ * @typedef {Object} AuroraContext
+ * @property {string} username
+ * @property {string} brandName
+ * @property {string} serviceName
+ * @property {number} onlineCount
+ * @property {string} onlineAt - ISO date or unix seconds
+ * @property {string} createdAt - ISO date or unix seconds
+ * @property {string} status - active|limited|expired|disabled|on_hold
+ * @property {string} statusClass
+ * @property {number} usedTraffic - bytes
+ * @property {number} dataLimit - bytes (0 = unlimited)
+ * @property {string|undefined} limitRaw - raw pongo2 value
+ * @property {string} resetStrategy - no_reset|day|week|month|year
+ * @property {number} expire - unix seconds (0 = never)
+ * @property {string|undefined} expireRaw - raw pongo2 value
+ * @property {number} remainingDays
+ * @property {string} subUrl
+ * @property {string} usageUrl
+ * @property {string} supportUrl
+ * @property {string[]} links - proxy config URIs (no .ovpn)
+ * @property {string[]} ovpnLinks - .ovpn download URLs
+ */
+
 function readContext() {
     const d = ($("#aurora-data") || {}).dataset || {};
     let subUrl = (d.subscriptionUrl || "").trim();
@@ -511,18 +535,22 @@ function renderReset() {
 
     const out = $("#reset-countdown");
     const tick = () => {
-        let diff = target.getTime() - Date.now();
-        if (diff <= 0) {
-            out.textContent = t("soon");
-            return;
+        try {
+            let diff = target.getTime() - Date.now();
+            if (diff <= 0) {
+                out.textContent = t("soon");
+                return;
+            }
+            const dd = Math.floor(diff / 86400000); diff -= dd * 86400000;
+            const hh = Math.floor(diff / 3600000); diff -= hh * 3600000;
+            const mm = Math.floor(diff / 60000); diff -= mm * 60000;
+            const ss = Math.floor(diff / 1000);
+            const pad = (n) => String(n).padStart(2, "0");
+            const clock = `${pad(hh)}:${pad(mm)}:${pad(ss)}`;
+            out.textContent = locNum(dd > 0 ? `${dd} ${t(dd === 1 ? "day" : "days")} ${clock}` : clock, lang);
+        } catch (_) {
+            clearInterval(resetTimer);
         }
-        const dd = Math.floor(diff / 86400000); diff -= dd * 86400000;
-        const hh = Math.floor(diff / 3600000); diff -= hh * 3600000;
-        const mm = Math.floor(diff / 60000); diff -= mm * 60000;
-        const ss = Math.floor(diff / 1000);
-        const pad = (n) => String(n).padStart(2, "0");
-        const clock = `${pad(hh)}:${pad(mm)}:${pad(ss)}`;
-        out.textContent = locNum(dd > 0 ? `${dd} ${t(dd === 1 ? "day" : "days")} ${clock}` : clock, lang);
     };
     tick();
     resetTimer = setInterval(tick, 1000);
@@ -615,6 +643,40 @@ function wireOffline() {
     window.addEventListener("online", sync);
     window.addEventListener("offline", sync);
     sync();
+}
+
+/* ---- system preference watchers ---- */
+
+/** Watch for OS color-scheme changes and follow automatically (unless the user explicitly picked). */
+function wireThemeWatcher() {
+    if (typeof matchMedia !== "function") return;
+    try {
+        matchMedia("(prefers-color-scheme: light)").addEventListener("change", (e) => {
+            if (!storeGet("aurora_theme")) {
+                setTheme(e.matches ? "auroralight" : "auroradark", false);
+                renderAllDynamic();
+            }
+        });
+    } catch (_) { /* older engines */ }
+}
+
+/** Re-render relative time strings ("3 min ago", "in 2 days") every 60 s. */
+function startRelativeTimeRefresh() {
+    setInterval(() => {
+        if (!CTX || document.visibilityState !== "visible") return;
+        // Only update the two cells that carry relative text — cheap DOM writes.
+        const neverExpire = !hasValue(CTX.expireRaw);
+        if (!neverExpire) {
+            const rel = $("#stat-expire-rel");
+            if (rel) rel.textContent = fmtRelative(new Date(CTX.expire * 1000), lang);
+        }
+        const online = parsePanelDate(CTX.onlineAt);
+        if (online) {
+            const fresh = Date.now() - online.getTime() < 30_000;
+            const el = $("#last-online");
+            if (el && !fresh) el.textContent = fmtRelative(online, lang);
+        }
+    }, 60_000);
 }
 
 /* ------------------------------------------------------------------- apps */
@@ -729,6 +791,8 @@ async function init() {
         wireQrModal();
         wireCollapses();
         wireOffline();
+        wireThemeWatcher();
+        startRelativeTimeRefresh();
 
         // Header copy-sub + sub-QR act on the subscription URL.
         $("#copy-sub").addEventListener("click", async (e) => {
@@ -749,21 +813,55 @@ async function init() {
             setHidden(usageLink, false);
         }
 
-        // Sections. Configs mounts synchronously; apps waits on the (optional)
-        // remote catalogue; usage fetches its history in the background.
-        configsView = mountConfigs({
-            links: CTX.links,
-            username: CTX.username,
-            t,
-            lang: () => lang,
-            openQr,
-        });
-        usageView = mountUsage({ ctx: CTX, state: STATE, t, lang: () => lang });
-        usageView.start();
-        vpnView = mountVpn({ ctx: CTX, ovpnLinks: CTX.ovpnLinks, t, lang: () => lang });
-        vpnView.start();
+        // Sections. Configs mounts synchronously; usage and VPN lazy-load via
+        // IntersectionObserver (like apps). Each section is wrapped in its own
+        // try/catch so a failure in one never blocks the others.
+        try {
+            configsView = mountConfigs({
+                links: CTX.links,
+                username: CTX.username,
+                t,
+                lang: () => lang,
+                openQr,
+            });
+        } catch (err) { console.error("[aurora] configs failed:", err); }
+
+        // Lazy-mount usage dashboard when it scrolls near the viewport.
+        const usageCard = $("#usage-card");
+        const mountUsageOnce = () => {
+            if (usageView) return;
+            try {
+                usageView = mountUsage({ ctx: CTX, state: STATE, t, lang: () => lang });
+                usageView.start();
+            } catch (err) { console.error("[aurora] usage failed:", err); }
+        };
+        if ("IntersectionObserver" in window && usageCard) {
+            const io = new IntersectionObserver((entries) => {
+                if (entries[0].isIntersecting) { mountUsageOnce(); io.disconnect(); }
+            }, { rootMargin: "200px" });
+            io.observe(usageCard);
+        } else { mountUsageOnce(); }
+
+        // Lazy-mount VPN card when it scrolls near the viewport.
+        const vpnCard = $("#vpn-card");
+        const mountVpnOnce = () => {
+            if (vpnView) return;
+            try {
+                vpnView = mountVpn({ ctx: CTX, ovpnLinks: CTX.ovpnLinks, t, lang: () => lang });
+                vpnView.start();
+            } catch (err) { console.error("[aurora] vpn failed:", err); }
+        };
+        if ("IntersectionObserver" in window && vpnCard) {
+            const io = new IntersectionObserver((entries) => {
+                if (entries[0].isIntersecting) { mountVpnOnce(); io.disconnect(); }
+            }, { rootMargin: "200px" });
+            io.observe(vpnCard);
+        } else { mountVpnOnce(); }
+
         loadAppsCatalogue().then((apps) => {
-            appsView = mountApps({ apps, subUrl: CTX.subUrl, username: CTX.username, t });
+            try {
+                appsView = mountApps({ apps, subUrl: CTX.subUrl, username: CTX.username, t });
+            } catch (err) { console.error("[aurora] apps failed:", err); }
         });
 
         renderAllDynamic();

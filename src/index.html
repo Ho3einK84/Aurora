@@ -321,7 +321,9 @@
                             <button role="tab" class="range-pill" data-range="30" aria-selected="true" data-i18n="usage_range_30d">30D</button>
                             <button role="tab" class="range-pill" data-range="90" aria-selected="false" data-i18n="usage_range_90d">90D</button>
                         </div>
-                        <div id="usage-chart" class="usage-chart" role="img"></div>
+                        <div id="usage-chart" class="usage-chart" role="img">
+                            <div class="aurora-skeleton" style="height:5.5rem"></div>
+                        </div>
                         <p id="usage-forecast" hidden class="flex items-center gap-2 text-[12px] text-base-content/60">
                             <i class="ph ph-hourglass-medium text-base text-accent"></i>
                             <span id="usage-forecast-text"></span>
@@ -384,6 +386,10 @@
                                 data-i18n-label="export_configs" data-i18n-title="export_configs">
                                 <i class="ph ph-download-simple text-lg"></i>
                             </button>
+                            <button id="config-export-json" class="btn btn-sm btn-ghost glass btn-square rounded-xl"
+                                aria-label="Export JSON" title="Export JSON">
+                                <i class="ph ph-brackets-curly text-lg"></i>
+                            </button>
                         </div>
 
                         <!-- Protocol filter pills (built at runtime) -->
@@ -418,7 +424,7 @@
                 data-collapse="vpn-body" aria-expanded="true" aria-controls="vpn-body">
                 <span class="flex items-center gap-2 text-lg font-bold">
                     <i class="ph ph-shield-check text-xl text-accent"></i>
-                    <span data-i18n="vpn_access">OpenVPN files</span>
+                    <span data-i18n="vpn_access">VPN Files</span>
                 </span>
                 <i class="ph ph-caret-down chev text-xl text-base-content/50"></i>
             </button>
@@ -429,7 +435,10 @@
                         <!-- Protocol tabs (built at runtime) -->
                         <div id="vpn-tabs" hidden class="no-scrollbar mb-3 flex gap-1.5 overflow-x-auto"
                             role="tablist" aria-label="VPN protocol"></div>
-                        <div id="vpn-list" class="space-y-2.5"></div>
+                        <div id="vpn-list" class="space-y-2.5">
+                        <div class="aurora-skeleton" style="height:3rem"></div>
+                        <div class="aurora-skeleton" style="height:3rem"></div>
+                    </div>
                         <p id="vpn-note" class="mt-3 flex items-start gap-1.5 text-[11px] text-base-content/50"></p>
                     </div>
                 </div>

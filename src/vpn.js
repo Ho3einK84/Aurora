@@ -225,9 +225,10 @@ export function mountVpn(deps) {
             `<button role="tab" class="filter-pill${id === activeTab ? " active" : ""}" ` +
             `aria-selected="${id === activeTab}" data-vpn-tab="${escapeAttr(id)}">${escapeHtml(label)}</button>`
         ).join("");
-        $$("[data-vpn-tab]", tabsEl).forEach((btn) => {
+        $$("#vpn-tabs [data-vpn-tab]", tabsEl).forEach((btn) => {
             btn.addEventListener("click", () => {
                 activeTab = btn.getAttribute("data-vpn-tab");
+                revealed.clear();
                 render();
             });
         });
@@ -238,7 +239,7 @@ export function mountVpn(deps) {
             `aria-label="${escapeAttr(label)}"><i class="ph ph-copy text-base"></i></button>`;
     }
 
-    function fieldRow(labelKey, value, opts) {
+    function fieldRow(labelKey, value, opts = {}) {
         if (!value) return "";
         const { icon, secret, key } = opts;
         const hidden = secret && !revealed.has(key);
@@ -293,6 +294,14 @@ export function mountVpn(deps) {
                 `href="${escapeAttr(profile.downloadUrl)}" download>` +
                 `<i class="ph ph-download-simple text-base"></i>` +
                 `<span class="hidden sm:inline">${escapeHtml(t("ovpn_download"))}</span></a>`
+            );
+        }
+        if (profile.link && /^wireguard:\/\//i.test(profile.link)) {
+            buttons.push(
+                `<a class="btn btn-sm btn-accent gap-1.5 rounded-xl font-semibold" ` +
+                `href="${escapeAttr(profile.link)}" ` +
+                `aria-label="Connect"><i class="ph ph-plug-charging text-base"></i>` +
+                `<span class="hidden sm:inline">Connect</span></a>`
             );
         }
         return `<div class="group card glass lift rounded-2xl border-0">` +

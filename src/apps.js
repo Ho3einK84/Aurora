@@ -90,11 +90,10 @@ export function mountApps(deps) {
         const tile = `<div class="app-tile grid h-11 w-11 shrink-0 place-items-center rounded-xl ` +
             `bg-gradient-to-br from-primary/25 to-secondary/25 text-lg font-extrabold text-primary">${letter}</div>`;
         if (!app.image) return tile;
-        return `<div class="relative h-11 w-11 shrink-0">` +
+        return `<div class="relative h-11 w-11 shrink-0" data-app-tile>` +
             `<img src="${escapeAttr(app.image)}" alt="" loading="lazy" decoding="async" ` +
-            `class="h-11 w-11 rounded-xl bg-base-100/50 object-contain p-1" ` +
-            `onerror="this.parentNode.innerHTML=this.nextElementSibling.innerHTML"/>` +
-            `<template>${tile}</template></div>`;
+            `class="h-11 w-11 rounded-xl bg-base-100/50 object-contain p-1" />` +
+            `${tile}</div>`;
     }
 
     function renderList() {
@@ -123,6 +122,19 @@ export function mountApps(deps) {
                     : "") +
                 `</div></div></div>`;
         }).join("");
+        // Wire image error/loads safely (no inline onerror — prevents XSS).
+        $$("[data-app-tile]", listEl).forEach((wrap) => {
+            const img = wrap.querySelector("img");
+            const fallback = wrap.querySelector(".app-tile");
+            if (!img || !fallback) return;
+            fallback.style.display = "none";
+            fallback.style.position = "absolute";
+            fallback.style.inset = "0";
+            img.addEventListener("error", () => {
+                img.style.display = "none";
+                fallback.style.display = "";
+            });
+        });
     }
 
     function renderAll() {

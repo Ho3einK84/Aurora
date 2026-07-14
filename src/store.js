@@ -20,6 +20,6 @@ export function storeSet(key, value) {
     mem[key] = value;
     try { localStorage.setItem(key, value); } catch (_) { /* ignore */ }
     try {
-        document.cookie = `${key}=${encodeURIComponent(value)}; path=/; max-age=31536000; SameSite=Lax`;
+        document.cookie = `${key}=${encodeURIComponent(value)}; path=/; max-age=31536000; SameSite=Lax; Secure`;
     } catch (_) { /* ignore */ }
 }

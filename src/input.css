@@ -559,3 +559,21 @@ html[dir="rtl"] {
     transform: rotate(360deg);
   }
 }
+
+/* Skeleton loading placeholder. */
+@keyframes aurora-shimmer {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+.aurora-skeleton {
+  border-radius: 0.75rem;
+  background: linear-gradient(90deg,
+    color-mix(in oklch, var(--color-base-content) 8%, transparent) 25%,
+    color-mix(in oklch, var(--color-base-content) 14%, transparent) 50%,
+    color-mix(in oklch, var(--color-base-content) 8%, transparent) 75%);
+  background-size: 200% 100%;
+  animation: aurora-shimmer 1.5s ease-in-out infinite;
+}
+@media (prefers-reduced-motion: reduce) {
+  .aurora-skeleton { animation: none; }
+}

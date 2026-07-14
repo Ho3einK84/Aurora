@@ -16,9 +16,9 @@ Glassmorphism · usage dashboard · EN/FA RTL · white-label · Tailwind v4 + Da
 
 <div align="center">
 
-![Aurora subscription page](assets/screenshots/preview-v3.5.png)
+![Aurora subscription page](assets/screenshots/preview-v3.5.1.png)
 
-*v3.5 · Aurora Dark — glassmorphism service card, usage/time rings, config list with protocol filters.*
+*v3.5.1 · Aurora Dark — glassmorphism service card, usage/time rings, config list with protocol filters.*
 
 </div>
 

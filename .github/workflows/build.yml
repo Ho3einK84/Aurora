@@ -3,10 +3,6 @@ name: Build & Release
 on:
   push:
     branches: ["**"]
-    # Match both `v2.0.0` and a bare `2.0.0` so a missing "v" doesn't skip the build.
-    tags:
-      - "v[0-9]+.[0-9]+.[0-9]+"
-      - "[0-9]+.[0-9]+.[0-9]+"
   pull_request:
   # Also build when a GitHub Release is published (covers releases created via the UI).
   release:

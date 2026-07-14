@@ -127,8 +127,8 @@ function ctxFor(state, brand, profileTitle) {
         "user.created_at": new Date(Date.now() - 240 * 86400_000).toISOString(),
         "user.service_name": "Nebula 50GB",
         remaining_days: "18",
-        "user.subscription_url": `http://localhost:${PORT}/sub/alice`,
-        usage_url: `http://localhost:${PORT}/usage`,
+        "user.subscription_url": `/sub/alice`,
+        usage_url: `/usage`,
         support_url: "https://t.me/support",
         brand_name: brand || "",
         // Not yet populated by Rebecca's real pongo2 context — exercised here
@@ -228,6 +228,7 @@ function render(html, ctx, links) {
 
 createServer(async (req, res) => {
     try {
+        res.setHeader("Access-Control-Allow-Origin", "*");
         const url = new URL(req.url, "http://x");
         if (url.pathname === "/usage") {
             usageResponse(res, url.searchParams.get("mode") || USAGE);

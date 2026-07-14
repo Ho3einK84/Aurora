@@ -835,11 +835,12 @@ async function init() {
                 usageView.start();
             } catch (err) { console.error("[aurora] usage failed:", err); }
         };
-        if ("IntersectionObserver" in window && usageCard) {
+        const usageSentinel = $("#usage-sentinel");
+        if ("IntersectionObserver" in window && usageSentinel) {
             const io = new IntersectionObserver((entries) => {
                 if (entries[0].isIntersecting) { mountUsageOnce(); io.disconnect(); }
             }, { rootMargin: "200px" });
-            io.observe(usageCard);
+            io.observe(usageSentinel);
         } else { mountUsageOnce(); }
 
         // Lazy-mount VPN card when it scrolls near the viewport.
@@ -851,11 +852,12 @@ async function init() {
                 vpnView.start();
             } catch (err) { console.error("[aurora] vpn failed:", err); }
         };
-        if ("IntersectionObserver" in window && vpnCard) {
+        const vpnSentinel = $("#vpn-sentinel");
+        if ("IntersectionObserver" in window && vpnSentinel) {
             const io = new IntersectionObserver((entries) => {
                 if (entries[0].isIntersecting) { mountVpnOnce(); io.disconnect(); }
             }, { rootMargin: "200px" });
-            io.observe(vpnCard);
+            io.observe(vpnSentinel);
         } else { mountVpnOnce(); }
 
         loadAppsCatalogue().then((apps) => {

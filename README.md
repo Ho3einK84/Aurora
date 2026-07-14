@@ -16,9 +16,9 @@ Glassmorphism · usage dashboard · EN/FA RTL · white-label · Tailwind v4 + Da
 
 <div align="center">
 
-![Aurora subscription page](assets/screenshots/preview-v3.3.png)
+![Aurora subscription page](assets/screenshots/preview-v3.5.png)
 
-*v3.3 · Aurora Dark — screenshot predates v3.4 WireGuard support.*
+*v3.5 · Aurora Dark — glassmorphism service card, usage/time rings, config list with protocol filters.*
 
 </div>
 
@@ -27,13 +27,14 @@ Glassmorphism · usage dashboard · EN/FA RTL · white-label · Tailwind v4 + Da
 ## ✨ Features
 
 - **Service card** — usage/time rings, animated stats, live quota-reset countdown. Handles unlimited, never-expire, `on_hold`, and client-derived expired/limited states.
-- **Usage dashboard** — 30-day chart, threshold alerts, per-server breakdown, depletion forecast, offline cache, 5-min auto-refresh.
-- **Configs** — search, protocol filters, group-by-country, bulk select + copy, `.txt` export, full keyboard support.
-- **VPN files** (OpenVPN · WireGuard · L2TP/IPsec · PPTP) — download/copy `.ovpn` profiles and masked credential cards, fed by the panel's `/info` endpoint (see reference below); WireGuard gets its own structured tab with download, copy-link, and copy-config actions (no mask/reveal — same trust level as OpenVPN); hidden without VPN hosts.
+- **Usage dashboard** — 30-day chart, threshold alerts, per-server breakdown, depletion forecast, offline cache, 5-min auto-refresh. Lazy-loaded via IntersectionObserver.
+- **Configs** — search, protocol filters, group-by-country, bulk select + copy, `.txt`/`.json` export, full keyboard support. Web Share API button on mobile.
+- **VPN files** (OpenVPN · WireGuard · L2TP/IPsec · PPTP) — download/copy `.ovpn` profiles and masked credential cards, fed by the panel's `/info` endpoint (see reference below); WireGuard gets its own structured tab with download, copy-link, copy-config, and **Connect** button (opens `wireguard://` URI directly); hidden without VPN hosts. Lazy-loaded with skeleton placeholders.
 - **Apps** — OS-grouped client catalogue with one-tap import, from `src/apps.json`.
-- **Themes & i18n** — 4 themes, EN/فارسی with full RTL, forceable via `?theme=`/`?lang=fa`.
+- **Themes & i18n** — 4 themes, EN/فارسی with full RTL, forceable via `?theme=`/`?lang=fa`. Auto-toggle follows OS color-scheme changes in real time.
 - **White-label** — brand text from the panel's Subscription profile title, with fallbacks (see Customization below).
-- **PWA-ready, resilient, accessible** — installable manifest, zero external requests, offline/error states, ARIA + keyboard support.
+- **PWA-ready, resilient, accessible** — installable manifest, zero external requests, offline/error states, ARIA + keyboard support. Per-section error boundaries (configs/usage/vpn/apps fail independently). Reduced-motion preference reactive to runtime changes.
+- **Security** — no inline event handlers, secure cookie flag, revealed-secrets cleanup on tab switch.
 
 One self-contained `index.html` — no external fonts, CDNs, or runtime calls beyond *your* panel/host.
 
@@ -100,7 +101,7 @@ aurora/
 │   ├── index.html      # markup + the pongo2 data-island (the ONLY directives)
 │   ├── app.js          # bootstrap, card, rings, countdown, theming, QR modal
 │   ├── configs.js      # config parsing, search/filter/group/select, list view
-│   ├── vpn.js          # VPN files: OpenVPN .ovpn downloads, WireGuard configs, L2TP/PPTP credentials (/info)
+│   ├── vpn.js          # VPN files: OpenVPN .ovpn, WireGuard (connect/copy/download), L2TP/PPTP creds (/info)
 │   ├── apps.js         # app catalogue, OS detection, import deep links
 │   ├── usage.js        # usage dashboard: fetch, cache, chart, forecast
 │   ├── i18n.js         # EN/FA dictionaries, digits, dates

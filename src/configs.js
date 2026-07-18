@@ -211,14 +211,23 @@ export function mountConfigs(deps) {
             `<p class="truncate text-sm font-semibold" dir="auto">${escapeHtml(r.name)}</p>` +
             `<p class="truncate text-start font-mono text-[11px] text-base-content/40" dir="ltr">${escapeHtml(r.link)}</p>` +
             `</div>` +
+            // Action buttons live in their own inner flex group with a tight
+            // gap so they stop eating the row's `gap-3` width budget. The
+            // visible icon shrinks (smaller "chip"), but each `.cfg-action`
+            // keeps a full ~40px clickable box via a transparent hit-slop
+            // pad — this row is tapped constantly (Copy/QR), so tap accuracy
+            // is not sacrificed for visual compactness. ARIA labels and the
+            // `dir` attrs above are untouched.
+            `<div class="cfg-actions">` +
             (canShare
-                ? `<button class="btn btn-circle btn-ghost btn-sm" data-act="share" aria-label="Share">` +
-                  `<i class="ph ph-share-network text-lg"></i></button>`
+                ? `<button class="cfg-action" data-act="share" aria-label="Share">` +
+                  `<i class="ph ph-share-network"></i></button>`
                 : "") +
-            `<button class="btn btn-circle btn-ghost btn-sm" data-act="copy" aria-label="${escapeAttr(t("copy"))}">` +
-            `<i class="ph ph-copy text-lg"></i></button>` +
-            `<button class="btn btn-circle btn-ghost btn-sm" data-act="qr" aria-label="${escapeAttr(t("qrcode"))}">` +
-            `<i class="ph ph-qr-code text-lg"></i></button>` +
+            `<button class="cfg-action" data-act="copy" aria-label="${escapeAttr(t("copy"))}">` +
+            `<i class="ph ph-copy"></i></button>` +
+            `<button class="cfg-action" data-act="qr" aria-label="${escapeAttr(t("qrcode"))}">` +
+            `<i class="ph ph-qr-code"></i></button>` +
+            `</div>` +
             `</div>`;
 
         el.querySelector('[data-act="copy"]').addEventListener("click", async (e) => {
@@ -270,6 +279,12 @@ export function mountConfigs(deps) {
             listEl.innerHTML = emptyState("no_match");
             return;
         }
+        // Build every row into ONE DocumentFragment and append it in a single
+        // call — one reflow per render instead of N per-row `appendChild`
+        // reflows. The benefit grows with the list size, which matters here
+        // because `renderList()` also fires on every debounced search
+        // keystroke and every filter pill toggle.
+        const frag = document.createDocumentFragment();
         if (grouped) {
             const groups = new Map();
             visible.forEach((r) => {
@@ -288,12 +303,13 @@ export function mountConfigs(deps) {
                     head.innerHTML =
                         `<span>${escapeHtml(g.flag)}</span><span dir="auto">${escapeHtml(g.name)}</span>` +
                         `<span class="badge badge-xs badge-ghost">${locNum(g.items.length, lang())}</span>`;
-                    listEl.appendChild(head);
-                    g.items.forEach((r) => listEl.appendChild(buildRow(r)));
+                    frag.appendChild(head);
+                    g.items.forEach((r) => frag.appendChild(buildRow(r)));
                 });
         } else {
-            visible.forEach((r) => listEl.appendChild(buildRow(r)));
+            visible.forEach((r) => frag.appendChild(buildRow(r)));
         }
+        listEl.appendChild(frag);
     }
 
     function updateSelectionBar() {
@@ -304,9 +320,21 @@ export function mountConfigs(deps) {
 
     /* ---- toolbar wiring (once) ---- */
 
+    // Debounce the search input so rapid typing fires one `renderList()`
+    // after the user pauses (~180ms trailing) instead of one reflow per
+    // keystroke. The fragment-based render already makes each pass cheap,
+    // but skipping the intermediate renders is an even bigger win on long
+    // lists and slow phones.
+    let searchTimer = 0;
+    const SEARCH_DEBOUNCE_MS = 180;
+    const scheduleSearchRender = () => {
+        clearTimeout(searchTimer);
+        searchTimer = setTimeout(() => renderList(), SEARCH_DEBOUNCE_MS);
+    };
+
     $("#config-search").addEventListener("input", (e) => {
         search = e.target.value || "";
-        renderList();
+        scheduleSearchRender();
     });
 
     $("#config-group").addEventListener("click", (e) => {

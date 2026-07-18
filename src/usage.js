@@ -225,6 +225,62 @@ export function mountUsage(deps) {
         period.textContent = (!isNaN(first) && !isNaN(last))
             ? `${fmtDayMonth(first, lang())} – ${fmtDayMonth(last, lang())}`
             : "";
+
+        wireChartTap(chart);
+    }
+
+    /**
+     * Minimal tap-to-reveal readout for the usage chart bars. The native SVG
+     * `<title>` already covers hover (desktop); on touch, hover barely fires,
+     * so a tap on a bar flips up a small floating bubble with the same text
+     * the `<title>` holds. Built from scratch — no tooltip library, no
+     * persistent hover layer, no per-bar DOM nodes. One reused bubble, one
+     * delegated listener, ~2s auto-hide. Re-wired on every render because
+     * `renderChart` replaces chart.innerHTML; the listener is cheap.
+     */
+    function wireChartTap(chart) {
+        const svg = chart.querySelector("svg.usage-svg");
+        if (!svg) return;
+        // One reused bubble, created on first tap.
+        let bubble = null;
+        let hideTimer = 0;
+        const ensureBubble = () => {
+            if (bubble) return bubble;
+            bubble = document.createElement("div");
+            bubble.className = "usage-readout";
+            bubble.setAttribute("role", "status");
+            bubble.setAttribute("aria-live", "polite");
+            bubble.hidden = true;
+            chart.appendChild(bubble);
+            return bubble;
+        };
+        const show = (text, x, y) => {
+            const b = ensureBubble();
+            b.textContent = text;
+            b.hidden = false;
+            // Position relative to the chart box; clamp inside.
+            const cw = chart.clientWidth || 1;
+            const bw = b.offsetWidth || 0;
+            const left = Math.max(0, Math.min(cw - bw, x - bw / 2));
+            b.style.left = `${left}px`;
+            b.style.bottom = "0.25rem";
+            clearTimeout(hideTimer);
+            hideTimer = setTimeout(() => { b.hidden = true; }, 2000);
+        };
+        const onPointer = (e) => {
+            // Only react to touch-style taps here — mouse hover still uses the
+            // native <title>. Treat pointer events of type "touch" as taps.
+            if (e.pointerType === "mouse") return;
+            const target = e.target.closest("rect");
+            if (!target) return;
+            const titleEl = target.querySelector("title");
+            const text = titleEl ? titleEl.textContent : "";
+            if (!text) return;
+            const rect = target.getBoundingClientRect();
+            const cx = rect.left + rect.width / 2;
+            show(text, cx - chart.getBoundingClientRect().left, rect.top);
+        };
+        svg.addEventListener("pointerdown", onPointer);
     }
 
     /** Project when the data limit will be hit from the recent daily average. */

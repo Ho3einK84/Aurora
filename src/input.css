@@ -157,6 +157,19 @@ html[dir="rtl"] {
   font-family: var(--font-farsi);
 }
 
+/* Smooth theme swaps: when the `data-theme` attribute changes on
+   document.documentElement, fade just the background + foreground colours
+   instead of snapping. Scoped intentionally to those two properties so the
+   whole tree doesn't repaint (boxes, borders, gradients keep their own
+   transitions where they need them). Reduced-motion gets a no-op — the
+   transition is declared only inside the `not reduced` guard, so engines
+   outside it simply have nothing to animate. */
+@media (prefers-reduced-motion: no-preference) {
+  :root {
+    transition: background-color 0.28s ease, color 0.28s ease;
+  }
+}
+
 @layer base {
   body {
     -webkit-font-smoothing: antialiased;
@@ -318,6 +331,50 @@ html[dir="rtl"] {
     border-color: color-mix(in oklch, var(--color-primary) 55%, transparent);
   }
 
+  /* Config-row action buttons (Share/Copy/QR). Grouped in a tight inner
+     flex so they stop sharing the row's `gap-3` and reclaim width for the
+     config name. Each `.cfg-action` is a full ~40px clickable box (tap
+     accuracy is preserved) but renders a smaller visible icon chip, so the
+     row reads as compact without trading hit area. Keep hover/active on the
+     `@media (hover:hover)` path only — no sticky :active on touch. */
+  .cfg-actions {
+    display: flex;
+    flex-shrink: 0;
+    align-items: center;
+    gap: 0.125rem;
+  }
+  .cfg-action {
+    display: inline-grid;
+    place-items: center;
+    width: 2.5rem;
+    height: 2.5rem;
+    padding: 0;
+    border: 0;
+    background: transparent;
+    color: color-mix(in oklch, var(--color-base-content) 75%, transparent);
+    border-radius: 9999px;
+    cursor: pointer;
+    -webkit-tap-highlight-color: transparent;
+    transition: background 0.18s ease, color 0.18s ease;
+  }
+  .cfg-action > i {
+    font-size: 1.05rem;
+    line-height: 1;
+  }
+  @media (hover: hover) {
+    .cfg-action:hover {
+      background: color-mix(in oklch, var(--color-base-content) 10%, transparent);
+      color: var(--color-base-content);
+    }
+  }
+  .cfg-action:active {
+    background: color-mix(in oklch, var(--color-base-content) 14%, transparent);
+  }
+  .cfg-action:focus-visible {
+    outline: 2px solid color-mix(in oklch, var(--color-primary) 60%, transparent);
+    outline-offset: 1px;
+  }
+
   /* Protocol filter pills. */
   .filter-pill {
     flex-shrink: 0;
@@ -375,6 +432,42 @@ html[dir="rtl"] {
   }
   .usage-chart rect:hover {
     fill: var(--color-primary);
+  }
+
+  /* Tap-to-reveal readout for the usage chart on touch (hover already uses
+     the native SVG <title>). One reused floating bubble, positioned over the
+     tapped bar, auto-hides after ~2s. Positioned absolutely inside the
+     chart's relative wrapper so the parent box defines the movement bounds. */
+  .usage-chart {
+    position: relative;
+  }
+  .usage-readout {
+    position: absolute;
+    bottom: 0.25rem;
+    left: 0;
+    transform: translateX(0);
+    z-index: 5;
+    max-width: 92%;
+    padding: 0.35rem 0.6rem;
+    border-radius: 0.6rem;
+    background: color-mix(in oklch, var(--color-base-100) 82%, transparent);
+    border: 1px solid color-mix(in oklch, var(--color-base-content) 14%, transparent);
+    backdrop-filter: blur(10px) saturate(130%);
+    -webkit-backdrop-filter: blur(10px) saturate(130%);
+    color: var(--color-base-content);
+    font-size: 11px;
+    font-weight: 600;
+    line-height: 1.25;
+    white-space: nowrap;
+    pointer-events: none;
+    animation: aurora-readout-in 0.14s ease;
+  }
+  .usage-readout[hidden] {
+    display: none;
+  }
+  @keyframes aurora-readout-in {
+    from { opacity: 0; transform: translateY(0.25rem); }
+    to   { opacity: 1; transform: translateY(0); }
   }
 
   /* Per-server horizontal bars. */

@@ -52,6 +52,71 @@ wget -O /var/lib/rebecca/templates/subscription/index.html \
 
 Rebecca re-reads the template on every request — no restart needed. Re-run the same command to update.
 
+> **This is the recommended path.** It keeps Aurora on the same server that
+> renders it and avoids any extra proxy hop.
+
+---
+
+## 📡 Installation on shared hosting
+
+Use this only when **one of these is true**:
+
+- Your public domain is on cPanel-style PHP hosting and the Rebecca server is
+  not directly reachable from that domain.
+- You cannot place files directly on the Rebecca server's template directory.
+- You want visitors to see the subscription page under your own domain while the
+  panel itself stays on its own host.
+
+> **Shared-hosting mode is a proxy, not a replacement for Rebecca.** Rebecca
+> must still render `dist/index.html` server-side with pongo2 at its configured
+> template path. The proxy only forwards the rendered output and subscription
+> endpoints to your own domain.
+
+### What to put on the shared host
+
+After building (`npm run build`), `dist/hosting/` contains:
+
+| File | Purpose |
+|------|---------|
+| `index.php` | Reverse proxy that forwards every request to Rebecca. |
+| `config.php` | Panel URL, timeout, and SSL verification setting. |
+| `.htaccess` | Apache rewrite rules (must keep the leading dot). |
+
+Upload these three files to the hosting account's document root, or a
+subdirectory such as `subscription/`.
+
+### What still must be done on the Rebecca server
+
+1. In **Master Settings → Subscriptions**, set the template path as usual.
+2. Place the built `dist/index.html` on the Rebecca server:
+
+   ```bash
+   wget -O /var/lib/rebecca/templates/subscription/index.html \
+     https://github.com/Ho3einK84/Aurora/releases/latest/download/index.html
+   ```
+
+   (If you download the release archive, unzip `hosting/` to your shared host
+   and use the `index.html` from the archive root for the Rebecca server.)
+
+3. Edit `config.php` on the shared host and point it at the panel:
+
+   ```php
+   'panel_url' => 'https://panel.example.com:8443',
+   ```
+
+### Shared-hosting requirements
+
+- PHP 7.0+ with the `curl` extension.
+- Apache with `mod_rewrite` enabled.
+- `AllowOverride All` (or at least `FileInfo`) for the directory so `.htaccess`
+  is honored.
+
+### Security note
+
+Set `'verify_ssl' => true` in `config.php` once the panel has a valid,
+publicly-trusted certificate. Only disable it for internal networks or
+self-signed certificates.
+
 ---
 
 ## 🎨 Customization

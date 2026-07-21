@@ -25,7 +25,7 @@
      node scripts/build.mjs --guard-only   re-run the guard on dist/index.html
    =========================================================================== */
 
-import { readFileSync, writeFileSync, mkdirSync, existsSync } from "node:fs";
+import { readFileSync, writeFileSync, mkdirSync, existsSync, cpSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import * as esbuild from "esbuild";
@@ -33,6 +33,36 @@ import * as esbuild from "esbuild";
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const r = (p) => resolve(root, p);
 const GUARD_ONLY = process.argv.includes("--guard-only");
+
+/* -------------------------------------------------------- hosting bundle */
+
+/**
+ * Copy the PHP proxy files into dist/hosting/ so releases can include a
+ * first-class shared-hosting deployment artifact. The .htaccess file must keep
+ * its leading dot; some zip tools strip it, so we verify the copy explicitly.
+ */
+function copyHosting() {
+    const src = r("hosting");
+    const dst = r("dist/hosting");
+    if (!existsSync(src)) return;
+    mkdirSync(dst, { recursive: true });
+    cpSync(src, dst, { recursive: true, preserveTimestamps: true });
+
+    const htaccess = resolve(dst, ".htaccess");
+    if (!existsSync(htaccess)) {
+        throw new Error("[hosting] .htaccess was not copied with its leading dot — packaging broken.");
+    }
+
+    const entries = readFileSync(htaccess, "utf8").split(/\r?\n/).filter(Boolean);
+    if (!entries.some((line) => /^\s*RewriteEngine\s+On/i.test(line))) {
+        throw new Error("[hosting] .htaccess missing RewriteEngine On — file contents unexpected.");
+    }
+
+    const count = readFileSync(resolve(dst, "index.php"), "utf8").length;
+    if (count < 100) {
+        throw new Error("[hosting] index.php looks truncated.");
+    }
+}
 
 /* -------------------------------------------------------- directive guard */
 
@@ -276,10 +306,20 @@ const bindings = guard(out);
 mkdirSync(r("dist"), { recursive: true });
 writeFileSync(r("dist/index.html"), out, "utf8");
 
+let hostingMsg = "";
+try {
+    copyHosting();
+    hostingMsg = " · dist/hosting/ copied";
+} catch (err) {
+    console.error("[hosting] " + (err.message || err));
+    process.exit(1);
+}
+
 const kb = (n) => (n / 1024).toFixed(1) + " KB";
 console.log(
     `✓ dist/index.html written (${kb(Buffer.byteLength(out, "utf8"))}, self-contained)\n` +
     `  app ${kb(appJs.length)} (b64 ${kb(appB64.length)}) · qr ${kb(qrJs.length)} lazy (b64 ${kb(qrB64.length)})\n` +
     `  css ${kb(css.length)} · fonts ${kb(fontCss.length)} · ${usedIcons.length} icons · ` +
-    `${bindings} pongo2 bindings preserved`
+    `${bindings} pongo2 bindings preserved` +
+    hostingMsg
 );

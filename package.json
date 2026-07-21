@@ -7,6 +7,7 @@
   "scripts": {
     "build:css": "tailwindcss -i ./src/input.css -o ./build/app.css --minify",
     "build:html": "node ./scripts/build.mjs",
+    "build:hosting": "node ./scripts/build.mjs && echo 'Hosting artifact ready at dist/hosting/'",
     "build": "npm run build:css && npm run build:html",
     "guard": "node ./scripts/build.mjs --guard-only",
     "serve": "node ./scripts/serve.mjs",

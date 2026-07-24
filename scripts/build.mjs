@@ -156,6 +156,12 @@ if (GUARD_ONLY) {
 
 const html = readFileSync(r("src/index.html"), "utf8");
 const apps = readFileSync(r("src/apps.json"), "utf8");
+const brandJson = readFileSync(r("src/brand.json"), "utf8");
+const brand = JSON.parse(brandJson);
+if (!brand.name || typeof brand.name !== "string") {
+    throw new Error("brand.json must have a non-empty \"name\" string.");
+}
+const brandName = brand.name;
 if (!existsSync(r("build/app.css"))) {
     throw new Error("build/app.css missing — run `npm run build:css` first (or `npm run build`).");
 }
@@ -283,6 +289,16 @@ if (/<\/script/i.test(appsLiteral)) {
     throw new Error("apps.json contains </script> — refusing to inline it.");
 }
 
+// Brand name: inline as a plain JSON literal so self-hosters can rebrand
+// directly in dist/index.html without a rebuild (edit window.AURORA_BRAND).
+const brandLiteral = brandJson.trim();
+if (/\{\{|\{%|\{#/.test(brandLiteral)) {
+    throw new Error("brand.json contains a template-directive sequence — refusing to inline it.");
+}
+if (/<\/script/i.test(brandLiteral)) {
+    throw new Error("brand.json contains </script> — refusing to inline it.");
+}
+
 const loaderScript =
     "(function(){var b=document.getElementById('aurora-app').textContent;" +
     "var s=atob(b.trim()),n=s.length,a=new Uint8Array(n);" +
@@ -293,13 +309,27 @@ const loaderScript =
 
 const scriptTag =
     `<script>window.AURORA_APPS = ${appsLiteral};</script>\n` +
+    `<script>window.AURORA_BRAND = ${brandLiteral};</script>\n` +
     `<script id="aurora-app" type="application/octet-stream">${appB64}</script>\n` +
     `<script id="aurora-qr" type="application/octet-stream">${qrB64}</script>\n` +
     `<script>${loaderScript}</script>`;
 
-const out = html
+let out = html
     .replace("<!--AURORA_INLINE_CSS-->", () => styleTag)
     .replace("<!--AURORA_INLINE_JS-->", () => scriptTag);
+
+// Substitute the brand name from brand.json into static HTML elements
+// (title, meta, splash, header) so the built file has zero "Aurora" in
+// user-visible places. The JS fallback "Aurora" stays base64-encoded and
+// is never seen; runtime defaultBrand() reads window.AURORA_BRAND first.
+const escBrand = (s) => s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+const bn = escBrand(brandName);
+out = out
+    .replace(/<title>[^<]+<\/title>/, `<title>${bn}</title>`)
+    .replace(/(<meta\s+name="aurora-brand"\s+content=")[^"]*(")/, `$1${bn}$2`)
+    .replace(/(id="splash-brand"[^>]*>)[^<]+(<\/p>)/, `$1${bn}$2`)
+    .replace(/(id="brand-name"[^>]*>)[^<]+(<\/p>)/, `$1${bn}$2`)
+    .replace(/\bAurora\b/g, bn);
 
 const bindings = guard(out);
 

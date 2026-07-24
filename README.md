@@ -29,7 +29,7 @@ Glassmorphism · usage dashboard · EN/FA RTL · white-label · Tailwind v4 + Da
 - **Service card** — usage/time rings, animated stats, live quota-reset countdown. Handles unlimited, never-expire, `on_hold`, and client-derived expired/limited states.
 - **Usage dashboard** — 30-day chart, threshold alerts, per-server breakdown, depletion forecast, offline cache, 5-min auto-refresh. Lazy-loaded via IntersectionObserver.
 - **Configs** — search, protocol filters, group-by-country, bulk select + copy, `.txt`/`.json` export, full keyboard support. Web Share API button on mobile.
-- **VPN files** (OpenVPN · WireGuard · L2TP/IPsec · PPTP) — download/copy `.ovpn` profiles and masked credential cards, fed by the panel's `/info` endpoint (see reference below); WireGuard gets its own structured tab with download, copy-link, copy-config, and **Connect** button (opens `wireguard://` URI directly); hidden without VPN hosts. Lazy-loaded with skeleton placeholders.
+- **VPN files** (OpenVPN · WireGuard · L2TP/IPsec · PPTP · IKEv2 · Cisco AnyConnect) — download/copy `.ovpn` profiles and masked credential cards, fed by the panel's `/info` endpoint (see reference below); WireGuard gets its own structured tab with download, copy-link, copy-config, and **Connect** button (opens `wireguard://` URI directly); IKEv2 and AnyConnect entries support both password and certificate authentication modes; hidden without VPN hosts. Lazy-loaded with skeleton placeholders.
 - **Apps** — OS-grouped client catalogue with one-tap import, from `src/apps.json`.
 - **Themes & i18n** — 4 themes, EN/فارسی with full RTL, forceable via `?theme=`/`?lang=fa`. Auto-toggle follows OS color-scheme changes in real time.
 - **White-label** — brand text from the panel's Subscription profile title, with fallbacks (see Customization below).
@@ -72,18 +72,19 @@ Use this only when **one of these is true**:
 > template path. The proxy only forwards the rendered output and subscription
 > endpoints to your own domain.
 
-### What to put on the shared host
+### Download from the latest release
 
-After building (`npm run build`), `dist/hosting/` contains:
+Download `hosting.zip` from the [latest GitHub Release](https://github.com/Ho3einK84/Aurora/releases/latest)
+and extract it to your hosting account's document root (or a subdirectory such
+as `subscription/`).
 
-| File | Purpose |
-|------|---------|
-| `index.php` | Reverse proxy that forwards every request to Rebecca. |
-| `config.php` | Panel URL, timeout, and SSL verification setting. |
-| `.htaccess` | Apache rewrite rules (must keep the leading dot). |
+```bash
+wget https://github.com/Ho3einK84/Aurora/releases/latest/download/hosting.zip
+unzip hosting.zip -d /var/www/my-domain/subscription/
+```
 
-Upload these three files to the hosting account's document root, or a
-subdirectory such as `subscription/`.
+> The zip preserves `.htaccess` with its leading dot. If your hosting file
+> manager or unzip tool strips the dot, rename the file manually.
 
 ### What still must be done on the Rebecca server
 
@@ -94,9 +95,6 @@ subdirectory such as `subscription/`.
    wget -O /var/lib/rebecca/templates/subscription/index.html \
      https://github.com/Ho3einK84/Aurora/releases/latest/download/index.html
    ```
-
-   (If you download the release archive, unzip `hosting/` to your shared host
-   and use the `index.html` from the archive root for the Rebecca server.)
 
 3. Edit `config.php` on the shared host and point it at the panel:
 
@@ -111,6 +109,17 @@ subdirectory such as `subscription/`.
 - `AllowOverride All` (or at least `FileInfo`) for the directory so `.htaccess`
   is honored.
 
+### Building from source (for developers)
+
+If you prefer to build locally instead of downloading the release:
+
+```bash
+npm ci
+npm run build      # → dist/hosting/ contains the proxy files
+```
+
+Then copy `dist/hosting/` contents to your shared host.
+
 ### Security note
 
 Set `'verify_ssl' => true` in `config.php` once the panel has a valid,
@@ -121,12 +130,18 @@ self-signed certificates.
 
 ## 🎨 Customization
 
-**White-label** — Aurora reads `subscription_profile_title`, then `brand_name`, then a
-built-in default (see reference below). To rebrand a built file in place:
+**White-label** — Aurora reads `subscription_profile_title`, then `brand_name`, then
+`window.AURORA_BRAND.name` (build-time default from `src/brand.json`), then the
+`<meta name="aurora-brand">` fallback. To rebrand a built file in place, edit
+the `window.AURORA_BRAND` JSON literal directly in `dist/index.html`:
 
 ```bash
-sed -i 's/\bAurora\b/YourBrand/g' /var/lib/rebecca/templates/subscription/index.html
+sed -i 's/"name":"Aurora"/"name":"YourBrand"/g' dist/index.html
 ```
+
+**Brand config** (`src/brand.json`) — edit `"name"` and rebuild to set the
+built-in brand name. The same value appears in the page title, splash screen,
+header, theme labels, and PWA manifest.
 
 **Apps** (`src/apps.json`) — edit and rebuild, or edit `window.AURORA_APPS` directly
 in a built file (no rebuild). Placeholders in `urlScheme`: `{url}` raw ·
@@ -166,7 +181,7 @@ aurora/
 │   ├── index.html      # markup + the pongo2 data-island (the ONLY directives)
 │   ├── app.js          # bootstrap, card, rings, countdown, theming, QR modal
 │   ├── configs.js      # config parsing, search/filter/group/select, list view
-│   ├── vpn.js          # VPN files: OpenVPN .ovpn, WireGuard (connect/copy/download), L2TP/PPTP creds (/info)
+│   ├── vpn.js          # VPN files: OpenVPN .ovpn, WireGuard (connect/copy/download), L2TP/PPTP/IKEv2/AnyConnect creds (/info)
 │   ├── apps.js         # app catalogue, OS detection, import deep links
 │   ├── usage.js        # usage dashboard: fetch, cache, chart, forecast
 │   ├── i18n.js         # EN/FA dictionaries, digits, dates
@@ -175,7 +190,8 @@ aurora/
 │   ├── ui.js           # DOM utilities, clipboard, toast, reveal, count-up
 │   ├── qr.js           # lazy QR module (SVG renderer)
 │   ├── input.css       # Tailwind + DaisyUI themes + Aurora components
-│   └── apps.json       # OS-grouped client catalogue
+│   ├── apps.json       # OS-grouped client catalogue
+│   └── brand.json      # Brand name (rebrand without rebuild)
 ├── assets/fonts/       # Arad woff2 (Inter comes from @fontsource-variable)
 ├── scripts/
 │   ├── build.mjs       # bundle → inline → guard → dist/index.html
@@ -244,7 +260,22 @@ which returns the identical, independently-versioned payload:
               "username": "…", "password": "…", "ipsec_psk": "…" } ],
   "pptp": [ { "host_tag": "…", "host_name": "…", "inbound_tag": "…", "remark": "…",
               "server": "…", "address": "…", "port": 1723,
-              "username": "…", "password": "…" } ]
+              "username": "…", "password": "…" } ],
+  "ikev2":      [ { /* RemoteAccessInfo — see below */ } ],
+  "anyconnect": [ { /* RemoteAccessInfo — see below */ } ]
+}
+```
+
+`ikev2` and `anyconnect` use the same `RemoteAccessInfo` shape:
+
+```jsonc
+{
+  "host_tag": "…", "host_name": "…", "inbound_tag": "…", "remark": "…",
+  "server": "…", "address": "…", "port": 443,
+  "protocol": "…",
+  "auth_mode": "password" | "certificate",
+  "username": "…", "password": "…",  // empty when auth_mode is "certificate"
+  "dns": "…"
 }
 ```
 

@@ -1,6 +1,6 @@
 /* ===========================================================================
-   Aurora VPN access — OpenVPN / WireGuard / L2TP / PPTP support for the
-   Rebecca panel (`dev` branch).
+   Aurora VPN access — OpenVPN / WireGuard / L2TP / PPTP / IKEv2 / AnyConnect
+   support for the Rebecca panel (`dev` branch).
 
    Rebecca exposes the classic-VPN data in two places:
      • `.ovpn` profile download links (https://…/sub/{token}/ov/{tag}.ovpn) are
@@ -19,7 +19,9 @@
                     port, ike_port, natt_port, tunnel_port, username,
                     password, ipsec_psk }…],
            pptp: [{ host_tag, host_name, inbound_tag, remark, server, address,
-                    port, username, password }…] }
+                    port, username, password }…],
+           ikev2:      [{ RemoteAccessInfo }],  // auth_mode: "password"|"certificate"
+           anyconnect: [{ RemoteAccessInfo }] }
      The `openvpn` key was `ov` on older `dev` builds (pre `4579d6d`) — both
      are read here so this template works against either schema.
 
@@ -28,10 +30,11 @@
    (visible, copyable, not masked). `client_public_key` and
    `server_public_key` are public keys — displayed plainly, no mask/reveal.
 
-   This module renders a tabbed "OpenVPN files" card: download + copy-link
+   This module renders a tabbed "VPN files" card: download + copy-link
    buttons for OpenVPN profiles, download + copy + config buttons for
-   WireGuard profiles, and copy-friendly credential cards for
-   L2TP/IPsec and PPTP, with masked secrets. The `.ovpn` links found in the
+   WireGuard profiles, credential cards for L2TP/IPsec and PPTP with masked
+   secrets, and remote-access cards for IKEv2 and Cisco AnyConnect (with
+   password or certificate auth-mode support). The `.ovpn` links found in the
    data island paint immediately; the /info payload then refreshes/extends
    them. The last good payload is cached per user for offline visits.
    =========================================================================== */
@@ -86,6 +89,32 @@ function normCreds(row, withPsk) {
     return item.server || item.username ? item : null;
 }
 
+/**
+ * Normalize an IKEv2 or AnyConnect (Cisco) entry from the /info response.
+ * Same RemoteAccessInfo shape as L2TP/PPTP, plus:
+ *   protocol, auth_mode ("password" | "certificate"), dns
+ * When auth_mode === "certificate", username and password are empty — the
+ * backend does not currently expose a certificate/profile download endpoint
+ * for these protocols (TODO: revisit when/if Rebecca adds one).
+ */
+function normRemoteAccess(row) {
+    if (!row || typeof row !== "object") return null;
+    const authMode = clean(row.auth_mode) || "password";
+    const item = {
+        tag: clean(row.host_tag) || clean(row.inbound_tag),
+        remark: clean(row.remark) || clean(row.host_tag) || clean(row.server),
+        server: clean(row.server),
+        address: clean(row.address),
+        port: row.port || "",
+        protocol: clean(row.protocol),
+        authMode,
+        username: clean(row.username),
+        password: clean(row.password),
+        dns: clean(row.dns),
+    };
+    return item.server ? item : null;
+}
+
 function normWg(row) {
     if (!row || typeof row !== "object") return null;
     const item = {
@@ -120,6 +149,8 @@ export function mountVpn(deps) {
     let wg = [];
     let l2tp = [];
     let pptp = [];
+    let ikev2 = [];
+    let anyconnect = [];
     let activeTab = "";
     const revealed = new Set(); // "tab:index:field" keys of unmasked secrets
 
@@ -173,6 +204,14 @@ export function mountVpn(deps) {
             pptp = data.pptp.map((r) => normCreds(r, false)).filter(Boolean);
             touched = true;
         }
+        if (Array.isArray(data.ikev2)) {
+            ikev2 = data.ikev2.map((r) => normRemoteAccess(r)).filter(Boolean);
+            touched = true;
+        }
+        if (Array.isArray(data.anyconnect)) {
+            anyconnect = data.anyconnect.map((r) => normRemoteAccess(r)).filter(Boolean);
+            touched = true;
+        }
         return touched;
     }
 
@@ -193,6 +232,8 @@ export function mountVpn(deps) {
                     wireguard: data.wireguard || {},
                     l2tp: data.l2tp || [],
                     pptp: data.pptp || [],
+                    ikev2: data.ikev2 || [],
+                    anyconnect: data.anyconnect || [],
                 }));
             }
         } catch (_) {
@@ -210,6 +251,8 @@ export function mountVpn(deps) {
         ["wg", "WireGuard", () => wg.length],
         ["l2tp", "L2TP/IPsec", () => l2tp.length],
         ["pptp", "PPTP", () => pptp.length],
+        ["ikev2", "IKEv2", () => ikev2.length],
+        ["anyconnect", "Cisco AnyConnect", () => anyconnect.length],
     ];
 
     const availableTabs = () => TABS.filter(([, , count]) => count() > 0);
@@ -346,6 +389,33 @@ export function mountVpn(deps) {
             `</div></div></div>`;
     }
 
+    function remoteAccessRow(item, tab, index) {
+        const badge = tab === "ikev2" ? "IKEv2" : "AnyConnect";
+        const keyOf = (field) => `${tab}:${index}:${field}`;
+        const isCert = item.authMode === "certificate";
+        // TODO: when Rebecca exposes a certificate/profile download endpoint for
+        // certificate-mode entries (generateIKEv2Profile / generateAnyConnectProfile),
+        // add a download button here and fetch the bundle from that endpoint.
+        return `<div class="card glass rounded-2xl border-0">` +
+            `<div class="space-y-2 p-3">` +
+            `<div class="flex items-center gap-3">` +
+            `<div class="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-gradient-to-br from-primary/20 to-secondary/20 text-[10px] font-bold text-primary">${badge}</div>` +
+            `<p class="min-w-0 flex-1 truncate text-sm font-semibold" dir="auto">${escapeHtml(item.remark || badge)}</p>` +
+            `</div>` +
+            `<div class="grid grid-cols-1 gap-2 sm:grid-cols-2">` +
+            fieldRow("vpn_server", item.server, { icon: "ph-hard-drives", key: keyOf("server") }) +
+            fieldRow("vpn_address", item.address, { icon: "ph-globe", key: keyOf("address") }) +
+            fieldRow("vpn_port", item.port ? String(item.port) : "", { icon: "ph-plug", key: keyOf("port") }) +
+            fieldRow("vpn_dns", item.dns, { icon: "ph-cloud", key: keyOf("dns") }) +
+            (isCert
+                ? `<div class="col-span-full rounded-xl bg-warning/10 px-3 py-2 text-[11px] text-warning">` +
+                  `<span dir="auto">${escapeHtml(t("vpn_certificate_auth"))}</span>` +
+                  `</div>`
+                : fieldRow("vpn_username", item.username, { icon: "ph-user", key: keyOf("username") }) +
+                  fieldRow("vpn_password", item.password, { icon: "ph-key", secret: true, key: keyOf("password") })) +
+            `</div></div></div>`;
+    }
+
     function render() {
         const tabs = availableTabs();
         if (!tabs.length) {
@@ -360,7 +430,9 @@ export function mountVpn(deps) {
             activeTab === "ovpn" ? ovpn.map(ovpnRow)
             : activeTab === "wg" ? wg.map(wgRow)
             : activeTab === "l2tp" ? l2tp.map((r, i) => credsRow(r, "l2tp", i))
-            : pptp.map((r, i) => credsRow(r, "pptp", i));
+            : activeTab === "pptp" ? pptp.map((r, i) => credsRow(r, "pptp", i))
+            : activeTab === "ikev2" ? ikev2.map((r, i) => remoteAccessRow(r, "ikev2", i))
+            : anyconnect.map((r, i) => remoteAccessRow(r, "anyconnect", i));
         listEl.innerHTML = rows.join("");
         noteEl.textContent = t(activeTab + "_note");
 

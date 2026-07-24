@@ -25,15 +25,18 @@ import { isOvpnLink, mountVpn } from "./vpn.js";
 const AURORA_APPS_REMOTE_URL = "";
 
 const THEMES = [
-    { id: "auroradark", label: "Aurora Dark", swatch: "linear-gradient(135deg,#34c6db,#5a86f5)" },
+    { id: "auroradark", label: "%brand% Dark", swatch: "linear-gradient(135deg,#34c6db,#5a86f5)" },
     { id: "amoleddark", label: "Amoled Dark", swatch: "linear-gradient(135deg,#000,#3b82f6,#8b5cf6)" },
-    { id: "auroralight", label: "Aurora Light", swatch: "linear-gradient(135deg,#1499b8,#3b6dd6)" },
+    { id: "auroralight", label: "%brand% Light", swatch: "linear-gradient(135deg,#1499b8,#3b6dd6)" },
     { id: "nord", label: "Nord", swatch: "#88c0d0" },
 ];
 
 /* ------------------------------------------------------------ data island */
 
 function defaultBrand() {
+    // Priority: runtime override (window.AURORA_BRAND) > <meta> fallback in HTML.
+    const winBrand = window.AURORA_BRAND && window.AURORA_BRAND.name;
+    if (winBrand && typeof winBrand === "string" && winBrand.trim()) return winBrand.trim();
     const meta = document.querySelector('meta[name="aurora-brand"]');
     return (meta && meta.content.trim()) || "Aurora";
 }
@@ -246,14 +249,16 @@ function setTheme(id, persist) {
 
 function renderThemeMenu() {
     const list = $("#theme-list");
-    list.innerHTML = THEMES.map((th) =>
-        `<li><button data-theme-id="${th.id}" class="justify-between rounded-xl${th.id === theme ? " active font-semibold" : ""}">` +
-        `<span class="flex items-center gap-2">` +
-        `<span class="h-3.5 w-3.5 rounded-full border border-base-content/20" style="background:${th.swatch}"></span>` +
-        `<span>${th.label}</span></span>` +
-        (th.id === theme ? `<i class="ph ph-check text-base text-primary"></i>` : "") +
-        `</button></li>`
-    ).join("");
+    const brand = defaultBrand();
+    list.innerHTML = THEMES.map((th) => {
+        const label = th.label.replace("%brand%", brand);
+        return `<li><button data-theme-id="${th.id}" class="justify-between rounded-xl${th.id === theme ? " active font-semibold" : ""}">` +
+            `<span class="flex items-center gap-2">` +
+            `<span class="h-3.5 w-3.5 rounded-full border border-base-content/20" style="background:${th.swatch}"></span>` +
+            `<span>${label}</span></span>` +
+            (th.id === theme ? `<i class="ph ph-check text-base text-primary"></i>` : "") +
+            `</button></li>`;
+    }).join("");
     $$("[data-theme-id]", list).forEach((btn) => {
         btn.addEventListener("click", () => {
             setTheme(btn.getAttribute("data-theme-id"), true);

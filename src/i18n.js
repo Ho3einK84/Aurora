@@ -78,6 +78,10 @@ export const I18N = {
         wg_client_address: "Client address",
         wg_client_pubkey: "Client public key",
         wg_server_pubkey: "Server public key",
+        vpn_address: "Address", vpn_port: "Port", vpn_dns: "DNS",
+        vpn_certificate_auth: "Certificate-based authentication — obtain your certificate from your provider separately.",
+        ikev2_note: "Configure these details in your device's built-in VPN settings as an IKEv2 connection, or use the provider's certificate if required.",
+        anyconnect_note: "Use the Cisco AnyConnect or OpenConnect app with these server details to connect.",
         usage_api: "Usage data",
     },
     fa: {
@@ -153,6 +157,10 @@ export const I18N = {
         wg_client_address: "آدرس کلاینت",
         wg_client_pubkey: "کلید عمومی کلاینت",
         wg_server_pubkey: "کلید عمومی سرور",
+        vpn_address: "آدرس", vpn_port: "پورت", vpn_dns: "DNS",
+        vpn_certificate_auth: "احراز هویت مبتنی بر گواهی — گواهی خود را جداگانه از ارائه‌دهنده دریافت کنید.",
+        ikev2_note: "این مقادیر را در تنظیمات VPN داخلی دستگاه به‌صورت اتصال IKEv2 وارد کنید، یا در صورت نیاز از گواهی ارائه‌دهنده استفاده کنید.",
+        anyconnect_note: "از اپلیکیشن Cisco AnyConnect یا OpenConnect با این مشخصات سرور برای اتصال استفاده کنید.",
         usage_api: "داده‌های مصرف",
     },
     ru: {
@@ -228,6 +236,10 @@ export const I18N = {
         wg_client_address: "Адрес клиента",
         wg_client_pubkey: "Публичный ключ клиента",
         wg_server_pubkey: "Публичный ключ сервера",
+        vpn_address: "Адрес", vpn_port: "Порт", vpn_dns: "DNS",
+        vpn_certificate_auth: "Аутентификация по сертификату — получите сертификат отдельно у вашего провайдера.",
+        ikev2_note: "Настройте эти параметры во встроенных настройках VPN устройства как подключение IKEv2 или используйте сертификат провайдера, если он требуется.",
+        anyconnect_note: "Используйте приложение Cisco AnyConnect или OpenConnect с этими данными сервера для подключения.",
         usage_api: "Данные использования",
     },
     zh: {
@@ -303,6 +315,10 @@ export const I18N = {
         wg_client_address: "客户端地址",
         wg_client_pubkey: "客户端公钥",
         wg_server_pubkey: "服务器公钥",
+        vpn_address: "地址", vpn_port: "端口", vpn_dns: "DNS",
+        vpn_certificate_auth: "基于证书的身份验证 — 请另行从您的服务提供商处获取证书。",
+        ikev2_note: "在设备的内置 VPN 设置中以 IKEv2 连接方式配置这些信息，或在需要时使用提供商的证书。",
+        anyconnect_note: "使用 Cisco AnyConnect 或 OpenConnect 应用配合这些服务器信息进行连接。",
         usage_api: "使用数据",
     },
 };

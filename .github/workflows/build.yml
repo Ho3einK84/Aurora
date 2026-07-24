@@ -55,9 +55,23 @@ jobs:
 
       # Publish to a release so it can be installed via:
       #   wget .../releases/latest/download/index.html
-      - name: Publish release asset
+      - name: Package hosting bundle
+        run: |
+          cd dist/hosting
+          zip -r ../hosting.zip . -x '*.DS_Store'
+          cd ../..
+          # Verify .htaccess is present with its leading dot (mirrors the build-time
+          # guard in copyHosting())
+          if ! unzip -l dist/hosting.zip | grep -q '\.htaccess'; then
+            echo "::error::hosting.zip is missing .htaccess (leading dot stripped)"
+            exit 1
+          fi
+
+      - name: Publish release assets
         if: startsWith(github.ref, 'refs/tags/')
         uses: softprops/action-gh-release@v2
         with:
-          files: dist/index.html
+          files: |
+            dist/index.html
+            dist/hosting.zip
           generate_release_notes: true

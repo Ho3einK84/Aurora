@@ -1,5 +1,8 @@
 # Shared-hosting proxy for Aurora
 
+> **Recommended:** download `hosting.zip` from the [latest GitHub Release](https://github.com/Ho3einK84/Aurora/releases/latest)
+> instead of building from source.
+
 These files let you serve the Aurora subscription page from a separate
 cPanel-style PHP host while the real Rebecca panel stays where it is.
 

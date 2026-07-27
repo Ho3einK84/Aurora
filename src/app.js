@@ -16,7 +16,7 @@ import {
 import { parseLinks, mountConfigs } from "./configs.js";
 import { mountApps } from "./apps.js";
 import { mountUsage } from "./usage.js";
-import { isOvpnLink, mountVpn } from "./vpn.js";
+import { isOvpnLink, isWgLink, mountVpn } from "./vpn.js";
 
 /* --- Optional remote apps.json override -----------------------------------
    A default apps list is inlined at build time (window.AURORA_APPS). Point
@@ -97,7 +97,7 @@ function readContext() {
         subUrl,
         usageUrl: (d.usageUrl || "").trim(),
         supportUrl: (d.supportUrl || "").trim(),
-        links: allLinks.filter((l) => !isOvpnLink(l)),
+        links: allLinks.filter((l) => !isOvpnLink(l) && !isWgLink(l)),
         ovpnLinks: allLinks.filter(isOvpnLink),
     };
 }

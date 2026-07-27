@@ -1,26 +1,16 @@
-<div align="center">
-
 # 🌌 Aurora
 
 **A premium, single-file subscription page template for the [Rebecca panel](https://github.com/rebeccapanel/Rebecca) (`dev` branch).**
 
 Glassmorphism · usage dashboard · EN/FA RTL · white-label · Tailwind v4 + DaisyUI v5 + vanilla JS
 
-**⚡ Powered by Claude**
-
-</div>
-
 ---
 
 ## 📸 Preview
 
-<div align="center">
-
 ![Aurora subscription page](assets/screenshots/preview-v3.5.1.png)
 
-*v3.5.1 · Aurora Dark — glassmorphism service card, usage/time rings, config list with protocol filters.*
-
-</div>
+*Aurora Dark — glassmorphism service card, usage/time rings, config list with protocol filters.*
 
 ---
 
@@ -29,285 +19,56 @@ Glassmorphism · usage dashboard · EN/FA RTL · white-label · Tailwind v4 + Da
 - **Service card** — usage/time rings, animated stats, live quota-reset countdown. Handles unlimited, never-expire, `on_hold`, and client-derived expired/limited states.
 - **Usage dashboard** — 30-day chart, threshold alerts, per-server breakdown, depletion forecast, offline cache, 5-min auto-refresh. Lazy-loaded via IntersectionObserver.
 - **Configs** — search, protocol filters, group-by-country, bulk select + copy, `.txt`/`.json` export, full keyboard support. Web Share API button on mobile.
-- **VPN files** (OpenVPN · WireGuard · L2TP/IPsec · PPTP · IKEv2 · Cisco AnyConnect) — download/copy `.ovpn` profiles and masked credential cards, fed by the panel's `/info` endpoint (see reference below); WireGuard gets its own structured tab with download, copy-link, copy-config, and **Connect** button (opens `wireguard://` URI directly); IKEv2 and AnyConnect entries support both password and certificate authentication modes; hidden without VPN hosts. Lazy-loaded with skeleton placeholders.
-- **Apps** — OS-grouped client catalogue with one-tap import, from `src/apps.json`.
-- **Themes & i18n** — 4 themes, EN/فارسی with full RTL, forceable via `?theme=`/`?lang=fa`. Auto-toggle follows OS color-scheme changes in real time.
-- **White-label** — brand text from the panel's Subscription profile title, with fallbacks (see Customization below).
-- **PWA-ready, resilient, accessible** — installable manifest, zero external requests, offline/error states, ARIA + keyboard support. Per-section error boundaries (configs/usage/vpn/apps fail independently). Reduced-motion preference reactive to runtime changes.
-- **Security** — no inline event handlers, secure cookie flag, revealed-secrets cleanup on tab switch.
+- **VPN files** (OpenVPN · WireGuard · L2TP/IPsec · PPTP · IKEv2 · Cisco AnyConnect) — download/copy `.ovpn` profiles and masked credential cards, fed by the panel's `/info` endpoint; WireGuard gets its own structured tab with download, copy-link, copy-config, and **Connect** button (`wireguard://`); IKEv2 and AnyConnect support password and certificate auth. Lazy-loaded.
+- **Apps** — OS-grouped client catalogue with one-tap import (from `src/apps.json`).
+- **Themes & i18n** — 4 themes, EN/FA/RU/ZH with full RTL, auto OS theme sync.
+- **White-label** — brand text from panel profile title with fallbacks.
+- **PWA-ready & resilient** — self-contained, offline cache, error boundaries, ARIA support.
 
-One self-contained `index.html` — no external fonts, CDNs, or runtime calls beyond *your* panel/host.
+One self-contained `index.html` — zero external requests at runtime.
 
 ---
 
 ## 🚀 Installation on Rebecca
 
 In **Master Settings → Subscriptions**, drop the latest build at
-`/var/lib/rebecca/templates/subscription/index.html` (default path), or paste it into **Template Creator**:
+`/var/lib/rebecca/templates/subscription/index.html`:
 
 ```bash
 wget -O /var/lib/rebecca/templates/subscription/index.html \
   https://github.com/Ho3einK84/Aurora/releases/latest/download/index.html
 ```
 
-Rebecca re-reads the template on every request — no restart needed. Re-run the same command to update.
-
-> **This is the recommended path.** It keeps Aurora on the same server that
-> renders it and avoids any extra proxy hop.
-
 ---
 
-## 📡 Installation on shared hosting
+## 📡 Shared Hosting Proxy
 
-Use this only when **one of these is true**:
+Extract `hosting.zip` from the latest release to your web root, and set your panel URL in `config.php`:
 
-- Your public domain is on cPanel-style PHP hosting and the Rebecca server is
-  not directly reachable from that domain.
-- You cannot place files directly on the Rebecca server's template directory.
-- You want visitors to see the subscription page under your own domain while the
-  panel itself stays on its own host.
-
-> **Shared-hosting mode is a proxy, not a replacement for Rebecca.** Rebecca
-> must still render `dist/index.html` server-side with pongo2 at its configured
-> template path. The proxy only forwards the rendered output and subscription
-> endpoints to your own domain.
-
-### Download from the latest release
-
-Download `hosting.zip` from the [latest GitHub Release](https://github.com/Ho3einK84/Aurora/releases/latest)
-and extract it to your hosting account's document root (or a subdirectory such
-as `subscription/`).
-
-```bash
-wget https://github.com/Ho3einK84/Aurora/releases/latest/download/hosting.zip
-unzip hosting.zip -d /var/www/my-domain/subscription/
+```php
+'panel_url' => 'https://panel.example.com:8443',
 ```
-
-> The zip preserves `.htaccess` with its leading dot. If your hosting file
-> manager or unzip tool strips the dot, rename the file manually.
-
-### What still must be done on the Rebecca server
-
-1. In **Master Settings → Subscriptions**, set the template path as usual.
-2. Place the built `dist/index.html` on the Rebecca server:
-
-   ```bash
-   wget -O /var/lib/rebecca/templates/subscription/index.html \
-     https://github.com/Ho3einK84/Aurora/releases/latest/download/index.html
-   ```
-
-3. Edit `config.php` on the shared host and point it at the panel:
-
-   ```php
-   'panel_url' => 'https://panel.example.com:8443',
-   ```
-
-### Shared-hosting requirements
-
-- PHP 7.0+ with the `curl` extension.
-- Apache with `mod_rewrite` enabled.
-- `AllowOverride All` (or at least `FileInfo`) for the directory so `.htaccess`
-  is honored.
-
-### Building from source (for developers)
-
-If you prefer to build locally instead of downloading the release:
-
-```bash
-npm ci
-npm run build      # → dist/hosting/ contains the proxy files
-```
-
-Then copy `dist/hosting/` contents to your shared host.
-
-### Security note
-
-Set `'verify_ssl' => true` in `config.php` once the panel has a valid,
-publicly-trusted certificate. Only disable it for internal networks or
-self-signed certificates.
 
 ---
 
 ## 🎨 Customization
 
-**White-label** — Aurora reads `subscription_profile_title`, then `brand_name`, then
-`window.AURORA_BRAND.name` (build-time default from `src/brand.json`), then the
-`<meta name="aurora-brand">` fallback. To rebrand a built file in place, edit
-the `window.AURORA_BRAND` JSON literal directly in `dist/index.html`:
-
-```bash
-sed -i 's/"name":"Aurora"/"name":"YourBrand"/g' dist/index.html
-```
-
-**Brand config** (`src/brand.json`) — edit `"name"` and rebuild to set the
-built-in brand name. The same value appears in the page title, splash screen,
-header, theme labels, and PWA manifest.
-
-**Apps** (`src/apps.json`) — edit and rebuild, or edit `window.AURORA_APPS` directly
-in a built file (no rebuild). Placeholders in `urlScheme`: `{url}` raw ·
-`{url_enc}` percent-encoded · `{url_b64}` base64 · `{name}` username.
-`AURORA_APPS_REMOTE_URL` in `src/app.js` enables no-rebuild updates from a hosted JSON.
-
-**Themes** — DaisyUI blocks in `src/input.css`; register new ones in `THEMES`
-(`src/app.js`) and the head resolver (`src/index.html`).
-
-**Translations** — EN/FA dictionaries in `src/i18n.js`.
+- **White-label**: Edit `window.AURORA_BRAND` JSON literal in `dist/index.html` or `src/brand.json`.
+- **Apps**: Edit `window.AURORA_APPS` in `dist/index.html` or `src/apps.json`.
 
 ---
 
-## 🛠 Building locally
+## 🛠 Development
 
 ```bash
 npm ci
 npm run build      # → dist/index.html
 npm run serve      # preview at http://localhost:8787
-npm run guard      # re-verify the directive guard
-npm run dev        # watch Tailwind
-```
-
-`serve.mjs` emulates Rebecca's pongo2 rendering (`?state=`, `?lang=fa`, `?theme=`,
-`?brand=`/`?title=`). `build.mjs` bundles with esbuild, inlines CSS/fonts/icons/apps.json
-(zero external requests), base64-encodes JS so pongo2 never parses it, and **enforces a
-directive allow-list** — it fails on any stray directive or external reference.
-CI builds and guards every push/PR and attaches `index.html` to Releases on tags.
-
----
-
-## 🗂 Project structure
-
-```
-aurora/
-├── src/
-│   ├── index.html      # markup + the pongo2 data-island (the ONLY directives)
-│   ├── app.js          # bootstrap, card, rings, countdown, theming, QR modal
-│   ├── configs.js      # config parsing, search/filter/group/select, list view
-│   ├── vpn.js          # VPN files: OpenVPN .ovpn, WireGuard (connect/copy/download), L2TP/PPTP/IKEv2/AnyConnect creds (/info)
-│   ├── apps.js         # app catalogue, OS detection, import deep links
-│   ├── usage.js        # usage dashboard: fetch, cache, chart, forecast
-│   ├── i18n.js         # EN/FA dictionaries, digits, dates
-│   ├── format.js       # bytes/number parsing + HTML escaping
-│   ├── store.js        # preference store (localStorage → cookie → memory)
-│   ├── ui.js           # DOM utilities, clipboard, toast, reveal, count-up
-│   ├── qr.js           # lazy QR module (SVG renderer)
-│   ├── input.css       # Tailwind + DaisyUI themes + Aurora components
-│   ├── apps.json       # OS-grouped client catalogue
-│   └── brand.json      # Brand name (rebrand without rebuild)
-├── assets/fonts/       # Arad woff2 (Inter comes from @fontsource-variable)
-├── scripts/
-│   ├── build.mjs       # bundle → inline → guard → dist/index.html
-│   └── serve.mjs       # local preview with sample pongo2 data (dev only)
-└── .github/workflows/build.yml
+npm run guard      # re-verify directive guard
 ```
 
 ---
 
-## 🧩 Rebecca template context (reference)
-
-The page binds to the real pongo2 context Rebecca passes (`internal/app/user/subscription.go`):
-
-| Variable | Type | Notes |
-|---|---|---|
-| `user.username` | string | |
-| `user.status` | string | `active` · `limited` · `expired` · `disabled` · `on_hold` |
-| `user.status_class` | string | normalized class |
-| `user.data_limit` | int64 bytes / falsy | falsy ⇒ unlimited |
-| `user.data_limit_reset_strategy` | string | `no_reset` · `day` · `week` · `month` · `year` |
-| `user.used_traffic` | int64 bytes | |
-| `user.expire` | int64 unix / falsy | falsy ⇒ never expires |
-| `user.online_count` | int | shown as a presence badge when > 0 |
-| `user.service_name` | string | optional service label |
-| `user.links` / `links` | []string | raw config URIs — on `dev`, OpenVPN hosts append `https://…/ov/{host_tag}.ovpn` download links and WireGuard hosts append `https://…/wg/{host_tag}.conf` download links + `wireguard://…` URIs |
-| `user.subscription_url` | string | primary sub URL |
-| `usage_url`, `support_url` | string | usage feeds the dashboard |
-| `brand_name` | string | legacy white-label name (optional) |
-| `subscription_profile_title` | string | the panel's **Subscription profile title** setting (optional) — not yet populated by Rebecca's pongo2 context; bound proactively for forward compatibility. Takes priority over `brand_name` when present. |
-| `remaining_days` | int64 | precomputed fallback (live value derived from `expire`) |
-
-All `now()`-based logic (countdowns, ring depletion, forecasts) runs client-side.
-
-### VPN info endpoint (`dev` branch)
-
-As of `dev` @ `bbb57da`/`4579d6d`, Rebecca's pongo2 context *also* exposes
-`openvpn`, `l2tp`, `pptp` (and a combined `vpn`) — the same structures below.
-Aurora deliberately does **not** bind these as new template directives: they're
-nested arrays of objects, which would need a much larger, harder-to-guard
-directive surface than the flat scalar bindings above. Instead Aurora sources
-this data from the public subscription info route at runtime
-(`{subscription_url}/info`, `internal/app/user/subscription.go → SubscriptionInfo`),
-which returns the identical, independently-versioned payload:
-
-```jsonc
-{
-  "user":    { /* UserDetail */ },
-  "openvpn": {
-    "downloads": ["https://…/sub/{token}/ov/{host_tag}.ovpn", "…"],
-    "profiles":  [ { "host_tag": "…", "inbound_tag": "…", "remark": "…",
-                      "filename": "…", "download_url": "…" } ]
-  },
-  "wireguard": {
-    "downloads": ["https://…/sub/{token}/wg/{host_tag}.conf", "…"],
-    "links":     ["wireguard://<privatekey>@host:port?address=…&publickey=…&reserved=0,0,0&…#remark", "…"],
-    "profiles":  [ { "host_tag": "…", "host_name": "…", "inbound_tag": "…",
-                      "remark": "…", "filename": "…", "download_url": "…",
-                      "link": "wireguard://…", "body": "[Interface]\nPrivateKey = …\n…",
-                      "server": "…", "address": "…", "port": 51820,
-                      "client_address": "10.x.x.x/32",
-                      "client_public_key": "…", "server_public_key": "…" } ]
-  },
-  "l2tp": [ { "host_tag": "…", "host_name": "…", "inbound_tag": "…", "remark": "…",
-              "server": "…", "address": "…", "port": 1701, "ike_port": 500,
-              "natt_port": 4500, "tunnel_port": 1702,
-              "username": "…", "password": "…", "ipsec_psk": "…" } ],
-  "pptp": [ { "host_tag": "…", "host_name": "…", "inbound_tag": "…", "remark": "…",
-              "server": "…", "address": "…", "port": 1723,
-              "username": "…", "password": "…" } ],
-  "ikev2":      [ { /* RemoteAccessInfo — see below */ } ],
-  "anyconnect": [ { /* RemoteAccessInfo — see below */ } ]
-}
-```
-
-`ikev2` and `anyconnect` use the same `RemoteAccessInfo` shape:
-
-```jsonc
-{
-  "host_tag": "…", "host_name": "…", "inbound_tag": "…", "remark": "…",
-  "server": "…", "address": "…", "port": 443,
-  "protocol": "…",
-  "auth_mode": "password" | "certificate",
-  "username": "…", "password": "…",  // empty when auth_mode is "certificate"
-  "dns": "…"
-}
-```
-
-`openvpn` was named `ov` on older `dev` builds (pre `4579d6d`) — Aurora reads
-either key, so it works against both schemas. `.ovpn` profiles themselves are
-served at `GET {sub_path}/{identifier}/ov/{host_tag}.ovpn`
-(`application/x-openvpn-profile`). On panels without these routes the fetch
-fails silently and the OpenVPN files card simply stays hidden (or shows only
-the `.ovpn` links found in `links`), so the template remains fully
-backward-compatible.
-
-The `wireguard` object mirrors the `openvpn` structure with an extra `body`
-field. Key points:
-
-- The `wireguard://` URI scheme carries the client's private key in the
-  userinfo segment (`wireguard://<privatekey>@host:port?…`). Treat `link`,
-  `body` and `download_url` as secret-bearing — the same trust level as an
-  `.ovpn` file (visible, copyable, not masked in the UI).
-- `client_public_key` and `server_public_key` are **public** keys, not
-  secrets — they are displayed plainly with no reveal/mask toggle.
-- `body` is the full `.conf` file text (new as of the latest dev commits).
-  Aurora uses it for the "Copy config" button. Older payloads without `body`
-  simply omit that button; profiles still render via `download_url`/`link`.
-- `downloads` and `links` are flat arrays that duplicate the per-profile
-  values for backward compatibility — they are only used as a fallback when
-  `profiles` is empty.
-- On panels without WireGuard hosts, the WireGuard tab simply doesn't appear
-  (zero-count tabs are hidden), consistent with how the L2TP/PPTP tabs
-  already behave.
-
----
-
-## License
+## 📄 License
 
 MIT

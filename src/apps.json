@@ -97,9 +97,33 @@
     "downloadLinks": {
       "Android": "https://play.google.com/store/apps/details?id=net.openvpn.openvpn",
       "iOS": "https://apps.apple.com/app/openvpn-connect-openvpn-app/id590379981",
-      "Windows": "https://openvpn.net/client/",
-      "macOS": "https://openvpn.net/client/",
+      "Windows": "https://openvpn.net/client-connect-vpn-for-windows/",
+      "macOS": "https://openvpn.net/client-connect-vpn-for-mac-os/",
       "Linux": "https://openvpn.net/openvpn-client-for-linux/"
+    }
+  },
+  {
+    "name": "WireGuard",
+    "os": ["Android", "iOS", "Windows", "macOS", "Linux"],
+    "link": "https://www.wireguard.com/install/",
+    "downloadLinks": {
+      "Android": "https://play.google.com/store/apps/details?id=com.wireguard.android",
+      "iOS": "https://apps.apple.com/app/wireguard/id1451685025",
+      "macOS": "https://apps.apple.com/app/wireguard/id1451685025",
+      "Windows": "https://download.wireguard.com/windows-client/wireguard-installer.exe",
+      "Linux": "https://www.wireguard.com/install/"
+    }
+  },
+  {
+    "name": "Cisco Secure Client",
+    "os": ["Android", "iOS", "Windows", "macOS", "Linux"],
+    "link": "https://www.cisco.com/c/en/us/products/security/anyconnect-secure-mobility-client/index.html",
+    "downloadLinks": {
+      "Android": "https://play.google.com/store/apps/details?id=com.cisco.anyconnect.vpn.android.avf",
+      "iOS": "https://apps.apple.com/app/cisco-secure-client/id1585031101",
+      "macOS": "https://apps.apple.com/app/cisco-secure-client/id1585031101",
+      "Windows": "https://www.cisco.com/c/en/us/products/security/anyconnect-secure-mobility-client/index.html",
+      "Linux": "https://www.cisco.com/c/en/us/products/security/anyconnect-secure-mobility-client/index.html"
     }
   }
 ]

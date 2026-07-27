@@ -58,6 +58,20 @@ export function isOvpnLink(uri) {
     }
 }
 
+/** True for WireGuard URIs (wireguard://…) or panel WireGuard download links (…/wg/….conf). */
+export function isWgLink(uri) {
+    if (!uri || typeof uri !== "string") return false;
+    const s = uri.trim();
+    if (/^wireguard:\/\//i.test(s)) return true;
+    if (!/^https?:\/\//i.test(s)) return false;
+    try {
+        const path = new URL(s).pathname;
+        return /\.conf$/i.test(path);
+    } catch (_) {
+        return /\.conf(?:[?#]|$)/i.test(s);
+    }
+}
+
 /** Human label for an .ovpn download URL — the decoded file name sans suffix. */
 export function ovpnLabel(url) {
     try {

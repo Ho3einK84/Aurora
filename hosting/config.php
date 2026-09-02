@@ -16,7 +16,7 @@
 return [
     // Full URL of the Rebecca panel (including port if non-standard).
     // The proxy forwards every request to this address.
-    'panel_url' => 'https://subdomin.example.com:port',
+    'panel_url' => 'https://subdomain.example.com:port',
 
     // Max seconds to wait for a response from the panel.
     'timeout' => 30,

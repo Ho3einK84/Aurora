@@ -83,6 +83,9 @@ export const I18N = {
         ikev2_note: "Configure these details in your device's built-in VPN settings as an IKEv2 connection, or use the provider's certificate if required.",
         anyconnect_note: "Use the Cisco AnyConnect or OpenConnect app with these server details to connect.",
         usage_api: "Usage data",
+        connect: "Connect",
+        share: "Share",
+        export_json: "Export JSON",
     },
     fa: {
         dir: "rtl",
@@ -162,6 +165,9 @@ export const I18N = {
         ikev2_note: "این مقادیر را در تنظیمات VPN داخلی دستگاه به‌صورت اتصال IKEv2 وارد کنید، یا در صورت نیاز از گواهی ارائه‌دهنده استفاده کنید.",
         anyconnect_note: "از اپلیکیشن Cisco AnyConnect یا OpenConnect با این مشخصات سرور برای اتصال استفاده کنید.",
         usage_api: "داده‌های مصرف",
+        connect: "اتصال",
+        share: "اشتراک‌گذاری",
+        export_json: "خروجی JSON",
     },
     ru: {
         dir: "ltr",
@@ -241,6 +247,9 @@ export const I18N = {
         ikev2_note: "Настройте эти параметры во встроенных настройках VPN устройства как подключение IKEv2 или используйте сертификат провайдера, если он требуется.",
         anyconnect_note: "Используйте приложение Cisco AnyConnect или OpenConnect с этими данными сервера для подключения.",
         usage_api: "Данные использования",
+        connect: "Подключить",
+        share: "Поделиться",
+        export_json: "Экспорт JSON",
     },
     zh: {
         dir: "ltr",
@@ -320,6 +329,9 @@ export const I18N = {
         ikev2_note: "在设备的内置 VPN 设置中以 IKEv2 连接方式配置这些信息，或在需要时使用提供商的证书。",
         anyconnect_note: "使用 Cisco AnyConnect 或 OpenConnect 应用配合这些服务器信息进行连接。",
         usage_api: "使用数据",
+        connect: "连接",
+        share: "分享",
+        export_json: "导出 JSON",
     },
 };
 
@@ -408,7 +420,7 @@ export function fmtRelative(date, lang, opts) {
 
     // Under 30s in either direction — "just now" / "now".
     if (abs < 30_000) {
-        return lang === "fa" ? "الان" : lang === "ru" ? "только что" : lang === "zh" ? "刚刚" : "just now";
+        return lang === "fa" ? "همین الان" : lang === "ru" ? "только что" : lang === "zh" ? "刚刚" : "just now";
     }
 
     // Walk through the unit table and pick the largest unit that fits.
@@ -425,7 +437,7 @@ export function fmtRelative(date, lang, opts) {
     const localized = locNum(value, lang) + " " + word;
 
     if (lang === "fa") {
-        return past ? `${localized} پیش` : `در ${localized}`;
+        return past ? `${localized} پیش` : `${localized} دیگر`;
     }
     if (lang === "ru") {
         return past ? `${localized} назад` : `через ${localized}`;

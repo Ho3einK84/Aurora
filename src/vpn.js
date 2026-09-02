@@ -114,17 +114,25 @@ function normCreds(row, withPsk) {
 function normRemoteAccess(row) {
     if (!row || typeof row !== "object") return null;
     const authMode = clean(row.auth_mode) || "password";
+    let dns = "";
+    if (Array.isArray(row.dns)) {
+        dns = row.dns.map(clean).filter(Boolean).join(", ");
+    } else if (typeof row.dns === "string") {
+        dns = clean(row.dns);
+    }
+    const server = clean(row.server) || clean(row.address);
+    const address = clean(row.address) || server;
     const item = {
         tag: clean(row.host_tag) || clean(row.inbound_tag),
         remark: clean(row.remark) || clean(row.host_tag) || clean(row.server),
-        server: clean(row.server),
-        address: clean(row.address),
+        server,
+        address,
         port: row.port || "",
         protocol: clean(row.protocol),
         authMode,
         username: clean(row.username),
         password: clean(row.password),
-        dns: clean(row.dns),
+        dns,
     };
     return item.server ? item : null;
 }
@@ -152,6 +160,7 @@ function normWg(row) {
  * Mount the OpenVPN files section. `deps`:
  *   ctx        — parsed data island (subUrl, username)
  *   ovpnLinks  — `.ovpn` download URLs already present in the links list
+ *   wgLinks    — WireGuard URIs already present in the links list
  *   t(key), lang() — i18n accessors
  * Returns { start, rerender }.
  */
@@ -160,7 +169,13 @@ export function mountVpn(deps) {
     const cacheKey = `${CACHE_KEY}:${ctx.username || ""}`;
 
     let ovpn = (deps.ovpnLinks || []).map(normOvpn).filter(Boolean);
-    let wg = [];
+    let wg = (deps.wgLinks || []).map((link) => {
+        if (/^wireguard:\/\//i.test(link)) return normWg({ link });
+        return normWg({
+            download_url: link,
+            remark: ovpnLabel(link).replace(/\.conf$/i, ""),
+        });
+    }).filter(Boolean);
     let l2tp = [];
     let pptp = [];
     let ikev2 = [];
@@ -357,8 +372,8 @@ export function mountVpn(deps) {
             buttons.push(
                 `<a class="btn btn-sm btn-accent gap-1.5 rounded-xl font-semibold" ` +
                 `href="${escapeAttr(profile.link)}" ` +
-                `aria-label="Connect"><i class="ph ph-plug-charging text-base"></i>` +
-                `<span class="hidden sm:inline">Connect</span></a>`
+                `aria-label="${escapeAttr(t("connect"))}"><i class="ph ph-plug-charging text-base"></i>` +
+                `<span class="hidden sm:inline">${escapeHtml(t("connect"))}</span></a>`
             );
         }
         return `<div class="group card glass lift rounded-2xl border-0">` +
@@ -418,7 +433,9 @@ export function mountVpn(deps) {
             `</div>` +
             `<div class="grid grid-cols-1 gap-2 sm:grid-cols-2">` +
             fieldRow("vpn_server", item.server, { icon: "ph-hard-drives", key: keyOf("server") }) +
-            fieldRow("vpn_address", item.address, { icon: "ph-globe", key: keyOf("address") }) +
+            (item.address && item.address !== item.server
+                ? fieldRow("vpn_address", item.address, { icon: "ph-globe", key: keyOf("address") })
+                : "") +
             fieldRow("vpn_port", item.port ? String(item.port) : "", { icon: "ph-plug", key: keyOf("port") }) +
             fieldRow("vpn_dns", item.dns, { icon: "ph-cloud", key: keyOf("dns") }) +
             (isCert
@@ -456,7 +473,7 @@ export function mountVpn(deps) {
                 const prev = icon.className;
                 if (await copyText(btn.getAttribute("data-copy"))) {
                     toast(t("copied"));
-                    icon.className = prev.replace("ph-copy", "ph-check") + " text-success";
+                    icon.className = "ph ph-check text-lg text-success";
                     setTimeout(() => { icon.className = prev; }, 1600);
                 }
             });

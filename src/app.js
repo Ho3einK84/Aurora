@@ -63,6 +63,7 @@ function defaultBrand() {
  * @property {string} supportUrl
  * @property {string[]} links - proxy config URIs (no .ovpn)
  * @property {string[]} ovpnLinks - .ovpn download URLs
+ * @property {string[]} wgLinks - WireGuard URIs (.conf or wireguard://)
  */
 
 function readContext() {
@@ -99,6 +100,7 @@ function readContext() {
         supportUrl: (d.supportUrl || "").trim(),
         links: allLinks.filter((l) => !isOvpnLink(l) && !isWgLink(l)),
         ovpnLinks: allLinks.filter(isOvpnLink),
+        wgLinks: allLinks.filter(isWgLink),
     };
 }
 
@@ -459,8 +461,8 @@ function renderCard() {
         const remainingSec = Math.max(0, CTX.expire - nowSec);
         // `remaining_days` is precomputed server-side (no now() in pongo2) and can
         // be stale — derive live from `expire`, falling back to the server value.
-        const days = remainingSec > 0
-            ? Math.max(0, Math.ceil(remainingSec / 86400))
+        const days = hasValue(CTX.expireRaw)
+            ? (remainingSec > 0 ? Math.max(0, Math.ceil(remainingSec / 86400)) : 0)
             : Math.round(CTX.remainingDays);
         // The ring empties across an adaptive cycle window so short plans show
         // useful motion and long plans don't pin to 100%.
@@ -853,7 +855,7 @@ async function init() {
         const mountVpnOnce = () => {
             if (vpnView) return;
             try {
-                vpnView = mountVpn({ ctx: CTX, ovpnLinks: CTX.ovpnLinks, t, lang: () => lang });
+                vpnView = mountVpn({ ctx: CTX, ovpnLinks: CTX.ovpnLinks, wgLinks: CTX.wgLinks, t, lang: () => lang });
                 vpnView.start();
             } catch (err) { console.error("[aurora] vpn failed:", err); }
         };

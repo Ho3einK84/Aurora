@@ -154,14 +154,23 @@ export function mountConfigs(deps) {
     const filtersEl = $("#config-filters");
     const selectionBar = $("#selection-bar");
 
+    function normSearch(str) {
+        return String(str || "")
+            .toLowerCase()
+            .replace(/[۰-۹]/g, (d) => "۰۱۲۳۴۵۶۷۸۹".indexOf(d))
+            .replace(/[٠-٩]/g, (d) => "٠١٢٣٤٥٦٧٨٩".indexOf(d))
+            .replace(/ي/g, "ی")
+            .replace(/ك/g, "ک");
+    }
+
     const filtered = () => {
-        const q = search.trim().toLowerCase();
+        const q = normSearch(search.trim());
         return rows
             .filter((r) => activeProto === "all" || r.proto === activeProto)
             .filter((r) => !q ||
-                r.name.toLowerCase().includes(q) ||
-                r.proto.toLowerCase().includes(q) ||
-                r.link.toLowerCase().includes(q));
+                normSearch(r.name).includes(q) ||
+                normSearch(r.proto).includes(q) ||
+                normSearch(r.link).includes(q));
     };
 
     function renderFilters() {
@@ -220,7 +229,7 @@ export function mountConfigs(deps) {
             // `dir` attrs above are untouched.
             `<div class="cfg-actions">` +
             (canShare
-                ? `<button class="cfg-action" data-act="share" aria-label="Share">` +
+                ? `<button class="cfg-action" data-act="share" aria-label="${escapeAttr(t("share"))}">` +
                   `<i class="ph ph-share-network"></i></button>`
                 : "") +
             `<button class="cfg-action" data-act="copy" aria-label="${escapeAttr(t("copy"))}">` +
@@ -360,13 +369,15 @@ export function mountConfigs(deps) {
         if (await copyText(list.join("\n"))) toast(t("copied"));
     });
 
+    const sanitizeFilename = (name) => String(name || "").replace(/[/\\?%*:|"<>]+/g, "_").trim() || "aurora";
+
     $("#config-export").addEventListener("click", () => {
         if (!rows.length) return;
         const blob = new Blob([links.join("\n") + "\n"], { type: "text/plain;charset=utf-8" });
         const url = URL.createObjectURL(blob);
         const a = document.createElement("a");
         a.href = url;
-        a.download = (deps.username || "aurora").replace(/[^a-z0-9_-]+/gi, "_") + "-configs.txt";
+        a.download = `${sanitizeFilename(deps.username)}-configs.txt`;
         document.body.appendChild(a);
         a.click();
         document.body.removeChild(a);
@@ -381,7 +392,7 @@ export function mountConfigs(deps) {
         const url = URL.createObjectURL(blob);
         const a = document.createElement("a");
         a.href = url;
-        a.download = (deps.username || "aurora").replace(/[^a-z0-9_-]+/gi, "_") + "-configs.json";
+        a.download = `${sanitizeFilename(deps.username)}-configs.json`;
         document.body.appendChild(a);
         a.click();
         document.body.removeChild(a);

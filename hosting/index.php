@@ -34,10 +34,20 @@ function abort($code, $message)
 
 /**
  * Build the target URL from the configured panel base + the original request URI.
+ * If installed in a subdirectory (e.g. /subscription/), strip the folder prefix
+ * before forwarding to the panel so the panel routes (/sub/..., /info) match.
  */
 $base = rtrim($config['panel_url'], '/');
+$scriptDir = rtrim(str_replace('\\', '/', dirname($_SERVER['SCRIPT_NAME'] ?? '')), '/');
 $requestUri = $_SERVER['REQUEST_URI'] ?? '/';
-$targetUrl = $base . $requestUri;
+$forwardPath = $requestUri;
+if ($scriptDir !== '' && $scriptDir !== '/' && strpos($forwardPath, $scriptDir) === 0) {
+    $forwardPath = substr($forwardPath, strlen($scriptDir));
+    if ($forwardPath === '' || $forwardPath[0] !== '/') {
+        $forwardPath = '/' . $forwardPath;
+    }
+}
+$targetUrl = $base . $forwardPath;
 
 if (!filter_var($targetUrl, FILTER_VALIDATE_URL)) {
     abort(500, 'Invalid target panel URL. Check panel_url in config.php.');
@@ -169,7 +179,7 @@ foreach ($responseHeaders as $headerLine) {
     // Rewrite backend Location headers so the client stays on the shared-hosting
     // domain instead of being redirected to the real panel URL.
     if ($lower === 'location') {
-        $value = rewriteLocation($value, $base, $proto, $incomingHost, $requestUri);
+        $value = rewriteLocation($value, $base, $proto, $incomingHost, $scriptDir);
     }
 
     header("$name: $value", false);
@@ -180,16 +190,22 @@ echo $responseBody;
 /**
  * Rewrite a backend Location so its scheme/host match the proxy's public URL,
  * keeping only path + query. This prevents leaking the panel URL or sending the
- * client to an address it may not be able to reach.
+ * client to an address it may not be able to reach. If the proxy is installed
+ * in a subdirectory, the subdirectory prefix is maintained.
  */
-function rewriteLocation($location, $panelBase, $incomingProto, $incomingHost, $requestUri)
+function rewriteLocation($location, $panelBase, $incomingProto, $incomingHost, $scriptDir = '')
 {
     if ($location === '' || $incomingHost === '') {
         return $location;
     }
 
-    // Already relative — keep as-is.
+    $prefix = ($scriptDir !== '' && $scriptDir !== '/') ? $scriptDir : '';
+
+    // Already relative — ensure subdirectory prefix is maintained.
     if (!preg_match('/^https?:\/\//i', $location)) {
+        if ($prefix !== '' && strpos($location, $prefix) !== 0) {
+            return $prefix . '/' . ltrim($location, '/');
+        }
         return $location;
     }
 
@@ -212,6 +228,9 @@ function rewriteLocation($location, $panelBase, $incomingProto, $incomingHost, $
     }
 
     $path = $parsed['path'] ?? '/';
+    if ($prefix !== '' && strpos($path, $prefix) !== 0) {
+        $path = $prefix . '/' . ltrim($path, '/');
+    }
     $query = isset($parsed['query']) ? '?' . $parsed['query'] : '';
     $fragment = isset($parsed['fragment']) ? '#' . $parsed['fragment'] : '';
 

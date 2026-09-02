@@ -103,6 +103,74 @@ function sampleInfo(port) {
                 password: "s3cr3t-pptp-pass",
             },
         ],
+        wireguard: {
+            downloads: [`http://localhost:${port}/sub/alice/wg/Aurora-Germany-WG.conf`],
+            links: [
+                "wireguard://aGVsbG8td29ybGQ=@de.example.com:51820?address=10.0.0.2%2F32&publickey=serverPubkey123%3D#Aurora%20Germany%20%F0%9F%87%A9%F0%9F%87%AA%20WG",
+            ],
+            profiles: [
+                {
+                    host_tag: "Aurora-Germany-WG",
+                    host_name: "Aurora Germany 🇩🇪 WG",
+                    inbound_tag: "wg-de",
+                    remark: "Aurora Germany 🇩🇪 WireGuard",
+                    filename: "Aurora-Germany-WG.conf",
+                    download_url: `http://localhost:${port}/sub/alice/wg/Aurora-Germany-WG.conf`,
+                    link: "wireguard://aGVsbG8td29ybGQ=@de.example.com:51820?address=10.0.0.2%2F32&publickey=serverPubkey123%3D#Aurora%20Germany%20%F0%9F%87%A9%F0%9F%87%AA%20WG",
+                    body: "[Interface]\nPrivateKey = aGVsbG8td29ybGQ=\nAddress = 10.0.0.2/32\nDNS = 1.1.1.1\n\n[Peer]\nPublicKey = serverPubkey123=\nEndpoint = de.example.com:51820\nAllowedIPs = 0.0.0.0/0",
+                    server: "de.example.com",
+                    address: "de.example.com",
+                    port: 51820,
+                    client_address: "10.0.0.2/32",
+                    client_public_key: "clientPubkey456=",
+                    server_public_key: "serverPubkey123=",
+                },
+            ],
+        },
+        ikev2: [
+            {
+                host_tag: "Aurora-Germany-IKEv2",
+                host_name: "Aurora Germany 🇩🇪 IKEv2",
+                inbound_tag: "ikev2-de",
+                remark: "Aurora Germany 🇩🇪 IKEv2",
+                server: "de.example.com",
+                address: "de.example.com",
+                port: 500,
+                protocol: "ikev2",
+                auth_mode: "password",
+                username: "alice_wonder",
+                password: "s3cr3t-ikev2-pass",
+                dns: ["1.1.1.1", "8.8.8.8"],
+            },
+            {
+                host_tag: "Aurora-Finland-IKEv2-Cert",
+                host_name: "Aurora Finland 🇫🇮 IKEv2 (Cert)",
+                inbound_tag: "ikev2-fi-cert",
+                remark: "Aurora Finland 🇫🇮 IKEv2 (Cert)",
+                server: "fi.example.com",
+                address: "fi.example.com",
+                port: 500,
+                protocol: "ikev2",
+                auth_mode: "certificate",
+                dns: ["1.1.1.1"],
+            },
+        ],
+        anyconnect: [
+            {
+                host_tag: "Aurora-Germany-AnyConnect",
+                host_name: "Aurora Germany 🇩🇪 AnyConnect",
+                inbound_tag: "anyconnect-de",
+                remark: "Aurora Germany 🇩🇪 AnyConnect",
+                server: "de.example.com",
+                address: "de.example.com",
+                port: 443,
+                protocol: "anyconnect",
+                auth_mode: "password",
+                username: "alice_wonder",
+                password: "s3cr3t-anyconnect-pass",
+                dns: ["1.1.1.1", "8.8.8.8"],
+            },
+        ],
     };
 }
 
@@ -243,7 +311,7 @@ createServer(async (req, res) => {
             }
             res.writeHead(200, { "content-type": "application/json; charset=utf-8" });
             res.end(JSON.stringify(mode === "empty"
-                ? { user: {}, openvpn: { downloads: [] }, l2tp: [], pptp: [] }
+                ? { user: {}, openvpn: { downloads: [] }, wireguard: {}, l2tp: [], pptp: [], ikev2: [], anyconnect: [] }
                 : sampleInfo(PORT)));
             return;
         }
@@ -253,6 +321,14 @@ createServer(async (req, res) => {
                 "content-disposition": `attachment; filename="${url.pathname.split("/").pop()}"`,
             });
             res.end(SAMPLE_OVPN);
+            return;
+        }
+        if (/^\/sub\/alice\/wg\/[^/]+\.conf$/.test(url.pathname)) {
+            res.writeHead(200, {
+                "content-type": "text/plain; charset=utf-8",
+                "content-disposition": `attachment; filename="${url.pathname.split("/").pop()}"`,
+            });
+            res.end("[Interface]\nPrivateKey = aGVsbG8td29ybGQ=\nAddress = 10.0.0.2/32\nDNS = 1.1.1.1\n\n[Peer]\nPublicKey = serverPubkey123=\nEndpoint = de.example.com:51820\nAllowedIPs = 0.0.0.0/0\n");
             return;
         }
         const tpl = await readFile(OUT, "utf8");

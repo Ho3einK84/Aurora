@@ -314,22 +314,21 @@ const scriptTag =
     `<script id="aurora-qr" type="application/octet-stream">${qrB64}</script>\n` +
     `<script>${loaderScript}</script>`;
 
-let out = html
-    .replace("<!--AURORA_INLINE_CSS-->", () => styleTag)
-    .replace("<!--AURORA_INLINE_JS-->", () => scriptTag);
-
 // Substitute the brand name from brand.json into static HTML elements
 // (title, meta, splash, header) so the built file has zero "Aurora" in
 // user-visible places. The JS fallback "Aurora" stays base64-encoded and
 // is never seen; runtime defaultBrand() reads window.AURORA_BRAND first.
 const escBrand = (s) => s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
 const bn = escBrand(brandName);
-out = out
+const processedHtml = html
     .replace(/<title>[^<]+<\/title>/, `<title>${bn}</title>`)
     .replace(/(<meta\s+name="aurora-brand"\s+content=")[^"]*(")/, `$1${bn}$2`)
     .replace(/(id="splash-brand"[^>]*>)[^<]+(<\/p>)/, `$1${bn}$2`)
-    .replace(/(id="brand-name"[^>]*>)[^<]+(<\/p>)/, `$1${bn}$2`)
-    .replace(/\bAurora\b/g, bn);
+    .replace(/(id="brand-name"[^>]*>)[^<]+(<\/p>)/, `$1${bn}$2`);
+
+let out = processedHtml
+    .replace("<!--AURORA_INLINE_CSS-->", () => styleTag)
+    .replace("<!--AURORA_INLINE_JS-->", () => scriptTag);
 
 const bindings = guard(out);
 

@@ -103,12 +103,13 @@ export function mountApps(deps) {
                 ? importUrl(app.urlScheme, deps.subUrl, deps.username)
                 : "";
             const dl = (app.downloadLinks && app.downloadLinks[activeOs]) || app.link || "";
+            const subtitle = scheme ? t("tap_to_add") : t("download");
             return `<div class="card glass lift rounded-2xl border-0">` +
                 `<div class="flex items-center gap-3 p-3">` +
                 appTile(app) +
                 `<div class="min-w-0 flex-1">` +
                 `<p class="truncate font-semibold">${escapeHtml(app.name)}</p>` +
-                `<p class="text-[11px] text-base-content/50">${escapeHtml(t("tap_to_add"))}</p>` +
+                `<p class="text-[11px] text-base-content/50">${escapeHtml(subtitle)}</p>` +
                 `</div>` +
                 `<div class="flex items-center gap-1.5">` +
                 (scheme

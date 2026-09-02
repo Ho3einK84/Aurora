@@ -85,3 +85,89 @@ export function escapeAttr(s) {
         return "&#" + c.charCodeAt(0) + ";";
     });
 }
+
+/**
+ * Generate standard WireGuard .conf text from a wireguard:// URI or raw config text.
+ */
+export function generateWgConf(raw) {
+    const s = String(raw || "").trim();
+    if (!s) return null;
+    if (/^\[Interface\]/i.test(s)) return s.endsWith("\n") ? s : s + "\n";
+    if (!/^wireguard:\/\//i.test(s)) return null;
+
+    try {
+        const u = new URL(s);
+        const p = u.searchParams;
+        const getParam = (name) => {
+            const val = p.get(name);
+            if (val !== null && val !== "") return val;
+            const target = name.toLowerCase();
+            for (const [k, v] of p.entries()) {
+                if (k.toLowerCase() === target) return v;
+            }
+            return "";
+        };
+
+        const privateKey = decodeURIComponent(u.username || getParam("privatekey") || "").trim();
+        const publicKey = getParam("publickey").trim();
+        const address = getParam("address").trim() || getParam("ip").trim();
+        if (!privateKey && !publicKey) return null;
+
+        let host = u.hostname;
+        if (host && host.includes(":") && !host.startsWith("[")) host = `[${host}]`;
+        let endpoint = getParam("endpoint").trim();
+        if (!endpoint && host) {
+            endpoint = u.port ? `${host}:${u.port}` : host;
+        }
+
+        const lines = ["[Interface]"];
+        if (privateKey) lines.push(`PrivateKey = ${privateKey.replace(/\s/g, "+")}`);
+        if (address) lines.push(`Address = ${address}`);
+        const dns = getParam("dns").trim();
+        if (dns) lines.push(`DNS = ${dns}`);
+        const mtu = getParam("mtu").trim();
+        if (mtu) lines.push(`MTU = ${mtu}`);
+        const reserved = getParam("reserved").trim();
+        if (reserved) lines.push(`Reserved = ${reserved}`);
+
+        lines.push("", "[Peer]");
+        if (publicKey) lines.push(`PublicKey = ${publicKey.replace(/\s/g, "+")}`);
+        const psk = getParam("presharedkey").trim() || getParam("psk").trim();
+        if (psk) lines.push(`PresharedKey = ${psk.replace(/\s/g, "+")}`);
+        const allowedIps = getParam("allowedips").trim() || "0.0.0.0/0, ::/0";
+        lines.push(`AllowedIPs = ${allowedIps}`);
+        if (endpoint) lines.push(`Endpoint = ${endpoint}`);
+        const keepalive = getParam("persistentkeepalive").trim() || getParam("keepalive").trim() || "25";
+        lines.push(`PersistentKeepalive = ${keepalive}`);
+
+        return lines.join("\n") + "\n";
+    } catch (_) {
+        return null;
+    }
+}
+
+/** Trigger browser file download from an in-memory string. */
+export function downloadTextFile(text, filename, mimeType = "application/x-wireguard-profile;charset=utf-8") {
+    const blob = new Blob([text], { type: mimeType });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+
+/** Sanitize file name for downloading configurations. */
+export function safeFileName(name, fallback = "config", ext = ".conf") {
+    let clean = String(name || fallback)
+        .replace(/[\\/:*?"<>|]+/g, "-")
+        .replace(/\s+/g, "-")
+        .replace(/^-+|-+$/g, "")
+        .trim();
+    if (!clean) clean = fallback;
+    const re = new RegExp(`\\${ext}$`, "i");
+    return re.test(clean) ? clean : `${clean}${ext}`;
+}
+

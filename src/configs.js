@@ -3,7 +3,7 @@
    grouping / bulk selection, list rendering and keyboard navigation.
    =========================================================================== */
 
-import { b64ToUtf8, escapeHtml, escapeAttr } from "./format.js";
+import { b64ToUtf8, escapeHtml, escapeAttr, generateWgConf, downloadTextFile, safeFileName } from "./format.js";
 import { locNum } from "./i18n.js";
 import { $, $$, setHidden, copyText, toast, flashCopied } from "./ui.js";
 
@@ -210,6 +210,7 @@ export function mountConfigs(deps) {
         el.tabIndex = 0;
         el.dataset.link = r.link;
         const canShare = typeof navigator.share === "function";
+        const isWg = r.proto === "WIREGUARD" || /^wireguard:\/\//i.test(r.link) || /\.conf(?:[?#]|$)/i.test(r.link);
         el.innerHTML =
             `<div class="flex items-center gap-3 p-3">` +
             `<label class="cfg-check${selecting ? "" : " hidden"}">` +
@@ -231,6 +232,10 @@ export function mountConfigs(deps) {
             (canShare
                 ? `<button class="cfg-action" data-act="share" aria-label="${escapeAttr(t("share"))}">` +
                   `<i class="ph ph-share-network"></i></button>`
+                : "") +
+            (isWg
+                ? `<button class="cfg-action" data-act="download" aria-label="${escapeAttr(t("download_conf"))}" title="${escapeAttr(t("download_conf"))}">` +
+                  `<i class="ph ph-download-simple"></i></button>`
                 : "") +
             `<button class="cfg-action" data-act="copy" aria-label="${escapeAttr(t("copy"))}">` +
             `<i class="ph ph-copy"></i></button>` +
@@ -255,6 +260,29 @@ export function mountConfigs(deps) {
                 try {
                     await navigator.share({ title: r.name, text: r.link });
                 } catch (_) { /* user cancelled — ignore */ }
+            });
+        }
+        const dlBtn = el.querySelector('[data-act="download"]');
+        if (dlBtn) {
+            dlBtn.addEventListener("click", (e) => {
+                e.stopPropagation();
+                if (/^https?:\/\//i.test(r.link) && /\.conf(?:[?#]|$)/i.test(r.link)) {
+                    const a = document.createElement("a");
+                    a.href = r.link;
+                    a.download = safeFileName(r.name, "wireguard", ".conf");
+                    document.body.appendChild(a);
+                    a.click();
+                    document.body.removeChild(a);
+                    toast(t("export_done"));
+                    return;
+                }
+                const confText = generateWgConf(r.link);
+                if (confText) {
+                    downloadTextFile(confText, safeFileName(r.name, "wireguard", ".conf"));
+                    toast(t("export_done"));
+                } else {
+                    toast(t("qr_error"));
+                }
             });
         }
         el.querySelector('[data-act="qr"]').addEventListener("click", (e) => {

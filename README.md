@@ -16,13 +16,14 @@ Glassmorphism · usage dashboard · EN/FA RTL · white-label · Tailwind v4 + Da
 
 ## ✨ Features
 
-- **Service card** — usage/time rings, animated stats, live quota-reset countdown. Handles unlimited, never-expire, `on_hold`, and client-derived expired/limited states.
+- **Service card** — usage/time rings, animated stats, live quota-reset countdown. Handles unlimited, never-expire, `on_hold`, client-derived expired/limited states, and smart low-traffic / low-time renewal alerts.
+- **Support & renewal** — top-bar quick support button with intelligent pulsating attention glow (`alert-active`) when subscription expiration is near or traffic is running low.
 - **Usage dashboard** — 30-day chart, threshold alerts, per-server breakdown, depletion forecast, offline cache, 5-min auto-refresh. Lazy-loaded via IntersectionObserver.
-- **Configs** — search, protocol filters, group-by-country, bulk select + copy, `.txt`/`.json` export, full keyboard support. Web Share API button on mobile.
-- **VPN files** (OpenVPN · WireGuard · L2TP/IPsec · PPTP · IKEv2 · Cisco AnyConnect) — download/copy `.ovpn` profiles and masked credential cards, fed by the panel's `/info` endpoint; WireGuard gets its own structured tab with download, copy-link, copy-config, and **Connect** button (`wireguard://`); IKEv2 and AnyConnect support password and certificate auth. Lazy-loaded.
+- **Configs** — search, protocol filters, group-by-country, bulk select + copy, `.txt`/`.json` export, direct `.conf` download for WireGuard, full keyboard support. Web Share API button on mobile.
+- **VPN files** (OpenVPN · WireGuard · L2TP/IPsec · PPTP · IKEv2 · Cisco AnyConnect) — download/copy `.ovpn` profiles and masked credential cards, fed by the panel's `/info` endpoint; WireGuard gets its own structured tab with direct `.conf` download, copy-link, copy-config, and **Connect** button (`wireguard://`); IKEv2 and AnyConnect support password and certificate auth. Lazy-loaded.
 - **Apps** — OS-grouped client catalogue with one-tap import (from `src/apps.json`).
 - **Themes & i18n** — 4 themes, EN/FA/RU/ZH with full RTL, auto OS theme sync.
-- **White-label** — brand text from panel profile title with fallbacks.
+- **White-label** — brand text from panel profile title with fallbacks, customizable via `brand.json` or interactive installer.
 - **PWA-ready & resilient** — self-contained, offline cache, error boundaries, ARIA support.
 
 One self-contained `index.html` — zero external requests at runtime.
@@ -30,6 +31,16 @@ One self-contained `index.html` — zero external requests at runtime.
 ---
 
 ## 🚀 Installation on Rebecca
+
+### Option 1: Interactive Automatic Installer (Recommended)
+
+Run the one-line installer on your Rebecca server to install, customize brand information, and reload the service automatically:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/Ho3einK84/Aurora/main/install.sh | sudo bash
+```
+
+### Option 2: Manual Download
 
 In **Master Settings → Subscriptions**, drop the latest build at
 `/var/lib/rebecca/templates/subscription/index.html`:

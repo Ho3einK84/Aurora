@@ -323,6 +323,26 @@ html[dir="rtl"] {
     50% { opacity: 0.35; }
   }
 
+  /* Pulsing attention glow for support/renewal buttons when attention is needed */
+  .alert-active {
+    position: relative;
+    border-color: color-mix(in oklch, var(--color-warning) 70%, transparent) !important;
+    animation: alert-pulse 2.2s ease-in-out infinite;
+  }
+  @keyframes alert-pulse {
+    0%, 100% {
+      box-shadow: 0 0 0 0 color-mix(in oklch, var(--color-warning) 40%, transparent);
+    }
+    50% {
+      box-shadow: 0 0 12px 2px color-mix(in oklch, var(--color-warning) 30%, transparent);
+    }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .alert-active {
+      animation: none;
+    }
+  }
+
   /* Config search field focus affordance. */
   .cfg-search {
     transition: border-color 0.2s ease;

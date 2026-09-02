@@ -97,8 +97,8 @@ function readContext() {
         remainingDays: Math.max(0, num(d.remainingDays)),
         subUrl,
         usageUrl: (d.usageUrl || "").trim(),
-        supportUrl: (d.supportUrl || "").trim(),
-        links: allLinks.filter((l) => !isOvpnLink(l) && !isWgLink(l)),
+        supportUrl: (d.supportUrl || "").trim() || (window.AURORA_BRAND && window.AURORA_BRAND.supportUrl ? String(window.AURORA_BRAND.supportUrl).trim() : ""),
+        links: allLinks.filter((l) => !isOvpnLink(l) && !(/\.conf(?:[?#]|$)/i.test(l) && /^https?:\/\//i.test(l))),
         ovpnLinks: allLinks.filter(isOvpnLink),
         wgLinks: allLinks.filter(isWgLink),
     };
@@ -388,17 +388,62 @@ function renderCard() {
     svc.textContent = CTX.serviceName;
     setHidden(svc, !CTX.serviceName);
 
+    const remainTraffic = unlimited ? Infinity : Math.max(0, CTX.dataLimit - CTX.usedTraffic);
+    const isLowTraffic = !unlimited && (remainTraffic <= Math.min(1073741824, CTX.dataLimit * 0.12) || (CTX.usedTraffic / CTX.dataLimit >= 0.9));
+    const isLowTime = !neverExpire && CTX.remainingDays > 0 && CTX.remainingDays <= 3;
+    const isUrgent = STATE !== "active" || isLowTraffic || isLowTime;
+
     // Status badge + banner
     const badge = $("#status-badge");
     badge.className = `badge badge-lg gap-1.5 border-0 px-3 py-3.5 font-semibold ${STATUS_BADGES[STATE] || STATUS_BADGES.disabled}`;
     $("#status-badge-text").textContent = t("status_" + STATE) === "status_" + STATE ? t("status_unknown") : t("status_" + STATE);
+
     const banner = $("#status-banner");
+    const bannerText = $("#status-banner-text");
+    const bannerAction = $("#status-banner-action");
+
     if (STATE !== "active" && I18N.en["banner_" + STATE]) {
-        banner.className = `reveal shown alert mb-5 items-center rounded-2xl glass border-0 ${BANNER_TONES[STATE] || ""}`;
-        $("#status-banner-text").textContent = t("banner_" + STATE);
+        banner.className = `reveal shown alert mb-5 items-center justify-between gap-3 rounded-2xl glass border-0 ${BANNER_TONES[STATE] || ""}`;
+        bannerText.textContent = t("banner_" + STATE);
+        if (CTX.supportUrl) {
+            bannerAction.href = CTX.supportUrl;
+            $("#status-banner-action-text").textContent = t("renew");
+            setHidden(bannerAction, false);
+        } else {
+            setHidden(bannerAction, true);
+        }
+        setHidden(banner, false);
+    } else if (isLowTraffic || isLowTime) {
+        banner.className = `reveal shown alert mb-5 items-center justify-between gap-3 rounded-2xl glass border-0 alert-warning`;
+        const alertKey = isLowTraffic && isLowTime ? "banner_low_both" : isLowTraffic ? "banner_low_traffic" : "banner_low_time";
+        bannerText.textContent = t(alertKey);
+        if (CTX.supportUrl) {
+            bannerAction.href = CTX.supportUrl;
+            $("#status-banner-action-text").textContent = t("renew");
+            setHidden(bannerAction, false);
+        } else {
+            setHidden(bannerAction, true);
+        }
         setHidden(banner, false);
     } else {
         setHidden(banner, true);
+    }
+
+    // Top and footer support buttons + urgent attention glow
+    const topSupport = $("#top-support-btn");
+    if (topSupport) {
+        if (CTX.supportUrl) {
+            topSupport.href = CTX.supportUrl;
+            setHidden(topSupport, false);
+            topSupport.classList.toggle("alert-active", isUrgent);
+        } else {
+            setHidden(topSupport, true);
+            topSupport.classList.remove("alert-active");
+        }
+    }
+    const footerSupport = $("#support-link");
+    if (footerSupport) {
+        footerSupport.classList.toggle("alert-active", isUrgent);
     }
 
     // ---- usage ring + stats

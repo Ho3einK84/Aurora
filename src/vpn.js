@@ -39,7 +39,7 @@
    them. The last good payload is cached per user for offline visits.
    =========================================================================== */
 
-import { escapeHtml, escapeAttr } from "./format.js";
+import { escapeHtml, escapeAttr, generateWgConf, downloadTextFile, safeFileName } from "./format.js";
 import { $, $$, setHidden, copyText, toast } from "./ui.js";
 import { storeGet, storeSet } from "./store.js";
 
@@ -346,7 +346,7 @@ export function mountVpn(deps) {
             `</div></div>`;
     }
 
-    function wgRow(profile) {
+    function wgRow(profile, i) {
         const buttons = [];
         if (profile.link) {
             buttons.push(
@@ -366,6 +366,12 @@ export function mountVpn(deps) {
                 `href="${escapeAttr(profile.downloadUrl)}" download>` +
                 `<i class="ph ph-download-simple text-base"></i>` +
                 `<span class="hidden sm:inline">${escapeHtml(t("ovpn_download"))}</span></a>`
+            );
+        } else if (profile.body || profile.link) {
+            buttons.push(
+                `<button class="btn btn-sm btn-primary gap-1.5 rounded-xl font-semibold" data-dl-wg="${i}" ` +
+                `aria-label="${escapeAttr(t("ovpn_download"))}"><i class="ph ph-download-simple text-base"></i>` +
+                `<span class="hidden sm:inline">${escapeHtml(t("ovpn_download"))}</span></button>`
             );
         }
         if (profile.link && /^wireguard:\/\//i.test(profile.link)) {
@@ -459,7 +465,7 @@ export function mountVpn(deps) {
 
         const rows =
             activeTab === "ovpn" ? ovpn.map(ovpnRow)
-            : activeTab === "wg" ? wg.map(wgRow)
+            : activeTab === "wg" ? wg.map((w, i) => wgRow(w, i))
             : activeTab === "l2tp" ? l2tp.map((r, i) => credsRow(r, "l2tp", i))
             : activeTab === "pptp" ? pptp.map((r, i) => credsRow(r, "pptp", i))
             : activeTab === "ikev2" ? ikev2.map((r, i) => remoteAccessRow(r, "ikev2", i))
@@ -475,6 +481,18 @@ export function mountVpn(deps) {
                     toast(t("copied"));
                     icon.className = "ph ph-check text-lg text-success";
                     setTimeout(() => { icon.className = prev; }, 1600);
+                }
+            });
+        });
+        $$("[data-dl-wg]", listEl).forEach((btn) => {
+            btn.addEventListener("click", () => {
+                const idx = parseInt(btn.getAttribute("data-dl-wg"), 10);
+                const profile = wg[idx];
+                if (!profile) return;
+                const conf = profile.body || generateWgConf(profile.link);
+                if (conf) {
+                    downloadTextFile(conf, safeFileName(profile.name, "wireguard", ".conf"));
+                    toast(t("export_done"));
                 }
             });
         });

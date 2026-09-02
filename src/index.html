@@ -166,6 +166,14 @@
             </div>
 
             <div class="flex shrink-0 items-center gap-2">
+                <!-- Top support button -->
+                <a id="top-support-btn" hidden target="_blank" rel="noopener"
+                    class="btn btn-sm btn-ghost glass gap-1.5 font-semibold"
+                    data-i18n-title="support" data-i18n-label="support">
+                    <i class="ph ph-lifebuoy text-lg"></i>
+                    <span class="hidden sm:inline" data-i18n="support">Support</span>
+                </a>
+
                 <!-- Language switcher popover -->
                 <div id="lang-menu" class="relative">
                     <button id="lang-toggle" class="btn btn-sm btn-ghost glass gap-1.5 font-semibold"
@@ -191,10 +199,17 @@
             </div>
         </header>
 
-        <!-- ===================== STATUS BANNER (edge cases) ===================== -->
-        <div id="status-banner" hidden class="reveal alert mb-5 items-center rounded-2xl glass border-0">
-            <i class="ph ph-warning-circle shrink-0 text-xl"></i>
-            <span id="status-banner-text" class="text-sm font-medium"></span>
+        <!-- ===================== STATUS BANNER (edge cases & alerts) ===================== -->
+        <div id="status-banner" hidden class="reveal alert mb-5 items-center justify-between gap-3 rounded-2xl glass border-0">
+            <div class="flex items-center gap-2.5 min-w-0">
+                <i id="status-banner-icon" class="ph ph-warning-circle shrink-0 text-xl"></i>
+                <span id="status-banner-text" class="text-sm font-medium"></span>
+            </div>
+            <a id="status-banner-action" hidden target="_blank" rel="noopener"
+                class="btn btn-sm btn-warning gap-1.5 rounded-xl font-semibold shrink-0 shadow-md">
+                <i class="ph ph-lifebuoy text-base"></i>
+                <span id="status-banner-action-text" data-i18n="renew">Renew</span>
+            </a>
         </div>
 
         <!-- ========================= SERVICE INFO CARD ========================= -->

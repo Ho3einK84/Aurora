@@ -5,7 +5,7 @@
 # ==============================================================================
 set -euo pipefail
 
-readonly SCRIPT_VERSION="1.0.0"
+readonly SCRIPT_VERSION="1.0.1"
 readonly DEFAULT_TARGET_DIR="/var/lib/rebecca/templates/subscription"
 readonly DEFAULT_TARGET_FILE="${DEFAULT_TARGET_DIR}/index.html"
 readonly DEFAULT_BACKUP_FILE="${DEFAULT_TARGET_FILE}.aurora.bak"
@@ -139,8 +139,7 @@ download_template() {
 patch_branding() {
   local target_file=$1
   local brand_name=$2
-  local logo_url=$3
-  local support_url=$4
+  local support_url=$3
 
   if [[ ! -f "$target_file" ]]; then
     err "Target file not found: $target_file"
@@ -153,7 +152,6 @@ import re, json, sys
 
 target = "$target_file"
 brand_name = """$brand_name""".strip()
-logo_url = """$logo_url""".strip()
 support_url = """$support_url""".strip()
 
 with open(target, 'r', encoding='utf-8') as f:
@@ -170,8 +168,6 @@ if m:
 
 if brand_name:
     brand_data["name"] = brand_name
-if logo_url:
-    brand_data["logoUrl"] = logo_url
 if support_url:
     brand_data["supportUrl"] = support_url
 
@@ -233,14 +229,12 @@ interactive_install() {
   log_blank
   info "Customize your brand information (press Enter to keep default):"
   local brand_name=""
-  local logo_url=""
   local support_url=""
   read_input "Brand Name (e.g. MyVPN)" brand_name "Aurora"
-  read_input "Logo URL (e.g. https://example.com/logo.png)" logo_url ""
   read_input "Support URL (e.g. https://t.me/MySupport)" support_url ""
 
-  if [[ -n "$brand_name" || -n "$logo_url" || -n "$support_url" ]]; then
-    patch_branding "$target_file" "$brand_name" "$logo_url" "$support_url"
+  if [[ -n "$brand_name" || -n "$support_url" ]]; then
+    patch_branding "$target_file" "$brand_name" "$support_url"
   fi
 
   log_blank
@@ -266,7 +260,6 @@ check_prereqs
 # Non-interactive CLI flag parsing
 AUTO=0
 CLI_BRAND=""
-CLI_LOGO=""
 CLI_SUPPORT=""
 CLI_TARGET="$DEFAULT_TARGET_FILE"
 CLI_RESTART=0
@@ -276,7 +269,6 @@ while [[ $# -gt 0 ]]; do
   case "$1" in
     --auto|-a) AUTO=1; shift ;;
     --brand|-b) CLI_BRAND="$2"; shift 2 ;;
-    --logo|-l) CLI_LOGO="$2"; shift 2 ;;
     --support|-s) CLI_SUPPORT="$2"; shift 2 ;;
     --target|-t) CLI_TARGET="$2"; shift 2 ;;
     --restart|-r) CLI_RESTART=1; shift ;;
@@ -288,7 +280,6 @@ while [[ $# -gt 0 ]]; do
       log_line "Options:"
       log_line "  -a, --auto              Run unattended full installation"
       log_line "  -b, --brand <name>      Set brand name"
-      log_line "  -l, --logo <url>        Set brand logo URL"
       log_line "  -s, --support <url>     Set Telegram/Web support link"
       log_line "  -t, --target <path>     Target index.html path (default: ${DEFAULT_TARGET_FILE})"
       log_line "  -r, --restart           Restart Rebecca service after installation"
@@ -305,11 +296,11 @@ if [[ $CLI_RESTORE -eq 1 ]]; then
   exit 0
 fi
 
-if [[ $AUTO -eq 1 || -n "$CLI_BRAND" || -n "$CLI_LOGO" || -n "$CLI_SUPPORT" ]]; then
+if [[ $AUTO -eq 1 || -n "$CLI_BRAND" || -n "$CLI_SUPPORT" ]]; then
   print_banner
   download_template "$CLI_TARGET"
-  if [[ -n "$CLI_BRAND" || -n "$CLI_LOGO" || -n "$CLI_SUPPORT" ]]; then
-    patch_branding "$CLI_TARGET" "$CLI_BRAND" "$CLI_LOGO" "$CLI_SUPPORT"
+  if [[ -n "$CLI_BRAND" || -n "$CLI_SUPPORT" ]]; then
+    patch_branding "$CLI_TARGET" "$CLI_BRAND" "$CLI_SUPPORT"
   fi
   if [[ $CLI_RESTART -eq 1 ]]; then
     restart_rebecca
@@ -344,9 +335,8 @@ case "$CHOICE" in
   3)
     read_input "Target template path" CLI_TARGET "$DEFAULT_TARGET_FILE"
     read_input "Brand Name" CLI_BRAND "Aurora"
-    read_input "Logo URL" CLI_LOGO ""
     read_input "Support URL" CLI_SUPPORT ""
-    patch_branding "$CLI_TARGET" "$CLI_BRAND" "$CLI_LOGO" "$CLI_SUPPORT"
+    patch_branding "$CLI_TARGET" "$CLI_BRAND" "$CLI_SUPPORT"
     restart_rebecca
     ;;
   4)

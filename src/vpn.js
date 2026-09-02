@@ -365,13 +365,13 @@ export function mountVpn(deps) {
                 `<a class="btn btn-sm btn-primary gap-1.5 rounded-xl font-semibold" ` +
                 `href="${escapeAttr(profile.downloadUrl)}" download>` +
                 `<i class="ph ph-download-simple text-base"></i>` +
-                `<span class="hidden sm:inline">${escapeHtml(t("ovpn_download"))}</span></a>`
+                `<span class="hidden sm:inline">${escapeHtml(t("download_conf"))}</span></a>`
             );
         } else if (profile.body || profile.link) {
             buttons.push(
                 `<button class="btn btn-sm btn-primary gap-1.5 rounded-xl font-semibold" data-dl-wg="${i}" ` +
-                `aria-label="${escapeAttr(t("ovpn_download"))}"><i class="ph ph-download-simple text-base"></i>` +
-                `<span class="hidden sm:inline">${escapeHtml(t("ovpn_download"))}</span></button>`
+                `aria-label="${escapeAttr(t("download_conf"))}"><i class="ph ph-download-simple text-base"></i>` +
+                `<span class="hidden sm:inline">${escapeHtml(t("download_conf"))}</span></button>`
             );
         }
         if (profile.link && /^wireguard:\/\//i.test(profile.link)) {
@@ -493,6 +493,8 @@ export function mountVpn(deps) {
                 if (conf) {
                     downloadTextFile(conf, safeFileName(profile.name, "wireguard", ".conf"));
                     toast(t("export_done"));
+                } else {
+                    toast(t("qr_error"));
                 }
             });
         });

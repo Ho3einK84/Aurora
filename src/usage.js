@@ -88,6 +88,7 @@ function usageValOf(r) {
  */
 export function mountUsage(deps) {
     const { ctx, t, lang } = deps;
+    const getState = () => (typeof deps.state === "function" ? deps.state() : (deps.state || "active"));
     // Scope the offline cache per user — several accounts can share one origin.
     const cacheKey = `${CACHE_KEY}:${ctx.username || ""}`;
 
@@ -289,7 +290,7 @@ export function mountUsage(deps) {
         const limit = ctx.dataLimit;
         const unlimited = !hasValue(ctx.limitRaw) || limit <= 0;
         const remaining = limit - ctx.usedTraffic;
-        const inactive = deps.state !== "active";
+        const inactive = getState() !== "active";
         if (unlimited || remaining <= 0 || inactive || !history || !history.length) {
             setHidden(box, true);
             return;
@@ -319,10 +320,21 @@ export function mountUsage(deps) {
             return;
         }
         const pct = ctx.usedTraffic / limit;
+        const st = getState();
         let cls = "", key = "";
-        if (pct >= 0.9) { cls = "bg-error/15 text-error"; key = "usage_alert_90"; }
-        else if (pct >= 0.8) { cls = "bg-warning/15 text-warning"; key = "usage_alert_80"; }
-        else if (pct >= 0.5) { cls = "bg-info/15 text-info"; key = "usage_alert_50"; }
+        if (pct >= 1.0 || ctx.usedTraffic >= limit || st === "limited") {
+            cls = "bg-error/15 text-error";
+            key = "usage_alert_100";
+        } else if (pct >= 0.9) {
+            cls = "bg-error/15 text-error";
+            key = "usage_alert_90";
+        } else if (pct >= 0.8) {
+            cls = "bg-warning/15 text-warning";
+            key = "usage_alert_80";
+        } else if (pct >= 0.5) {
+            cls = "bg-info/15 text-info";
+            key = "usage_alert_50";
+        }
         if (!key) {
             setHidden(el, true);
             return;

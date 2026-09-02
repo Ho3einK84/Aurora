@@ -391,7 +391,7 @@ function renderCard() {
     const remainTraffic = unlimited ? Infinity : Math.max(0, CTX.dataLimit - CTX.usedTraffic);
     const isLowTraffic = !unlimited && (remainTraffic <= Math.min(1073741824, CTX.dataLimit * 0.12) || (CTX.usedTraffic / CTX.dataLimit >= 0.9));
     const isLowTime = !neverExpire && CTX.remainingDays > 0 && CTX.remainingDays <= 3;
-    const isUrgent = STATE !== "active" || isLowTraffic || isLowTime;
+    const isUrgent = (STATE !== "active" && STATE !== "on_hold") || isLowTraffic || isLowTime;
 
     // Status badge + banner
     const badge = $("#status-badge");
@@ -401,11 +401,17 @@ function renderCard() {
     const banner = $("#status-banner");
     const bannerText = $("#status-banner-text");
     const bannerAction = $("#status-banner-action");
+    const bannerIcon = $("#status-banner-icon");
+    if (bannerIcon) {
+        bannerIcon.className = STATE === "on_hold"
+            ? "ph ph-info shrink-0 text-xl"
+            : "ph ph-warning-circle shrink-0 text-xl";
+    }
 
     if (STATE !== "active" && I18N.en["banner_" + STATE]) {
         banner.className = `reveal shown alert mb-5 items-center justify-between gap-3 rounded-2xl glass border-0 ${BANNER_TONES[STATE] || ""}`;
         bannerText.textContent = t("banner_" + STATE);
-        if (CTX.supportUrl) {
+        if (CTX.supportUrl && STATE !== "on_hold") {
             bannerAction.href = CTX.supportUrl;
             $("#status-banner-action-text").textContent = t("renew");
             setHidden(bannerAction, false);
@@ -883,7 +889,7 @@ async function init() {
         const mountUsageOnce = () => {
             if (usageView) return;
             try {
-                usageView = mountUsage({ ctx: CTX, state: STATE, t, lang: () => lang });
+                usageView = mountUsage({ ctx: CTX, state: () => STATE, t, lang: () => lang });
                 usageView.start();
             } catch (err) { console.error("[aurora] usage failed:", err); }
         };

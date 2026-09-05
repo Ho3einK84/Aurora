@@ -41,12 +41,19 @@ const SAMPLE_LINKS = [
     "trojan://password123@example.com:443?security=tls&type=grpc#Aurora%20Netherlands",
     "ss://YWVzLTI1Ni1nY206cGFzc3dvcmQ@example.com:8388#Aurora%20France",
     "vless://99999999-8888-7777-6666-555555555555@example.de:8443?security=reality#Frankfurt%20DE%20%F0%9F%87%A9%F0%9F%87%AA",
+    "ssh://alice:s3cr3t-ssh-pass@de.example.com:22#Aurora%20Germany%20%F0%9F%87%A9%F0%9F%87%AA%20SSH",
+    "awg://aGVsbG8td29ybGQ=@de.example.com:51821?address=10.0.1.2%2F32&publickey=serverAwgPubkey123%3D#Aurora%20Germany%20%F0%9F%87%A9%F0%9F%87%AA%20AWG",
+    "tg://proxy?server=tg.example.com&port=443&secret=ee112233445566778899aabbccddeeff11676f6f676c652e636f6d#Aurora%20Telegram%20Proxy",
 ];
 
-// Rebecca dev appends the OpenVPN profile download links to the links list.
+// Rebecca dev appends profile download links to the links list.
 const OV_DOWNLOADS = (port) => [
     `http://localhost:${port}/sub/alice/ov/Aurora-Germany-OV.ovpn`,
     `http://localhost:${port}/sub/alice/ov/Aurora-Finland-OV.ovpn`,
+];
+
+const AWG_DOWNLOADS = (port) => [
+    `http://localhost:${port}/sub/alice/awg/Aurora-Germany-AWG.conf`,
 ];
 
 /**
@@ -171,6 +178,65 @@ function sampleInfo(port) {
                 dns: ["1.1.1.1", "8.8.8.8"],
             },
         ],
+        amneziawg: {
+            downloads: AWG_DOWNLOADS(port),
+            links: [
+                "awg://aGVsbG8td29ybGQ=@de.example.com:51821?address=10.0.1.2%2F32&publickey=serverAwgPubkey123%3D#Aurora%20Germany%20%F0%9F%87%A9%F0%9F%87%AA%20AWG",
+            ],
+            profiles: [
+                {
+                    host_tag: "Aurora-Germany-AWG",
+                    host_name: "Aurora Germany 🇩🇪 AWG",
+                    inbound_tag: "awg-de",
+                    remark: "Aurora Germany 🇩🇪 AmneziaWG",
+                    filename: "Aurora-Germany-AWG.conf",
+                    download_url: `http://localhost:${port}/sub/alice/awg/Aurora-Germany-AWG.conf`,
+                    link: "awg://aGVsbG8td29ybGQ=@de.example.com:51821?address=10.0.1.2%2F32&publickey=serverAwgPubkey123%3D#Aurora%20Germany%20%F0%9F%87%A9%F0%9F%87%AA%20AWG",
+                    body: "[Interface]\nPrivateKey = aGVsbG8td29ybGQ=\nAddress = 10.0.1.2/32\nDNS = 1.1.1.1\nJc = 4\nJmin = 50\nJmax = 1000\nS1 = 15\nS2 = 20\nH1 = 1\nH2 = 2\nH3 = 3\nH4 = 4\n\n[Peer]\nPublicKey = serverAwgPubkey123=\nEndpoint = de.example.com:51821\nAllowedIPs = 0.0.0.0/0\nPersistentKeepalive = 25",
+                    server: "de.example.com",
+                    address: "de.example.com",
+                    port: 51821,
+                    client_address: "10.0.1.2/32",
+                    client_public_key: "clientAwgPubkey456=",
+                    server_public_key: "serverAwgPubkey123=",
+                },
+            ],
+        },
+        sstp: [
+            {
+                host_tag: "Aurora-Germany-SSTP",
+                host_name: "Aurora Germany 🇩🇪 SSTP",
+                inbound_tag: "sstp-de",
+                remark: "Aurora Germany 🇩🇪 SSTP",
+                server: "de.example.com",
+                address: "de.example.com",
+                port: 444,
+                protocol: "sstp",
+                auth_mode: "password",
+                username: "alice_wonder",
+                password: "s3cr3t-sstp-pass",
+                dns: ["1.1.1.1", "8.8.8.8"],
+                mtu: "1452",
+            },
+        ],
+        gre: [
+            {
+                host_tag: "Aurora-Germany-GRE",
+                host_name: "Aurora Germany 🇩🇪 GRE",
+                inbound_tag: "gre-de",
+                remark: "Aurora Germany 🇩🇪 GRE Tunnel",
+                server: "de.example.com",
+                address: "de.example.com",
+                port: 0,
+                protocol: "gre",
+                auth_mode: "none",
+                client_address: "10.10.10.2/30",
+                server_address: "10.10.10.1/30",
+                dns: ["1.1.1.1"],
+                mtu: "1476",
+                ttl: "64",
+            },
+        ],
     };
 }
 
@@ -195,7 +261,7 @@ function ctxFor(state, brand, profileTitle) {
         "user.created_at": new Date(Date.now() - 240 * 86400_000).toISOString(),
         "user.service_name": "Nebula 50GB",
         remaining_days: "18",
-        "user.subscription_url": `/sub/alice`,
+        "user.subscription_url": `http://localhost:${PORT}/sub/alice`,
         usage_url: `/usage`,
         support_url: "https://t.me/support",
         brand_name: brand || "",
@@ -302,7 +368,7 @@ createServer(async (req, res) => {
             usageResponse(res, url.searchParams.get("mode") || USAGE);
             return;
         }
-        if (url.pathname === "/sub/alice/info") {
+        if (url.pathname === "/sub/alice/info" || url.pathname === "/info" || url.pathname.endsWith("/info")) {
             const mode = url.searchParams.get("info") || INFO;
             if (mode === "off") {
                 res.writeHead(404, { "content-type": "application/json; charset=utf-8" });
@@ -311,7 +377,7 @@ createServer(async (req, res) => {
             }
             res.writeHead(200, { "content-type": "application/json; charset=utf-8" });
             res.end(JSON.stringify(mode === "empty"
-                ? { user: {}, openvpn: { downloads: [] }, wireguard: {}, l2tp: [], pptp: [], ikev2: [], anyconnect: [] }
+                ? { user: {}, openvpn: { downloads: [] }, wireguard: {}, amneziawg: {}, l2tp: [], pptp: [], ikev2: [], anyconnect: [], sstp: [], gre: [] }
                 : sampleInfo(PORT)));
             return;
         }
@@ -331,11 +397,19 @@ createServer(async (req, res) => {
             res.end("[Interface]\nPrivateKey = aGVsbG8td29ybGQ=\nAddress = 10.0.0.2/32\nDNS = 1.1.1.1\n\n[Peer]\nPublicKey = serverPubkey123=\nEndpoint = de.example.com:51820\nAllowedIPs = 0.0.0.0/0\n");
             return;
         }
+        if (/^\/sub\/alice\/awg\/[^/]+\.conf$/.test(url.pathname)) {
+            res.writeHead(200, {
+                "content-type": "text/plain; charset=utf-8",
+                "content-disposition": `attachment; filename="${url.pathname.split("/").pop()}"`,
+            });
+            res.end("[Interface]\nPrivateKey = aGVsbG8td29ybGQ=\nAddress = 10.1.0.2/32\nDNS = 1.1.1.1\nJc = 4\nJmin = 50\nJmax = 1000\nS1 = 15\nS2 = 20\nH1 = 1\nH2 = 2\nH3 = 3\nH4 = 4\n\n[Peer]\nPublicKey = serverAwgPubkey123=\nEndpoint = de.example.com:51821\nAllowedIPs = 0.0.0.0/0\nPersistentKeepalive = 25\n");
+            return;
+        }
         const tpl = await readFile(OUT, "utf8");
         const state = url.searchParams.get("state") || STATE;
         const info = url.searchParams.get("info") || INFO;
         let links = state === "empty" ? [] : SAMPLE_LINKS;
-        if (state !== "empty" && info !== "off") links = links.concat(OV_DOWNLOADS(PORT));
+        if (state !== "empty" && info !== "off") links = links.concat(OV_DOWNLOADS(PORT), AWG_DOWNLOADS(PORT));
         res.writeHead(200, { "content-type": "text/html; charset=utf-8" });
         res.end(render(
             tpl,

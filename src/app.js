@@ -301,16 +301,25 @@ function wireThemeMenu() {
 
 function resolvePrefs() {
     const params = new URLSearchParams(location.search);
+    const brand = window.AURORA_BRAND || {};
+    const metaLang = (document.querySelector('meta[name="aurora-default-lang"]') || {}).content;
+    const metaTheme = (document.querySelector('meta[name="aurora-default-theme"]') || {}).content;
+    const defLang = brand.defaultLang || brand.lang || metaLang || document.documentElement.getAttribute("lang") || "en";
+    const defTheme = brand.defaultTheme || brand.theme || metaTheme || document.documentElement.getAttribute("data-theme") || "auroradark";
+
     const qLang = params.get("lang");
     const sLang = storeGet("aurora_lang");
     if (I18N[qLang]) lang = qLang;
     else if (I18N[sLang]) lang = sLang;
-    else {
+    else if (I18N[defLang] && defLang !== "en") {
+        lang = defLang;
+    } else {
         // Best-effort: browser locale prefix → Aurora dictionary.
         const nav = (navigator.language || "").toLowerCase();
         if (nav.startsWith("fa")) lang = "fa";
         else if (nav.startsWith("ru")) lang = "ru";
         else if (nav.startsWith("zh")) lang = "zh";
+        else if (I18N[defLang]) lang = defLang;
     }
 
     const qTheme = params.get("theme");
@@ -318,7 +327,9 @@ function resolvePrefs() {
     const isTheme = (v) => THEMES.some((th) => th.id === v);
     if (isTheme(qTheme)) theme = qTheme;
     else if (isTheme(sTheme)) theme = sTheme;
-    else if (typeof matchMedia === "function" && matchMedia("(prefers-color-scheme: light)").matches) {
+    else if (isTheme(defTheme)) {
+        theme = defTheme;
+    } else if (typeof matchMedia === "function" && matchMedia("(prefers-color-scheme: light)").matches) {
         theme = "auroralight";
     }
 }

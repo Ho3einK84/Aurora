@@ -24,7 +24,7 @@
    credential features tailored to each protocol.
    =========================================================================== */
 
-import { escapeHtml, escapeAttr, generateWgConf, downloadTextFile, safeFileName } from "./format.js";
+import { escapeHtml, escapeAttr, generateWgConf, downloadTextFile, safeFileName, generatePbkEntry, generatePbkFile } from "./format.js";
 import { $, $$, setHidden, copyText, toast } from "./ui.js";
 import { storeGet, storeSet } from "./store.js";
 
@@ -90,7 +90,7 @@ function normOvpn(url) {
     return url ? { url, name: ovpnLabel(url) } : null;
 }
 
-function normCreds(row, withPsk) {
+function normCreds(row, withPsk, proto = "l2tp") {
     if (!row || typeof row !== "object") return null;
     const item = {
         tag: clean(row.host_tag) || clean(row.inbound_tag),
@@ -99,6 +99,7 @@ function normCreds(row, withPsk) {
         username: clean(row.username),
         password: clean(row.password),
         psk: withPsk ? clean(row.ipsec_psk) : "",
+        protocol: proto,
     };
     return item.server || item.username ? item : null;
 }
@@ -279,11 +280,11 @@ export function mountVpn(deps) {
             touched = true;
         }
         if (Array.isArray(data.l2tp)) {
-            l2tp = data.l2tp.map((r) => normCreds(r, true)).filter(Boolean);
+            l2tp = data.l2tp.map((r) => normCreds(r, true, "l2tp")).filter(Boolean);
             touched = true;
         }
         if (Array.isArray(data.pptp)) {
-            pptp = data.pptp.map((r) => normCreds(r, false)).filter(Boolean);
+            pptp = data.pptp.map((r) => normCreds(r, false, "pptp")).filter(Boolean);
             touched = true;
         }
         if (Array.isArray(data.ikev2)) {
@@ -523,6 +524,11 @@ export function mountVpn(deps) {
             `<div class="flex items-center gap-3">` +
             `<div class="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-gradient-to-br from-primary/20 to-secondary/20 text-[10px] font-bold text-primary">${badge}</div>` +
             `<p class="min-w-0 flex-1 truncate text-sm font-semibold" dir="auto">${escapeHtml(item.remark || badge)}</p>` +
+            (item.server
+                ? `<button class="btn btn-sm btn-primary gap-1.5 rounded-xl font-semibold" data-dl-pbk="${escapeAttr(tab)}:${index}" ` +
+                  `aria-label="${escapeAttr(t("download_pbk"))}"><i class="ph ph-windows-logo text-base"></i>` +
+                  `<span class="hidden sm:inline">${escapeHtml(t("download_pbk"))}</span></button>`
+                : "") +
             `</div>` +
             `<div class="grid grid-cols-1 gap-2 sm:grid-cols-2">` +
             fieldRow("vpn_server", item.server, { icon: "ph-hard-drives", key: keyOf("server") }) +
@@ -565,6 +571,11 @@ export function mountVpn(deps) {
             `<div class="flex items-center gap-3">` +
             `<div class="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-gradient-to-br from-primary/20 to-secondary/20 text-[10px] font-bold text-primary">${badge}</div>` +
             `<p class="min-w-0 flex-1 truncate text-sm font-semibold" dir="auto">${escapeHtml(item.remark || badge)}</p>` +
+            (item.server && (tab === "ikev2" || tab === "sstp")
+                ? `<button class="btn btn-sm btn-primary gap-1.5 rounded-xl font-semibold" data-dl-pbk="${escapeAttr(tab)}:${index}" ` +
+                  `aria-label="${escapeAttr(t("download_pbk"))}"><i class="ph ph-windows-logo text-base"></i>` +
+                  `<span class="hidden sm:inline">${escapeHtml(t("download_pbk"))}</span></button>`
+                : "") +
             `</div>` +
             `<div class="grid grid-cols-1 gap-2 sm:grid-cols-2">` +
             fieldRow("vpn_server", item.server, { icon: "ph-hard-drives", key: keyOf("server") }) +
@@ -603,7 +614,22 @@ export function mountVpn(deps) {
             : activeTab === "ikev2" ? ikev2.map((r, i) => remoteAccessRow(r, "ikev2", i))
             : activeTab === "anyconnect" ? anyconnect.map((r, i) => remoteAccessRow(r, "anyconnect", i))
             : gre.map((r, i) => remoteAccessRow(r, "gre", i));
-        listEl.innerHTML = rows.join("");
+
+        const tabPbkItems =
+            activeTab === "l2tp" ? l2tp
+            : activeTab === "pptp" ? pptp
+            : activeTab === "ikev2" ? ikev2
+            : activeTab === "sstp" ? sstp
+            : [];
+        const allPbkHeader = tabPbkItems.length > 1
+            ? `<div class="flex items-center justify-end pb-1">` +
+              `<button class="btn btn-xs btn-ghost glass gap-1 rounded-xl font-semibold text-primary" data-dl-all-pbk="${escapeAttr(activeTab)}">` +
+              `<i class="ph ph-windows-logo text-sm"></i>` +
+              `<span>${escapeHtml(t("download_all_pbk"))}</span>` +
+              `</button></div>`
+            : "";
+
+        listEl.innerHTML = allPbkHeader + rows.join("");
         noteEl.textContent = t(activeTab + "_note");
 
         $$("[data-copy]", listEl).forEach((btn) => {
@@ -645,6 +671,65 @@ export function mountVpn(deps) {
                 }
             });
         });
+        $$("[data-dl-pbk]", listEl).forEach((btn) => {
+            btn.addEventListener("click", () => {
+                const target = btn.getAttribute("data-dl-pbk") || "";
+                const [tab, idxStr] = target.split(":");
+                const idx = parseInt(idxStr, 10);
+                const list =
+                    tab === "l2tp" ? l2tp
+                    : tab === "pptp" ? pptp
+                    : tab === "ikev2" ? ikev2
+                    : tab === "sstp" ? sstp
+                    : [];
+                const item = list[idx];
+                if (!item || !item.server) return;
+                const pbk = generatePbkEntry({
+                    remark: item.remark || item.server || tab.toUpperCase(),
+                    server: item.server,
+                    protocol: item.protocol || tab,
+                    username: item.username,
+                });
+                if (pbk) {
+                    const fname = safeFileName(
+                        `${item.remark || item.server || tab}`,
+                        "vpn",
+                        ".pbk"
+                    );
+                    downloadTextFile(pbk, fname, "application/x-ms-phonebook;charset=utf-8");
+                    toast(t("export_done"));
+                }
+            });
+        });
+        const allPbkBtn = listEl.querySelector("[data-dl-all-pbk]");
+        if (allPbkBtn) {
+            allPbkBtn.addEventListener("click", () => {
+                const tab = allPbkBtn.getAttribute("data-dl-all-pbk");
+                const list =
+                    tab === "l2tp" ? l2tp
+                    : tab === "pptp" ? pptp
+                    : tab === "ikev2" ? ikev2
+                    : tab === "sstp" ? sstp
+                    : [];
+                if (!list.length) return;
+                const items = list.map((item) => ({
+                    remark: item.remark || item.server || tab.toUpperCase(),
+                    server: item.server,
+                    protocol: item.protocol || tab,
+                    username: item.username,
+                }));
+                const pbk = generatePbkFile(items);
+                if (pbk) {
+                    const fname = safeFileName(
+                        `${ctx.brandName || "aurora"}_${tab}_all`,
+                        "windows_vpn",
+                        ".pbk"
+                    );
+                    downloadTextFile(pbk, fname, "application/x-ms-phonebook;charset=utf-8");
+                    toast(t("export_done"));
+                }
+            });
+        }
         $$("[data-reveal]", listEl).forEach((btn) => {
             btn.addEventListener("click", () => {
                 const key = btn.getAttribute("data-reveal");

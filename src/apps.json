@@ -103,6 +103,14 @@
     }
   },
   {
+    "name": "OpenVPN GUI",
+    "os": ["Windows"],
+    "link": "https://openvpn.net/community/",
+    "downloadLinks": {
+      "Windows": "https://openvpn.net/community-downloads/"
+    }
+  },
+  {
     "name": "WireGuard",
     "os": ["Android", "iOS", "Windows", "macOS", "Linux"],
     "link": "https://www.wireguard.com/install/",
@@ -136,6 +144,15 @@
       "macOS": "https://apps.apple.com/app/amneziavpn/id1600529902",
       "Windows": "https://github.com/amnezia-vpn/amnezia-client/releases/latest",
       "Linux": "https://github.com/amnezia-vpn/amnezia-client/releases/latest"
+    }
+  },
+  {
+    "name": "NetMod",
+    "os": ["Windows", "Android"],
+    "link": "https://sourceforge.net/projects/netmodhttp/",
+    "downloadLinks": {
+      "Windows": "https://sourceforge.net/projects/netmodhttp/",
+      "Android": "https://play.google.com/store/apps/details?id=com.netmod.syna"
     }
   }
 ]

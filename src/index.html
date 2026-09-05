@@ -18,6 +18,8 @@
       rebuilding:  sed -i 's/\bAurora\b/YourBrand/g' index.html
     -->
     <meta name="aurora-brand" content="Aurora" />
+    <meta name="aurora-default-theme" content="auroradark" />
+    <meta name="aurora-default-lang" content="en" />
 
     <!--
       Blocking pref resolver: apply the saved/queried theme and language BEFORE
@@ -30,27 +32,45 @@
                 var doc = document.documentElement;
                 var q = new URLSearchParams(location.search);
                 var themes = ["auroradark", "amoleddark", "auroralight", "nord"];
+                var metaTheme = (document.querySelector('meta[name="aurora-default-theme"]') || {}).content;
+                var brandTheme = (window.AURORA_BRAND && (window.AURORA_BRAND.defaultTheme || window.AURORA_BRAND.theme)) || "";
+                var defTheme = brandTheme || metaTheme || doc.getAttribute("data-theme") || "auroradark";
+                if (themes.indexOf(defTheme) < 0) defTheme = "auroradark";
+
                 var t = q.get("theme");
                 if (themes.indexOf(t) < 0) {
                     t = null;
                     try { t = localStorage.getItem("aurora_theme"); } catch (e) { t = null; }
                 }
                 if (themes.indexOf(t) < 0 && window.matchMedia) {
-                    if (matchMedia("(prefers-color-scheme: light)").matches) t = "auroralight";
+                    if (matchMedia("(prefers-color-scheme: light)").matches && defTheme !== "amoleddark") {
+                        t = defTheme === "auroralight" ? "auroralight" : defTheme;
+                    }
                 }
+                if (themes.indexOf(t) < 0) t = defTheme;
                 if (themes.indexOf(t) >= 0) doc.setAttribute("data-theme", t);
+
                 var langs = ["en", "fa", "ru", "zh"];
+                var metaLang = (document.querySelector('meta[name="aurora-default-lang"]') || {}).content;
+                var brandLang = (window.AURORA_BRAND && (window.AURORA_BRAND.defaultLang || window.AURORA_BRAND.lang)) || "";
+                var defLang = brandLang || metaLang || doc.getAttribute("lang") || "en";
+                if (langs.indexOf(defLang) < 0) defLang = "en";
+
                 var l = q.get("lang");
                 if (langs.indexOf(l) < 0) {
                     l = null;
                     try { l = localStorage.getItem("aurora_lang"); } catch (e) { l = null; }
                 }
                 if (langs.indexOf(l) < 0) {
-                    var nav = (navigator.language || "").toLowerCase();
-                    if (nav.indexOf("fa") === 0) l = "fa";
-                    else if (nav.indexOf("ru") === 0) l = "ru";
-                    else if (nav.indexOf("zh") === 0) l = "zh";
-                    else l = "en";
+                    if (defLang && defLang !== "en") {
+                        l = defLang;
+                    } else {
+                        var nav = (navigator.language || "").toLowerCase();
+                        if (nav.indexOf("fa") === 0) l = "fa";
+                        else if (nav.indexOf("ru") === 0) l = "ru";
+                        else if (nav.indexOf("zh") === 0) l = "zh";
+                        else l = defLang || "en";
+                    }
                 }
                 doc.lang = l;
                 doc.dir = l === "fa" ? "rtl" : "ltr";

@@ -171,3 +171,91 @@ export function safeFileName(name, fallback = "config", ext = ".conf") {
     return re.test(clean) ? clean : `${clean}${ext}`;
 }
 
+const PBK_PROTOCOLS = {
+    pptp: { strategy: 1, device: "WAN Miniport (PPTP)" },
+    l2tp: { strategy: 3, device: "WAN Miniport (L2TP)" },
+    sstp: { strategy: 5, device: "WAN Miniport (SSTP)" },
+    ikev2: { strategy: 7, device: "WAN Miniport (IKEv2)" },
+};
+
+/**
+ * Generate a single Windows Dial-Up / VPN Phonebook (.pbk) connection entry.
+ */
+export function generatePbkEntry(item, index = 1) {
+    if (!item || !item.server) return "";
+    const proto = String(item.protocol || "pptp").toLowerCase();
+    const cfg = PBK_PROTOCOLS[proto] || PBK_PROTOCOLS.pptp;
+    const sectionName = String(item.remark || item.name || item.server || "VPN")
+        .replace(/[\[\]\r\n]/g, "_")
+        .trim() || "VPN";
+    const server = String(item.server).trim();
+    const comment = item.username ? `Username: ${item.username}` : "";
+
+    return [
+        `[${sectionName}]`,
+        "Encoding=1",
+        "PBVersion=1",
+        "Type=2",
+        "AutoLogon=0",
+        "UseRasCredentials=1",
+        "LowDateTime=-1",
+        "HighDateTime=-1",
+        `DialParamsUID=${index}`,
+        "Guid=00000000000000000000000000000000",
+        `VpnStrategy=${cfg.strategy}`,
+        "ExcludedProtocols=0",
+        "LcpExtensions=1",
+        "DataEncryption=8",
+        "SwCompression=0",
+        "NegotiateMultilinkAlways=0",
+        "SkipDoubleAuthDialog=0",
+        "RedialAttempts=3",
+        "RedialPause=60",
+        "RedialOnLinkFailure=1",
+        "CallbackMode=0",
+        "CustomAuthKey=0",
+        "AuthRestrictions=608",
+        "TypicalAuth=2",
+        "IpPrioritizeRemote=1",
+        "IpHeaderCompression=0",
+        "IpAddress=0.0.0.0",
+        "IpDnsAddress=0.0.0.0",
+        "IpDns2Address=0.0.0.0",
+        "IpWinsAddress=0.0.0.0",
+        "IpWins2Address=0.0.0.0",
+        "IpAssign=1",
+        "IpNameAssign=1",
+        "IpDnsFlags=0",
+        "IpNBTFlags=1",
+        "IpCheckStatus=0",
+        "IpDnsSuffix=",
+        "MEDIA=rastapi",
+        "Port=VPN2-0",
+        `Device=${cfg.device}`,
+        "DEVICE=vpn",
+        `PhoneNumber=${server}`,
+        "AreaCode=",
+        "CountryCode=0",
+        "CountryID=0",
+        "UseDialingRules=0",
+        `Comment=${comment}`,
+        `FriendlyName=${sectionName}`,
+        "LastSelectedPhone=0",
+        "PromoteAlternates=0",
+        "TryNextAlternateOnFail=1",
+        "",
+    ].join("\r\n");
+}
+
+/**
+ * Generate a complete .pbk file containing one or more entries.
+ */
+export function generatePbkFile(items) {
+    if (!Array.isArray(items)) return "";
+    return items
+        .filter((item) => item && item.server)
+        .map((item, i) => generatePbkEntry(item, i + 1))
+        .join("\r\n");
+}
+
+

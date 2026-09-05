@@ -318,13 +318,28 @@ const scriptTag =
 // (title, meta, splash, header) so the built file has zero "Aurora" in
 // user-visible places. The JS fallback "Aurora" stays base64-encoded and
 // is never seen; runtime defaultBrand() reads window.AURORA_BRAND first.
-const escBrand = (s) => s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+const escBrand = (s) => String(s || "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
 const bn = escBrand(brandName);
-const processedHtml = html
+let processedHtml = html
     .replace(/<title>[^<]+<\/title>/, `<title>${bn}</title>`)
     .replace(/(<meta\s+name="aurora-brand"\s+content=")[^"]*(")/, `$1${bn}$2`)
     .replace(/(id="splash-brand"[^>]*>)[^<]+(<\/p>)/, `$1${bn}$2`)
     .replace(/(id="brand-name"[^>]*>)[^<]+(<\/p>)/, `$1${bn}$2`);
+
+if (brand.defaultTheme) {
+    const th = escBrand(brand.defaultTheme);
+    processedHtml = processedHtml
+        .replace(/(<meta\s+name="aurora-default-theme"\s+content=")[^"]*(")/, `$1${th}$2`)
+        .replace(/(<html\b[^>]*\s+data-theme=")[^"]*(")/, `$1${th}$2`);
+}
+if (brand.defaultLang) {
+    const lg = escBrand(brand.defaultLang);
+    const dir = lg === "fa" ? "rtl" : "ltr";
+    processedHtml = processedHtml
+        .replace(/(<meta\s+name="aurora-default-lang"\s+content=")[^"]*(")/, `$1${lg}$2`)
+        .replace(/(<html\b[^>]*\s+lang=")[^"]*(")/, `$1${lg}$2`)
+        .replace(/(<html\b[^>]*\s+dir=")[^"]*(")/, `$1${dir}$2`);
+}
 
 let out = processedHtml
     .replace("<!--AURORA_INLINE_CSS-->", () => styleTag)

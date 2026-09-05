@@ -1,42 +1,27 @@
 /* ===========================================================================
-   Aurora VPN access — OpenVPN / WireGuard / L2TP / PPTP / IKEv2 / AnyConnect
-   support for the Rebecca panel (`dev` branch).
+   Aurora VPN access — OpenVPN / WireGuard / AmneziaWG / SSTP / GRE /
+   L2TP / PPTP / IKEv2 / Cisco AnyConnect support for the Rebecca panel
+   (`dev` branch).
 
-   Rebecca exposes the classic-VPN data in two places:
-     • `.ovpn` profile download links (https://…/sub/{token}/ov/{tag}.ovpn) are
-       appended to the template's `links` list and served by the panel;
+   Rebecca exposes the VPN and tunnel data in two places:
+     • `.ovpn` (…/ov/{tag}.ovpn), WireGuard (…/wg/{tag}.conf) and AmneziaWG
+       (…/awg/{tag}.conf) profile download links are appended to the
+       template's `links` list and served by the panel;
      • the subscription `/info` endpoint returns
          { user, openvpn: { downloads: [url…], profiles: [{…}…] },
-           wireguard: {
-             downloads: [url…],   // .conf file download URLs
-             links:     [uri…],   // wireguard://<privatekey>@host:port?… URIs
-             profiles: [{ host_tag, host_name, inbound_tag, remark, filename,
-                          download_url, link, body, server, address, port,
-                          client_address, client_public_key,
-                          server_public_key }…]
-           },
-           l2tp: [{ host_tag, host_name, inbound_tag, remark, server, address,
-                    port, ike_port, natt_port, tunnel_port, username,
-                    password, ipsec_psk }…],
-           pptp: [{ host_tag, host_name, inbound_tag, remark, server, address,
-                    port, username, password }…],
-           ikev2:      [{ RemoteAccessInfo }],  // auth_mode: "password"|"certificate"
+           wireguard: { downloads: [url…], links: [uri…], profiles: [{…}…] },
+           amneziawg: { downloads: [url…], profiles: [{…}…] },
+           sstp:       [{ RemoteAccessInfo }],
+           gre:        [{ RemoteAccessInfo }],
+           l2tp:       [{…}],
+           pptp:       [{…}],
+           ikev2:      [{ RemoteAccessInfo }],
            anyconnect: [{ RemoteAccessInfo }] }
      The `openvpn` key was `ov` on older `dev` builds (pre `4579d6d`) — both
      are read here so this template works against either schema.
 
-   WireGuard's `link`, `body` and `download_url` are as sensitive as an .ovpn
-   file (the private key is embedded) — treated like OpenVPN downloads
-   (visible, copyable, not masked). `client_public_key` and
-   `server_public_key` are public keys — displayed plainly, no mask/reveal.
-
-   This module renders a tabbed "VPN files" card: download + copy-link
-   buttons for OpenVPN profiles, download + copy + config buttons for
-   WireGuard profiles, credential cards for L2TP/IPsec and PPTP with masked
-   secrets, and remote-access cards for IKEv2 and Cisco AnyConnect (with
-   password or certificate auth-mode support). The `.ovpn` links found in the
-   data island paint immediately; the /info payload then refreshes/extends
-   them. The last good payload is cached per user for offline visits.
+   This module renders a tabbed "VPN files" card with download, copy and
+   credential features tailored to each protocol.
    =========================================================================== */
 
 import { escapeHtml, escapeAttr, generateWgConf, downloadTextFile, safeFileName } from "./format.js";
@@ -58,10 +43,25 @@ export function isOvpnLink(uri) {
     }
 }
 
+/** True for AmneziaWG URIs (awg://…) or panel AmneziaWG download links (…/awg/….conf). */
+export function isAwgLink(uri) {
+    if (!uri || typeof uri !== "string") return false;
+    const s = uri.trim();
+    if (/^(?:amneziawg|awg):\/\//i.test(s)) return true;
+    if (!/^https?:\/\//i.test(s)) return false;
+    try {
+        const path = new URL(s).pathname;
+        return /\/awg\/[^/]+\.conf$/i.test(path) || (/\.conf$/i.test(path) && /\bawg\b/i.test(path));
+    } catch (_) {
+        return /\/awg\/[^/?#]+\.conf(?:[?#]|$)/i.test(s);
+    }
+}
+
 /** True for WireGuard URIs (wireguard://…) or panel WireGuard download links (…/wg/….conf). */
 export function isWgLink(uri) {
     if (!uri || typeof uri !== "string") return false;
     const s = uri.trim();
+    if (isAwgLink(s)) return false;
     if (/^wireguard:\/\//i.test(s)) return true;
     if (!/^https?:\/\//i.test(s)) return false;
     try {
@@ -113,7 +113,8 @@ function normCreds(row, withPsk) {
  */
 function normRemoteAccess(row) {
     if (!row || typeof row !== "object") return null;
-    const authMode = clean(row.auth_mode) || "password";
+    const proto = clean(row.protocol).toLowerCase();
+    const authMode = clean(row.auth_mode) || (proto === "gre" ? "none" : "password");
     let dns = "";
     if (Array.isArray(row.dns)) {
         dns = row.dns.map(clean).filter(Boolean).join(", ");
@@ -128,13 +129,34 @@ function normRemoteAccess(row) {
         server,
         address,
         port: row.port || "",
-        protocol: clean(row.protocol),
+        protocol: proto || clean(row.protocol),
         authMode,
         username: clean(row.username),
         password: clean(row.password),
         dns,
+        clientAddress: clean(row.client_address),
+        serverAddress: clean(row.server_address),
+        mtu: row.mtu ? String(row.mtu) : "",
+        ttl: row.ttl ? String(row.ttl) : "",
     };
-    return item.server ? item : null;
+    return item.server || item.address || item.username || item.clientAddress ? item : null;
+}
+
+function normAwg(row) {
+    if (!row || typeof row !== "object") return null;
+    const item = {
+        downloadUrl: clean(row.download_url),
+        link: clean(row.link),
+        body: clean(row.body),
+        name: clean(row.remark) || clean(row.filename) || clean(row.host_name) || "AmneziaWG",
+        server: clean(row.server),
+        address: clean(row.address),
+        port: row.port || "",
+        clientAddress: clean(row.client_address),
+        clientPublicKey: clean(row.client_public_key),
+        serverPublicKey: clean(row.server_public_key),
+    };
+    return item.downloadUrl || item.link || item.body || item.server ? item : null;
 }
 
 function normWg(row) {
@@ -176,6 +198,15 @@ export function mountVpn(deps) {
             remark: ovpnLabel(link).replace(/\.conf$/i, ""),
         });
     }).filter(Boolean);
+    let awg = (deps.awgLinks || []).map((link) => {
+        if (/^(?:amneziawg|awg):\/\//i.test(link)) return normAwg({ link });
+        return normAwg({
+            download_url: link,
+            remark: ovpnLabel(link).replace(/\.conf$/i, ""),
+        });
+    }).filter(Boolean);
+    let sstp = [];
+    let gre = [];
     let l2tp = [];
     let pptp = [];
     let ikev2 = [];
@@ -225,6 +256,28 @@ export function mountVpn(deps) {
                 if (fallback.length) { wg = fallback; touched = true; }
             }
         }
+        // AmneziaWG: prefer structured profiles; fall back to downloads array.
+        const awgSource = data.amneziawg;
+        if (awgSource && typeof awgSource === "object") {
+            if (Array.isArray(awgSource.profiles) && awgSource.profiles.length) {
+                awg = awgSource.profiles.map(normAwg).filter(Boolean);
+                touched = true;
+            } else if (Array.isArray(awgSource.downloads) && awgSource.downloads.length) {
+                awg = awgSource.downloads.map((url) => normAwg({
+                    download_url: url,
+                    remark: ovpnLabel(url).replace(/\.conf$/i, ""),
+                })).filter(Boolean);
+                touched = true;
+            }
+        }
+        if (Array.isArray(data.sstp)) {
+            sstp = data.sstp.map((r) => normRemoteAccess(r)).filter(Boolean);
+            touched = true;
+        }
+        if (Array.isArray(data.gre)) {
+            gre = data.gre.map((r) => normRemoteAccess(r)).filter(Boolean);
+            touched = true;
+        }
         if (Array.isArray(data.l2tp)) {
             l2tp = data.l2tp.map((r) => normCreds(r, true)).filter(Boolean);
             touched = true;
@@ -259,6 +312,9 @@ export function mountVpn(deps) {
                 storeSet(cacheKey, JSON.stringify({
                     openvpn: { downloads: ovpn.map((o) => o.url) },
                     wireguard: data.wireguard || {},
+                    amneziawg: data.amneziawg || {},
+                    sstp: data.sstp || [],
+                    gre: data.gre || [],
                     l2tp: data.l2tp || [],
                     pptp: data.pptp || [],
                     ikev2: data.ikev2 || [],
@@ -278,10 +334,13 @@ export function mountVpn(deps) {
     const TABS = [
         ["ovpn", "OpenVPN", () => ovpn.length],
         ["wg", "WireGuard", () => wg.length],
+        ["awg", "AmneziaWG", () => awg.length],
+        ["sstp", "SSTP", () => sstp.length],
         ["l2tp", "L2TP/IPsec", () => l2tp.length],
         ["pptp", "PPTP", () => pptp.length],
         ["ikev2", "IKEv2", () => ikev2.length],
         ["anyconnect", "Cisco AnyConnect", () => anyconnect.length],
+        ["gre", "GRE", () => gre.length],
     ];
 
     const availableTabs = () => TABS.filter(([, , count]) => count() > 0);
@@ -405,6 +464,57 @@ export function mountVpn(deps) {
             `</div></div>`;
     }
 
+    function awgRow(profile, i) {
+        const buttons = [];
+        if (profile.link) {
+            buttons.push(
+                `<button class="btn btn-circle btn-ghost btn-sm" data-copy="${escapeAttr(profile.link)}" ` +
+                `aria-label="${escapeAttr(t("copy_link"))}"><i class="ph ph-link text-lg"></i></button>`
+            );
+        }
+        if (profile.body) {
+            buttons.push(
+                `<button class="btn btn-circle btn-ghost btn-sm" data-copy="${escapeAttr(profile.body)}" ` +
+                `aria-label="${escapeAttr(t("copy_config"))}"><i class="ph ph-file-text text-lg"></i></button>`
+            );
+        }
+        if (profile.downloadUrl) {
+            buttons.push(
+                `<a class="btn btn-sm btn-primary gap-1.5 rounded-xl font-semibold" ` +
+                `href="${escapeAttr(profile.downloadUrl)}" download>` +
+                `<i class="ph ph-download-simple text-base"></i>` +
+                `<span class="hidden sm:inline">${escapeHtml(t("download_conf"))}</span></a>`
+            );
+        } else if (profile.body) {
+            buttons.push(
+                `<button class="btn btn-sm btn-primary gap-1.5 rounded-xl font-semibold" data-dl-awg="${i}" ` +
+                `aria-label="${escapeAttr(t("download_conf"))}"><i class="ph ph-download-simple text-base"></i>` +
+                `<span class="hidden sm:inline">${escapeHtml(t("download_conf"))}</span></button>`
+            );
+        }
+        return `<div class="group card glass lift rounded-2xl border-0">` +
+            `<div class="flex items-center gap-3 p-3">` +
+            `<div class="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-gradient-to-br from-primary/20 to-accent/20 text-[10px] font-bold text-accent">AWG</div>` +
+            `<div class="min-w-0 flex-1">` +
+            `<p class="truncate text-sm font-semibold" dir="auto">${escapeHtml(profile.name)}</p>` +
+            (profile.downloadUrl
+                ? `<p class="truncate text-start font-mono text-[11px] text-base-content/40" dir="ltr">${escapeHtml(profile.downloadUrl)}</p>`
+                : profile.link
+                    ? `<p class="truncate text-start font-mono text-[11px] text-base-content/40" dir="ltr">${escapeHtml(profile.link)}</p>`
+                    : "") +
+            `</div>` +
+            buttons.join("") +
+            `</div>` +
+            `<div class="grid grid-cols-1 gap-2 px-3 pb-3 sm:grid-cols-2">` +
+            fieldRow("vpn_server", profile.server, { icon: "ph-hard-drives", key: `awg:server:${profile.server}` }) +
+            fieldRow("wg_address", profile.address, { icon: "ph-globe", key: `awg:address:${profile.address}` }) +
+            fieldRow("wg_port", profile.port ? String(profile.port) : "", { icon: "ph-plug", key: `awg:port:${profile.port}` }) +
+            fieldRow("wg_client_address", profile.clientAddress, { icon: "ph-network", key: `awg:clientAddr:${profile.clientAddress}` }) +
+            fieldRow("wg_client_pubkey", profile.clientPublicKey, { icon: "ph-key", key: `awg:clientPub:${profile.clientPublicKey}` }) +
+            fieldRow("wg_server_pubkey", profile.serverPublicKey, { icon: "ph-lock-key", key: `awg:serverPub:${profile.serverPublicKey}` }) +
+            `</div></div>`;
+    }
+
     function credsRow(item, tab, index) {
         const badge = tab === "l2tp" ? "L2TP" : "PPTP";
         const keyOf = (field) => `${tab}:${index}:${field}`;
@@ -425,12 +535,31 @@ export function mountVpn(deps) {
     }
 
     function remoteAccessRow(item, tab, index) {
-        const badge = tab === "ikev2" ? "IKEv2" : "AnyConnect";
+        const badge = tab === "ikev2" ? "IKEv2" : tab === "anyconnect" ? "AnyConnect" : tab === "sstp" ? "SSTP" : "GRE";
         const keyOf = (field) => `${tab}:${index}:${field}`;
         const isCert = item.authMode === "certificate";
-        // TODO: when Rebecca exposes a certificate/profile download endpoint for
-        // certificate-mode entries (generateIKEv2Profile / generateAnyConnectProfile),
-        // add a download button here and fetch the bundle from that endpoint.
+
+        if (tab === "gre") {
+            return `<div class="card glass rounded-2xl border-0">` +
+                `<div class="space-y-2 p-3">` +
+                `<div class="flex items-center gap-3">` +
+                `<div class="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-gradient-to-br from-primary/20 to-secondary/20 text-[10px] font-bold text-primary">${badge}</div>` +
+                `<p class="min-w-0 flex-1 truncate text-sm font-semibold" dir="auto">${escapeHtml(item.remark || badge)}</p>` +
+                `</div>` +
+                `<div class="grid grid-cols-1 gap-2 sm:grid-cols-2">` +
+                fieldRow("vpn_server", item.server, { icon: "ph-hard-drives", key: keyOf("server") }) +
+                (item.address && item.address !== item.server
+                    ? fieldRow("vpn_address", item.address, { icon: "ph-globe", key: keyOf("address") })
+                    : "") +
+                fieldRow("gre_client_address", item.clientAddress, { icon: "ph-network", key: keyOf("clientAddr") }) +
+                fieldRow("gre_server_address", item.serverAddress, { icon: "ph-network", key: keyOf("serverAddr") }) +
+                (item.port ? fieldRow("vpn_port", String(item.port), { icon: "ph-plug", key: keyOf("port") }) : "") +
+                (item.mtu ? fieldRow("vpn_mtu", item.mtu, { icon: "ph-arrows-left-right", key: keyOf("mtu") }) : "") +
+                (item.ttl ? fieldRow("vpn_ttl", item.ttl, { icon: "ph-timer", key: keyOf("ttl") }) : "") +
+                (item.dns ? fieldRow("vpn_dns", item.dns, { icon: "ph-cloud", key: keyOf("dns") }) : "") +
+                `</div></div></div>`;
+        }
+
         return `<div class="card glass rounded-2xl border-0">` +
             `<div class="space-y-2 p-3">` +
             `<div class="flex items-center gap-3">` +
@@ -443,6 +572,7 @@ export function mountVpn(deps) {
                 ? fieldRow("vpn_address", item.address, { icon: "ph-globe", key: keyOf("address") })
                 : "") +
             fieldRow("vpn_port", item.port ? String(item.port) : "", { icon: "ph-plug", key: keyOf("port") }) +
+            (item.mtu ? fieldRow("vpn_mtu", item.mtu, { icon: "ph-arrows-left-right", key: keyOf("mtu") }) : "") +
             fieldRow("vpn_dns", item.dns, { icon: "ph-cloud", key: keyOf("dns") }) +
             (isCert
                 ? `<div class="col-span-full rounded-xl bg-warning/10 px-3 py-2 text-[11px] text-warning">` +
@@ -466,10 +596,13 @@ export function mountVpn(deps) {
         const rows =
             activeTab === "ovpn" ? ovpn.map(ovpnRow)
             : activeTab === "wg" ? wg.map((w, i) => wgRow(w, i))
+            : activeTab === "awg" ? awg.map((w, i) => awgRow(w, i))
+            : activeTab === "sstp" ? sstp.map((r, i) => remoteAccessRow(r, "sstp", i))
             : activeTab === "l2tp" ? l2tp.map((r, i) => credsRow(r, "l2tp", i))
             : activeTab === "pptp" ? pptp.map((r, i) => credsRow(r, "pptp", i))
             : activeTab === "ikev2" ? ikev2.map((r, i) => remoteAccessRow(r, "ikev2", i))
-            : anyconnect.map((r, i) => remoteAccessRow(r, "anyconnect", i));
+            : activeTab === "anyconnect" ? anyconnect.map((r, i) => remoteAccessRow(r, "anyconnect", i))
+            : gre.map((r, i) => remoteAccessRow(r, "gre", i));
         listEl.innerHTML = rows.join("");
         noteEl.textContent = t(activeTab + "_note");
 
@@ -492,6 +625,20 @@ export function mountVpn(deps) {
                 const conf = profile.body || generateWgConf(profile.link);
                 if (conf) {
                     downloadTextFile(conf, safeFileName(profile.name, "wireguard", ".conf"));
+                    toast(t("export_done"));
+                } else {
+                    toast(t("qr_error"));
+                }
+            });
+        });
+        $$("[data-dl-awg]", listEl).forEach((btn) => {
+            btn.addEventListener("click", () => {
+                const idx = parseInt(btn.getAttribute("data-dl-awg"), 10);
+                const profile = awg[idx];
+                if (!profile) return;
+                const conf = profile.body;
+                if (conf) {
+                    downloadTextFile(conf, safeFileName(profile.name, "amneziawg", ".conf"));
                     toast(t("export_done"));
                 } else {
                     toast(t("qr_error"));

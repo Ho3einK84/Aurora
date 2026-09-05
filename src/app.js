@@ -16,7 +16,7 @@ import {
 import { parseLinks, mountConfigs } from "./configs.js";
 import { mountApps } from "./apps.js";
 import { mountUsage } from "./usage.js";
-import { isOvpnLink, isWgLink, mountVpn } from "./vpn.js";
+import { isOvpnLink, isWgLink, isAwgLink, mountVpn } from "./vpn.js";
 
 /* --- Optional remote apps.json override -----------------------------------
    A default apps list is inlined at build time (window.AURORA_APPS). Point
@@ -101,6 +101,7 @@ function readContext() {
         links: allLinks.filter((l) => !isOvpnLink(l) && !(/\.conf(?:[?#]|$)/i.test(l) && /^https?:\/\//i.test(l))),
         ovpnLinks: allLinks.filter(isOvpnLink),
         wgLinks: allLinks.filter(isWgLink),
+        awgLinks: allLinks.filter(isAwgLink),
     };
 }
 
@@ -906,7 +907,7 @@ async function init() {
         const mountVpnOnce = () => {
             if (vpnView) return;
             try {
-                vpnView = mountVpn({ ctx: CTX, ovpnLinks: CTX.ovpnLinks, wgLinks: CTX.wgLinks, t, lang: () => lang });
+                vpnView = mountVpn({ ctx: CTX, ovpnLinks: CTX.ovpnLinks, wgLinks: CTX.wgLinks, awgLinks: CTX.awgLinks, t, lang: () => lang });
                 vpnView.start();
             } catch (err) { console.error("[aurora] vpn failed:", err); }
         };

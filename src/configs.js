@@ -33,7 +33,8 @@ export function parseLinks(rawText) {
 const PROTO_BADGES = {
     vmess: "VM", vless: "VL", trojan: "TR", ss: "SS", ssr: "SSR",
     hysteria: "HY", hysteria2: "HY2", hy2: "HY2", tuic: "TU",
-    wireguard: "WG", socks: "SK",
+    wireguard: "WG", awg: "AWG", amneziawg: "AWG",
+    ssh: "SSH", socks: "SK", tg: "TG", mtproto: "MT",
 };
 
 /** Short badge for the tile ("VL", "TR", …). */
@@ -210,7 +211,8 @@ export function mountConfigs(deps) {
         el.tabIndex = 0;
         el.dataset.link = r.link;
         const canShare = typeof navigator.share === "function";
-        const isWg = r.proto === "WIREGUARD" || /^wireguard:\/\//i.test(r.link) || /\.conf(?:[?#]|$)/i.test(r.link);
+        const isWg = r.proto === "WIREGUARD" || r.proto === "AMNEZIAWG" || r.proto === "AWG" ||
+            /^(?:wireguard|amneziawg|awg):\/\//i.test(r.link) || /\.conf(?:[?#]|$)/i.test(r.link);
         el.innerHTML =
             `<div class="flex items-center gap-3 p-3">` +
             `<label class="cfg-check${selecting ? "" : " hidden"}">` +
@@ -266,10 +268,11 @@ export function mountConfigs(deps) {
         if (dlBtn) {
             dlBtn.addEventListener("click", (e) => {
                 e.stopPropagation();
+                const fallbackName = /\/awg\/|\bawg\b|amnezia/i.test(r.link) ? "amneziawg" : "wireguard";
                 if (/^https?:\/\//i.test(r.link) && /\.conf(?:[?#]|$)/i.test(r.link)) {
                     const a = document.createElement("a");
                     a.href = r.link;
-                    a.download = safeFileName(r.name, "wireguard", ".conf");
+                    a.download = safeFileName(r.name, fallbackName, ".conf");
                     document.body.appendChild(a);
                     a.click();
                     document.body.removeChild(a);
@@ -278,7 +281,7 @@ export function mountConfigs(deps) {
                 }
                 const confText = generateWgConf(r.link);
                 if (confText) {
-                    downloadTextFile(confText, safeFileName(r.name, "wireguard", ".conf"));
+                    downloadTextFile(confText, safeFileName(r.name, fallbackName, ".conf"));
                     toast(t("export_done"));
                 } else {
                     toast(t("qr_error"));

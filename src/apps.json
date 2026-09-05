@@ -125,5 +125,17 @@
       "Windows": "https://www.cisco.com/c/en/us/products/security/anyconnect-secure-mobility-client/index.html",
       "Linux": "https://www.cisco.com/c/en/us/products/security/anyconnect-secure-mobility-client/index.html"
     }
+  },
+  {
+    "name": "AmneziaVPN",
+    "os": ["Android", "iOS", "Windows", "macOS", "Linux"],
+    "link": "https://amnezia.org/",
+    "downloadLinks": {
+      "Android": "https://play.google.com/store/apps/details?id=org.amnezia.vpn",
+      "iOS": "https://apps.apple.com/app/amneziavpn/id1600529902",
+      "macOS": "https://apps.apple.com/app/amneziavpn/id1600529902",
+      "Windows": "https://github.com/amnezia-vpn/amnezia-client/releases/latest",
+      "Linux": "https://github.com/amnezia-vpn/amnezia-client/releases/latest"
+    }
   }
 ]

@@ -8,13 +8,15 @@ Glassmorphism · usage dashboard · EN/FA RTL · white-label · Tailwind v4 + Da
 
 ## 📸 Preview
 
-![Aurora subscription page](assets/screenshots/preview-v3.5.1.png)
+![Aurora subscription page](assets/screenshots/preview-v4.1.0.png)
 
-*Aurora Dark — glassmorphism service card, usage/time rings, config list with protocol filters.*
+*Aurora v4.1 (`auroradark`) — Boreal glassmorphism hero card, 2-column mobile & desktop bento tiles, gradient usage chart, and glowing CTA actions.*
 
 ---
 
 ## ✨ Features
+
+- **Aurora v4.1 Visual System & Mobile Layout** — refreshed 4-theme chromatic hierarchy (`auroradark` midnight cyan/cobalt, `amoleddark` pure `#000000` OLED contrast surfaces, `auroralight` crisp alabaster mint glass, and authentic Polar Night dark slate `nord`), radiant hero ambient edge-glow & bento `.sub-tile` elevation, 2-column mobile grid for compact metadata (`Last online` / `Member since`, `Device limit` / `Lifetime used`), balanced 1-row mobile bulk-action bar, and crystal-clear RTL/Arad numerals.
 
 - **Live Service Card** — usage/time rings, animated stats, live quota-reset countdown, and 5-minute background `/info` sync. Handles unlimited, never-expire, `on_hold` (showing exact pre-activation duration & *"Starts on first connect"*), reserved/queued `next_plans` badge, device limit (`ip_limit`), lifetime traffic, client-derived expired/limited states, and smart low-traffic / low-time renewal alerts.
 - **Support & Renewal** — top-bar quick support button with intelligent pulsating attention glow (`alert-active`) when subscription expiration is near or traffic is running low (automatically suppressed if a reserved plan is already queued).

@@ -7,7 +7,7 @@
 export const I18N = {
     en: {
         dir: "ltr",
-        tagline: "Your connection, beautifully managed",
+        tagline: "Your connection hub",
         account: "Account",
         online_now: "online now",
         online_just_now: "Online now",
@@ -30,7 +30,7 @@ export const I18N = {
         error_title: "Something went wrong",
         error_desc: "The page failed to load fully. Please refresh to try again.",
         configs: "Configurations", config: "Config",
-        copy_sub: "Copy sub link", copy_all: "Copy all", copy: "Copy", copied: "Copied!",
+        copy_sub: "Copy sub", copy_all: "Copy all", copy: "Copy", copied: "Copied!",
         search_configs: "Search configs…", filter_all: "All",
         group_by_country: "Group by country", country_other: "Other",
         select_configs: "Select", select_done: "Done",

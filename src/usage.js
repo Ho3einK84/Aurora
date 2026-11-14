@@ -222,20 +222,24 @@ export function mountUsage(deps) {
         }
         const avgBytes = totalBytes / rows.length;
         const peakBytes = Math.max(0, ...rows.map(usageValOf));
-        const parts = [
-            `<span>${escapeHtml(t("total"))}: <strong class="text-base-content/90">${escapeHtml(fmtBytesStr(totalBytes, lang()))}</strong></span>`,
+        const items = [
+            [t("total"), fmtBytesStr(totalBytes, lang())],
         ];
         if (!isHourly && rows.length > 1) {
-            parts.push(
-                `<span>${escapeHtml(t("usage_avg_day"))}: <strong class="text-base-content/90">${escapeHtml(fmtBytesStr(avgBytes, lang()))}</strong></span>`
-            );
+            items.push([t("usage_avg_day"), fmtBytesStr(avgBytes, lang())]);
         }
         if (peakBytes > 0 && rows.length > 1) {
-            parts.push(
-                `<span>${escapeHtml(t("usage_peak_day"))}: <strong class="text-base-content/90">${escapeHtml(fmtBytesStr(peakBytes, lang()))}</strong></span>`
-            );
+            items.push([t("usage_peak_day"), fmtBytesStr(peakBytes, lang())]);
         }
-        box.innerHTML = parts.join(`<span class="text-base-content/25">·</span>`);
+        box.className = `sub-tile grid gap-2 rounded-2xl p-2.5 text-center sm:p-3 ${
+            items.length === 1 ? "grid-cols-1" : items.length === 2 ? "grid-cols-2" : "grid-cols-3"
+        }`;
+        box.innerHTML = items.map(([label, val]) =>
+            `<div class="min-w-0">` +
+            `<p class="truncate text-[10px] font-medium uppercase tracking-wide text-base-content/50">${escapeHtml(label)}</p>` +
+            `<p class="mt-0.5 truncate text-xs font-extrabold text-base-content/90 sm:text-sm">${escapeHtml(val)}</p>` +
+            `</div>`
+        ).join("");
         setHidden(box, false);
     }
 
@@ -253,29 +257,47 @@ export function mountUsage(deps) {
         }
         const limitCount = isHourly ? 24 : rangeDays;
         const rows = source.slice().sort((a, b) => dateOf(a) - dateOf(b)).slice(-limitCount);
-        const max = Math.max(1, ...rows.map(usageValOf));
+        const vals = rows.map(usageValOf);
+        const peakVal = Math.max(0, ...vals);
+        const max = Math.max(1, peakVal);
 
-        const W = 300, H = 80, pad = 3;
+        const W = 300, H = 84, pad = 3;
         const step = (W - pad * 2) / rows.length;
-        const barW = Math.max(1.5, step - 2);
+        const barW = Math.max(1.8, step - 2);
+        const defs =
+            `<defs>` +
+            `<linearGradient id="usage-bar-grad" x1="0" y1="0" x2="0" y2="1">` +
+            `<stop offset="0%" style="stop-color:var(--color-primary)" />` +
+            `<stop offset="100%" style="stop-color:var(--color-secondary);stop-opacity:0.35" />` +
+            `</linearGradient>` +
+            `<linearGradient id="usage-bar-peak" x1="0" y1="0" x2="0" y2="1">` +
+            `<stop offset="0%" style="stop-color:var(--color-accent)" />` +
+            `<stop offset="100%" style="stop-color:var(--color-primary);stop-opacity:0.5" />` +
+            `</linearGradient>` +
+            `</defs>`;
+        const guides = [22, 46, 70]
+            .map((gy) => `<line class="usage-gridline" x1="${pad}" y1="${gy}" x2="${W - pad}" y2="${gy}" />`)
+            .join("");
+
         let rects = "";
         rows.forEach((r, i) => {
-            const v = usageValOf(r);
-            const h = Math.max(v > 0 ? 2 : 0.75, (v / max) * (H - 8));
+            const v = vals[i];
+            const h = Math.max(v > 0 ? 2.5 : 1, (v / max) * (H - 10));
             const x = pad + i * step;
             const y = H - h;
             const d = dateOf(r);
             const f = fmtBytes(v, lang());
+            const isPeak = peakVal > 0 && v === peakVal;
             const whenStr = isNaN(d)
                 ? ""
                 : isHourly
                     ? ` ${t("usage_on")} ${fmtClock(d, lang())}`
                     : ` ${t("usage_on")} ${fmtDayMonth(d, lang())}`;
-            rects += `<rect x="${x.toFixed(2)}" y="${y.toFixed(2)}" width="${barW.toFixed(2)}" ` +
-                `height="${h.toFixed(2)}" rx="1.5"><title>${escapeHtml(`${locNum(f.value, lang())} ${f.unit}${whenStr}`)}</title></rect>`;
+            rects += `<rect class="usage-bar-rect${isPeak ? " is-peak" : ""}${v <= 0 ? " is-zero" : ""}" x="${x.toFixed(2)}" y="${y.toFixed(2)}" width="${barW.toFixed(2)}" ` +
+                `height="${h.toFixed(2)}" rx="2"><title>${escapeHtml(`${locNum(f.value, lang())} ${f.unit}${whenStr}`)}</title></rect>`;
         });
         chart.innerHTML =
-            `<svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="none" class="usage-svg">${rects}</svg>`;
+            `<svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="none" class="usage-svg">${defs}${guides}${rects}</svg>`;
 
         const total = fmtBytes(rows.reduce((s, r) => s + usageValOf(r), 0), lang());
         chart.setAttribute("aria-label",

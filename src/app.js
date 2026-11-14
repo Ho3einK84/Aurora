@@ -25,10 +25,10 @@ import { isOvpnLink, isWgLink, isAwgLink, mountVpn } from "./vpn.js";
 const AURORA_APPS_REMOTE_URL = "";
 
 const THEMES = [
-    { id: "auroradark", label: "%brand% Dark", swatch: "linear-gradient(135deg,#34c6db,#5a86f5)" },
-    { id: "amoleddark", label: "Amoled Dark", swatch: "linear-gradient(135deg,#000,#3b82f6,#8b5cf6)" },
-    { id: "auroralight", label: "%brand% Light", swatch: "linear-gradient(135deg,#1499b8,#3b6dd6)" },
-    { id: "nord", label: "Nord", swatch: "#88c0d0" },
+    { id: "auroradark", label: "%brand% Dark", swatch: "linear-gradient(135deg,#0d1522,#2ad0e6,#2de0ba)" },
+    { id: "amoleddark", label: "Amoled Dark", swatch: "linear-gradient(135deg,#000000,#3b82f6,#a855f7)" },
+    { id: "auroralight", label: "%brand% Light", swatch: "linear-gradient(135deg,#e0f2fe,#0891b2,#3b82f6)" },
+    { id: "nord", label: "Nord", swatch: "linear-gradient(135deg,#2e3440,#88c0d0,#81a1c1)" },
 ];
 
 /* ------------------------------------------------------------ data island */
@@ -342,18 +342,21 @@ function resolvePrefs() {
 
 /* ------------------------------------------------------------- brand/PWA */
 
+let defaultLogoHtml = null;
+
 function renderBrand() {
     $("#brand-name").textContent = CTX.brandName;
     const splash = $("#splash-brand");
     if (splash) splash.textContent = CTX.brandName;
     document.title = CTX.username ? `${CTX.username} · ${CTX.brandName}` : CTX.brandName;
 
-    // Optional brand logo inside the header circle
+    // Optional brand logo inside the header emblem circle
     const brand = window.AURORA_BRAND || {};
     const metaLogo = (document.querySelector('meta[name="aurora-brand-logo"]') || {}).content || "";
     const logoUrl = String(brand.logo || metaLogo || "").trim();
     const logoEl = $("#brand-logo");
     if (logoEl) {
+        if (defaultLogoHtml === null) defaultLogoHtml = logoEl.innerHTML;
         if (logoUrl && /^(?:https?:\/\/|data:image\/|\/)/i.test(logoUrl)) {
             if (logoEl.dataset.logoSrc !== logoUrl) {
                 logoEl.dataset.logoSrc = logoUrl;
@@ -361,12 +364,12 @@ function renderBrand() {
                 img.src = logoUrl;
                 img.alt = "";
                 img.className = "h-full w-full rounded-full object-cover";
-                img.addEventListener("error", () => { logoEl.innerHTML = ""; });
+                img.addEventListener("error", () => { logoEl.innerHTML = defaultLogoHtml; });
                 logoEl.replaceChildren(img);
             }
         } else if (logoEl.dataset.logoSrc) {
             delete logoEl.dataset.logoSrc;
-            logoEl.innerHTML = "";
+            logoEl.innerHTML = defaultLogoHtml;
         }
     }
 }
@@ -519,19 +522,16 @@ function renderCard() {
     const usedPct = unlimited ? 0 : Math.min(100, Math.round((CTX.usedTraffic / CTX.dataLimit) * 100));
     const dataFill = $("#ring-data-fill");
     if (unlimited) {
-        dataFill.style.stroke = "var(--color-primary)";
+        dataFill.style.stroke = "url(#aurora-ring-data)";
         setRing(dataFill, 100);
         $("#ring-data-pct").textContent = "∞";
         $("#ring-data").classList.remove("is-urgent");
     } else {
-        // Same hue as the theme primary, shaded pale (low) → deep (high).
-        const d = (usedPct / 100 - 0.5) * 2;
-        const amt = Math.round(Math.abs(d) * 36);
-        const mixWith = d >= 0 ? "black" : "white";
-        dataFill.style.stroke = `color-mix(in oklch, var(--color-primary) ${100 - amt}%, ${mixWith} ${amt}%)`;
+        const ringUrgent = usedPct >= 90 && !hasNextPlan;
+        dataFill.style.stroke = ringUrgent ? "var(--color-error)" : "url(#aurora-ring-data)";
         setRing(dataFill, usedPct);
         $("#ring-data-pct").textContent = locPct(usedPct, lang);
-        $("#ring-data").classList.toggle("is-urgent", usedPct >= 90 && !hasNextPlan);
+        $("#ring-data").classList.toggle("is-urgent", ringUrgent);
     }
 
     // Count-up formatter matching the decimal precision of the final value.
@@ -579,7 +579,7 @@ function renderCard() {
         expireCell.classList.remove("text-error");
         expireRel.textContent = t("starts_on_connect");
     } else if (neverExpire) {
-        timeFill.style.stroke = "var(--color-accent)";
+        timeFill.style.stroke = "url(#aurora-ring-time)";
         setRing(timeFill, 100);
         $("#ring-time-val").textContent = "∞";
         $("#ring-time").classList.remove("is-urgent");
@@ -600,7 +600,7 @@ function renderCard() {
         const cycleDays = windowDays <= 1 ? 1 : windowDays <= 7 ? 7 : windowDays <= 31 ? 31
             : windowDays <= 93 ? 93 : windowDays <= 366 ? 366 : windowDays;
         const frac = clamp(remainingSec / (cycleDays * 86400), 0, 1);
-        const tone = days <= 3 ? "var(--color-error)" : days <= 7 ? "var(--color-warning)" : "var(--color-accent)";
+        const tone = days <= 3 ? "var(--color-error)" : days <= 7 ? "var(--color-warning)" : "url(#aurora-ring-time)";
         timeFill.style.stroke = tone;
         setRing(timeFill, Math.round(frac * 100));
         $("#ring-time").classList.toggle("is-urgent", frac <= 0.1 && STATE === "active" && !hasNextPlan);
@@ -620,8 +620,9 @@ function renderCard() {
     } else {
         setHidden(bar, false);
         const prog = $("#usage-progress");
-        prog.value = usedPct;
-        prog.className = `progress h-2.5 w-full ${usedPct >= 90 ? "progress-error" : usedPct >= 75 ? "progress-warning" : "progress-primary"}`;
+        prog.style.width = `${usedPct}%`;
+        prog.parentElement?.setAttribute("aria-valuenow", String(usedPct));
+        prog.className = `usage-fill${usedPct >= 90 ? " tone-err" : usedPct >= 75 ? " tone-warn" : ""}`;
         $("#usage-caption").textContent = `${fmtBytesStr(CTX.usedTraffic, lang)} / ${fmtBytesStr(CTX.dataLimit, lang)}`;
         $("#usage-pct").textContent = locPct(usedPct, lang);
     }
@@ -877,7 +878,7 @@ function renderSubFormatMenu() {
     list.innerHTML = SUB_FORMATS.map((f) => {
         const label = f.labelKey ? t(f.labelKey) : f.label;
         const url = base + f.suffix;
-        return `<div class="flex items-center gap-2 rounded-2xl bg-base-100/40 px-3 py-2">` +
+        return `<div class="sub-tile flex items-center gap-2 rounded-2xl px-3 py-2.5">` +
             `<span class="min-w-0 flex-1 truncate text-sm font-medium">${escapeHtml(label)}</span>` +
             `<button data-fmt-copy="${escapeAttr(url)}" class="btn btn-ghost btn-xs btn-square rounded-lg" aria-label="${escapeAttr(t("copy"))}">` +
             `<i class="ph ph-copy text-base"></i></button>` +
@@ -1100,8 +1101,11 @@ function renderUserDetails() {
         }
     }
 
-    const visibleCount = [Boolean(online), Boolean(member), hasDeviceLimit, hasLifetime].filter(Boolean).length;
-    row.classList.toggle("sm:grid-cols-2", visibleCount !== 1);
+    const visibleCells = [liveCell, memberCell, devCell, lifeCell].filter((el) => el && !el.hidden);
+    visibleCells.forEach((el) => el.classList.remove("col-span-2"));
+    if (visibleCells.length % 2 === 1) {
+        visibleCells[visibleCells.length - 1].classList.add("col-span-2");
+    }
 }
 
 /* -------------------------------------------------------------- bootstrap */

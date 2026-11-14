@@ -385,7 +385,7 @@ export function mountVpn(deps) {
         const { icon, secret, key } = opts;
         const hidden = secret && !revealed.has(key);
         const shown = hidden ? "••••••••" : value;
-        return `<div class="flex items-center gap-2 rounded-xl bg-base-100/40 px-3 py-2">` +
+        return `<div class="sub-tile flex items-center gap-2 rounded-xl px-3 py-2">` +
             `<i class="ph ${icon} shrink-0 text-base text-base-content/40"></i>` +
             `<div class="min-w-0 flex-1">` +
             `<p class="text-[10px] uppercase tracking-wide text-base-content/50">${escapeHtml(t(labelKey))}</p>` +
@@ -401,9 +401,9 @@ export function mountVpn(deps) {
     }
 
     function ovpnRow(profile) {
-        return `<div class="group card glass lift rounded-2xl border-0">` +
+        return `<div class="group card glass lift rounded-2xl">` +
             `<div class="flex items-center gap-3 p-3">` +
-            `<div class="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-gradient-to-br from-primary/20 to-secondary/20 text-[10px] font-bold text-primary">OVPN</div>` +
+            `<div class="grid h-9 w-9 shrink-0 place-items-center rounded-xl border border-primary/25 bg-gradient-to-br from-primary/25 to-secondary/15 text-[10px] font-bold text-primary">OVPN</div>` +
             `<div class="min-w-0 flex-1">` +
             `<p class="truncate text-sm font-semibold" dir="auto">${escapeHtml(profile.name)}</p>` +
             `<p class="truncate text-start font-mono text-[11px] text-base-content/40" dir="ltr">${escapeHtml(profile.url)}</p>` +
@@ -451,9 +451,9 @@ export function mountVpn(deps) {
                 `<span class="hidden sm:inline">${escapeHtml(t("connect"))}</span></a>`
             );
         }
-        return `<div class="group card glass lift rounded-2xl border-0">` +
+        return `<div class="group card glass lift rounded-2xl">` +
             `<div class="flex items-center gap-3 p-3">` +
-            `<div class="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-gradient-to-br from-primary/20 to-secondary/20 text-[10px] font-bold text-primary">WG</div>` +
+            `<div class="grid h-9 w-9 shrink-0 place-items-center rounded-xl border border-success/25 bg-gradient-to-br from-success/25 to-primary/15 text-[10px] font-bold text-success">WG</div>` +
             `<div class="min-w-0 flex-1">` +
             `<p class="truncate text-sm font-semibold" dir="auto">${escapeHtml(profile.name)}</p>` +
             (profile.downloadUrl
@@ -502,9 +502,9 @@ export function mountVpn(deps) {
                 `<span class="hidden sm:inline">${escapeHtml(t("download_conf"))}</span></button>`
             );
         }
-        return `<div class="group card glass lift rounded-2xl border-0">` +
+        return `<div class="group card glass lift rounded-2xl">` +
             `<div class="flex items-center gap-3 p-3">` +
-            `<div class="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-gradient-to-br from-primary/20 to-accent/20 text-[10px] font-bold text-accent">AWG</div>` +
+            `<div class="grid h-9 w-9 shrink-0 place-items-center rounded-xl border border-accent/25 bg-gradient-to-br from-accent/25 to-primary/15 text-[10px] font-bold text-accent">AWG</div>` +
             `<div class="min-w-0 flex-1">` +
             `<p class="truncate text-sm font-semibold" dir="auto">${escapeHtml(profile.name)}</p>` +
             (profile.downloadUrl
@@ -528,10 +528,10 @@ export function mountVpn(deps) {
     function credsRow(item, tab, index) {
         const badge = tab === "l2tp" ? "L2TP" : "PPTP";
         const keyOf = (field) => `${tab}:${index}:${field}`;
-        return `<div class="card glass rounded-2xl border-0">` +
+        return `<div class="card glass rounded-2xl">` +
             `<div class="space-y-2 p-3">` +
             `<div class="flex items-center gap-3">` +
-            `<div class="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-gradient-to-br from-primary/20 to-secondary/20 text-[10px] font-bold text-primary">${badge}</div>` +
+            `<div class="grid h-9 w-9 shrink-0 place-items-center rounded-xl border border-secondary/25 bg-gradient-to-br from-secondary/25 to-primary/15 text-[10px] font-bold text-secondary">${badge}</div>` +
             `<p class="min-w-0 flex-1 truncate text-sm font-semibold" dir="auto">${escapeHtml(item.remark || badge)}</p>` +
             (item.server
                 ? `<button class="btn btn-sm btn-primary gap-1.5 rounded-xl font-semibold" data-dl-pbk="${escapeAttr(tab)}:${index}" ` +
@@ -556,10 +556,10 @@ export function mountVpn(deps) {
 
         if (tab === "gre") {
             const cli = generateGreCli(item);
-            return `<div class="card glass rounded-2xl border-0">` +
+            return `<div class="card glass rounded-2xl">` +
                 `<div class="space-y-2 p-3">` +
                 `<div class="flex flex-wrap items-center gap-2">` +
-                `<div class="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-gradient-to-br from-primary/20 to-secondary/20 text-[10px] font-bold text-primary">${badge}</div>` +
+                `<div class="grid h-9 w-9 shrink-0 place-items-center rounded-xl border border-info/25 bg-gradient-to-br from-info/25 to-primary/15 text-[10px] font-bold text-info">${badge}</div>` +
                 `<p class="min-w-0 flex-1 truncate text-sm font-semibold" dir="auto">${escapeHtml(item.remark || badge)}</p>` +
                 (cli
                     ? `<button class="btn btn-xs btn-ghost glass gap-1 rounded-xl font-semibold" data-copy="${escapeAttr(cli.linux)}" ` +
@@ -584,10 +584,10 @@ export function mountVpn(deps) {
                 `</div></div></div>`;
         }
 
-        return `<div class="card glass rounded-2xl border-0">` +
+        return `<div class="card glass rounded-2xl">` +
             `<div class="space-y-2 p-3">` +
             `<div class="flex items-center gap-3">` +
-            `<div class="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-gradient-to-br from-primary/20 to-secondary/20 text-[10px] font-bold text-primary">${badge}</div>` +
+            `<div class="grid h-9 w-9 shrink-0 place-items-center rounded-xl border border-secondary/25 bg-gradient-to-br from-secondary/25 to-primary/15 text-[10px] font-bold text-secondary">${badge}</div>` +
             `<p class="min-w-0 flex-1 truncate text-sm font-semibold" dir="auto">${escapeHtml(item.remark || badge)}</p>` +
             (item.server && (tab === "ikev2" || tab === "sstp")
                 ? `<button class="btn btn-sm btn-primary gap-1.5 rounded-xl font-semibold" data-dl-pbk="${escapeAttr(tab)}:${index}" ` +

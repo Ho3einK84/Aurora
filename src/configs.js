@@ -41,6 +41,26 @@ const PROTO_BADGES = {
     ssh: "SSH", socks: "SK", tg: "TG", mtproto: "MT",
 };
 
+const PROTO_TONES = {
+    VLESS: "from-primary/25 to-secondary/15 text-primary border-primary/25",
+    VMESS: "from-primary/20 to-info/15 text-primary border-primary/20",
+    TROJAN: "from-secondary/25 to-primary/15 text-secondary border-secondary/25",
+    HYSTERIA2: "from-accent/25 to-primary/15 text-accent border-accent/25",
+    HY2: "from-accent/25 to-primary/15 text-accent border-accent/25",
+    HYSTERIA: "from-accent/25 to-primary/15 text-accent border-accent/25",
+    TUIC: "from-accent/25 to-secondary/15 text-accent border-accent/25",
+    WIREGUARD: "from-success/25 to-accent/15 text-success border-success/25",
+    AMNEZIAWG: "from-success/25 to-primary/15 text-success border-success/25",
+    AWG: "from-success/25 to-primary/15 text-success border-success/25",
+    SS: "from-warning/20 to-secondary/15 text-warning border-warning/25",
+    SSR: "from-warning/20 to-secondary/15 text-warning border-warning/25",
+    SSH: "from-warning/20 to-primary/15 text-warning border-warning/25",
+    TG: "from-info/25 to-primary/15 text-info border-info/25",
+    MTPROTO: "from-info/25 to-primary/15 text-info border-info/25",
+};
+
+const protoTone = (proto) => PROTO_TONES[proto] || "from-primary/20 to-secondary/20 text-primary border-primary/20";
+
 /** Short badge for the tile ("VL", "TR", …). */
 export function protocolBadge(uri) {
     const m = /^([a-z0-9+.-]+):/i.exec(uri);
@@ -227,18 +247,23 @@ export function mountConfigs(deps) {
             [t("cfg_protocol"), m.protocol, "ph-shield-check", false],
             [t("cfg_transport"), m.transport, "ph-arrows-left-right", false],
             [t("cfg_security"), m.security ? (m.flow ? `${m.security} (${m.flow})` : m.security) : "", "ph-lock-key", false],
-            [t("vpn_server"), m.server, "ph-hard-drives", false],
             [t("vpn_port"), m.port, "ph-plug", false],
-            [t("cfg_sni"), m.sni || m.host, "ph-globe", false],
-            [t("cfg_path"), m.path, "ph-folder-simple", false],
+            [t("vpn_server"), m.server, "ph-hard-drives", true],
+            [t("cfg_sni"), m.sni || m.host, "ph-globe", true],
+            [t("cfg_path"), m.path, "ph-folder-simple", true],
             [t("cfg_id"), m.id || m.pbk, "ph-key", true],
             [t("cfg_raw_uri"), r.link, "ph-link-simple", true],
         ].filter(([, val]) => Boolean(val));
 
+        const compactIndices = fields.map((f, idx) => (f[3] ? -1 : idx)).filter((idx) => idx >= 0);
+        if (compactIndices.length % 2 === 1) {
+            fields[compactIndices[compactIndices.length - 1]][3] = true;
+        }
+
         const fieldsEl = $("#cfg-modal-fields");
         fieldsEl.innerHTML = fields.map(([label, val, icon, full]) =>
-            `<div class="flex items-center gap-2 rounded-xl bg-base-100/40 px-3 py-2${full ? " sm:col-span-2" : ""}">` +
-            `<i class="ph ${icon} shrink-0 text-base text-base-content/40"></i>` +
+            `<div class="sub-tile flex items-center gap-2 rounded-xl px-3 py-2${full ? " col-span-2" : ""}">` +
+            `<i class="ph ${icon} shrink-0 text-base text-base-content/45"></i>` +
             `<div class="min-w-0 flex-1">` +
             `<p class="text-[10px] uppercase tracking-wide text-base-content/50">${escapeHtml(label)}</p>` +
             `<p class="truncate font-mono text-[12px]" dir="ltr">${escapeHtml(val)}</p>` +
@@ -311,7 +336,7 @@ export function mountConfigs(deps) {
     }
 
     function emptyState(textKey, hintKey) {
-        return `<div class="card glass rounded-2xl border-0 p-10 text-center">
+        return `<div class="card glass rounded-2xl p-10 text-center">
             <i class="ph ph-tray mx-auto text-5xl text-base-content/30"></i>
             <p class="mt-3 font-semibold">${escapeHtml(t(textKey))}</p>
             ${hintKey ? `<p class="mt-1 text-sm text-base-content/50">${escapeHtml(t(hintKey))}</p>` : ""}
@@ -321,7 +346,7 @@ export function mountConfigs(deps) {
     function buildRow(r) {
         const el = document.createElement("div");
         const pinActive = isPinned(r);
-        el.className = "group card glass lift cfg-row cursor-pointer rounded-2xl border-0";
+        el.className = "group card glass lift cfg-row cursor-pointer rounded-2xl" + (pinActive ? " cfg-row-pinned" : "");
         el.tabIndex = 0;
         el.dataset.link = r.link;
         const canShare = typeof navigator.share === "function";
@@ -329,17 +354,17 @@ export function mountConfigs(deps) {
             /^(?:wireguard|amneziawg|awg):\/\//i.test(r.link) || /\.conf(?:[?#]|$)/i.test(r.link);
         const subline = (r.meta && r.meta.summary) || r.link;
         el.innerHTML =
-            `<div class="flex items-center gap-3 p-3">` +
+            `<div class="flex items-center gap-2.5 p-3 sm:gap-3">` +
             `<label class="cfg-check${selecting ? "" : " hidden"}">` +
             `<input type="checkbox" class="checkbox checkbox-sm checkbox-primary" ` +
             `aria-label="${escapeAttr(t("select_configs"))}"${selected.has(r.link) ? " checked" : ""} /></label>` +
-            `<div class="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-gradient-to-br from-primary/20 to-secondary/20 text-xs font-bold text-primary">${escapeHtml(r.badge)}</div>` +
+            `<div class="grid h-9 w-9 shrink-0 place-items-center rounded-xl border bg-gradient-to-br text-[11px] font-bold ${protoTone(r.proto)}">${escapeHtml(r.badge)}</div>` +
             `<div class="min-w-0 flex-1">` +
             `<p class="flex items-center gap-1.5 text-sm font-semibold" dir="auto">` +
             `<span class="truncate">${escapeHtml(r.name)}</span>` +
-            (pinActive ? `<i class="ph ph-push-pin shrink-0 text-xs text-primary" aria-hidden="true"></i>` : "") +
+            (pinActive ? `<span class="inline-flex shrink-0 items-center rounded-full bg-primary/15 px-1.5 py-0.5 text-[10px] text-primary" aria-hidden="true"><i class="ph ph-push-pin"></i></span>` : "") +
             `</p>` +
-            `<p class="truncate text-start font-mono text-[11px] text-base-content/45" dir="ltr">${escapeHtml(subline)}</p>` +
+            `<p class="truncate text-start font-mono text-[11px] text-base-content/50" dir="ltr">${escapeHtml(subline)}</p>` +
             `</div>` +
             `<div class="cfg-actions">` +
             `<button class="cfg-action cfg-action-pin${pinActive ? " text-primary opacity-100" : ""}" data-act="pin" ` +

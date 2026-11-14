@@ -139,7 +139,7 @@ print_banner() {
 
   log_blank
   hr
-  log_line "${C_MAGENTA}${C_BOLD}   🌌 Aurora v4.0 — Subscription Template for Rebecca${C_RESET}"
+  log_line "${C_MAGENTA}${C_BOLD}   🌌 Aurora v4.1 — Subscription Template for Rebecca${C_RESET}"
   log_line "${C_DIM}   Installer v${SCRIPT_VERSION} · Single-File · Zero External Requests${C_RESET}"
   hr
   if [[ $IS_INSTALLED -eq 1 ]]; then

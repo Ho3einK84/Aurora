@@ -156,7 +156,7 @@ export function mountConfigs(deps) {
     let grouped = false;
     const selected = new Set();
 
-    // Load persisted pinned config keys (matched against remark name or raw URI)
+    // Load persisted pinned config URIs
     const PIN_KEY = `aurora_pinned:${deps.username || ""}`;
     const pinned = new Set();
     try {
@@ -164,17 +164,22 @@ export function mountConfigs(deps) {
         if (Array.isArray(saved)) saved.forEach((k) => pinned.add(String(k)));
     } catch (_) { /* ignore */ }
 
-    const pinIdOf = (r) => r.name || r.link;
-    const isPinned = (r) => pinned.has(pinIdOf(r)) || pinned.has(r.link);
+    const isPinned = (r) => pinned.has(r.link);
+    const syncModalPinBtn = () => {
+        const pinBtn = $("#cfg-modal-pin");
+        if (!pinBtn || !activeModalRow) return;
+        const on = isPinned(activeModalRow);
+        pinBtn.setAttribute("aria-label", t(on ? "unpin" : "pin"));
+        pinBtn.setAttribute("title", t(on ? "unpin" : "pin"));
+        pinBtn.classList.toggle("text-primary", on);
+        const icon = pinBtn.querySelector("i");
+        if (icon) icon.className = `ph ${on ? "ph-push-pin-slash" : "ph-push-pin"} text-lg`;
+    };
     const togglePin = (r) => {
-        const key = pinIdOf(r);
-        if (isPinned(r)) {
-            pinned.delete(key);
-            pinned.delete(r.link);
-        } else {
-            pinned.add(key);
-        }
+        if (isPinned(r)) pinned.delete(r.link);
+        else pinned.add(r.link);
         storeSet(PIN_KEY, JSON.stringify([...pinned]));
+        syncModalPinBtn();
         renderList();
     };
 
@@ -189,7 +194,14 @@ export function mountConfigs(deps) {
         const closeBtn = $("#cfg-modal-close");
         const copyBtn = $("#cfg-modal-copy");
         const qrBtn = $("#cfg-modal-qr");
+        const pinModalBtn = $("#cfg-modal-pin");
         if (closeBtn) closeBtn.addEventListener("click", () => cfgModal.close());
+        if (pinModalBtn) {
+            pinModalBtn.addEventListener("click", () => {
+                if (!activeModalRow) return;
+                togglePin(activeModalRow);
+            });
+        }
         if (copyBtn) {
             copyBtn.addEventListener("click", async (e) => {
                 if (!activeModalRow) return;
@@ -209,6 +221,7 @@ export function mountConfigs(deps) {
         if (!cfgModal) return;
         activeModalRow = r;
         $("#cfg-modal-title").textContent = r.name;
+        syncModalPinBtn();
         const m = r.meta || {};
         const fields = [
             [t("cfg_protocol"), m.protocol, "ph-shield-check", false],
@@ -322,11 +335,14 @@ export function mountConfigs(deps) {
             `aria-label="${escapeAttr(t("select_configs"))}"${selected.has(r.link) ? " checked" : ""} /></label>` +
             `<div class="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-gradient-to-br from-primary/20 to-secondary/20 text-xs font-bold text-primary">${escapeHtml(r.badge)}</div>` +
             `<div class="min-w-0 flex-1">` +
-            `<p class="truncate text-sm font-semibold" dir="auto">${escapeHtml(r.name)}</p>` +
+            `<p class="flex items-center gap-1.5 text-sm font-semibold" dir="auto">` +
+            `<span class="truncate">${escapeHtml(r.name)}</span>` +
+            (pinActive ? `<i class="ph ph-push-pin shrink-0 text-xs text-primary" aria-hidden="true"></i>` : "") +
+            `</p>` +
             `<p class="truncate text-start font-mono text-[11px] text-base-content/45" dir="ltr">${escapeHtml(subline)}</p>` +
             `</div>` +
             `<div class="cfg-actions">` +
-            `<button class="cfg-action${pinActive ? " text-primary opacity-100" : ""}" data-act="pin" ` +
+            `<button class="cfg-action cfg-action-pin${pinActive ? " text-primary opacity-100" : ""}" data-act="pin" ` +
             `aria-label="${escapeAttr(t(pinActive ? "unpin" : "pin"))}" title="${escapeAttr(t(pinActive ? "unpin" : "pin"))}">` +
             `<i class="ph ${pinActive ? "ph-push-pin-slash" : "ph-push-pin"}"></i></button>` +
             (canShare

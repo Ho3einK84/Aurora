@@ -394,6 +394,14 @@ html[dir="rtl"] {
     outline: 2px solid color-mix(in oklch, var(--color-primary) 60%, transparent);
     outline-offset: 1px;
   }
+  .cfg-action-pin {
+    display: none;
+  }
+  @media (min-width: 640px) {
+    .cfg-action-pin {
+      display: inline-grid;
+    }
+  }
 
   /* Protocol filter pills. */
   .filter-pill {

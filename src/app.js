@@ -357,7 +357,12 @@ function renderBrand() {
         if (logoUrl && /^(?:https?:\/\/|data:image\/|\/)/i.test(logoUrl)) {
             if (logoEl.dataset.logoSrc !== logoUrl) {
                 logoEl.dataset.logoSrc = logoUrl;
-                logoEl.innerHTML = `<img src="${escapeAttr(logoUrl)}" alt="" class="h-full w-full rounded-full object-cover" />`;
+                const img = document.createElement("img");
+                img.src = logoUrl;
+                img.alt = "";
+                img.className = "h-full w-full rounded-full object-cover";
+                img.addEventListener("error", () => { logoEl.innerHTML = ""; });
+                logoEl.replaceChildren(img);
             }
         } else if (logoEl.dataset.logoSrc) {
             delete logoEl.dataset.logoSrc;
@@ -854,7 +859,7 @@ async function loadAppsCatalogue() {
     return data;
 }
 
-/* --------------------------------------------------- sub format popover */
+/* --------------------------------------------------- sub format modal */
 
 const SUB_FORMATS = [
     { id: "auto", labelKey: "fmt_auto", suffix: "" },
@@ -872,23 +877,25 @@ function renderSubFormatMenu() {
     list.innerHTML = SUB_FORMATS.map((f) => {
         const label = f.labelKey ? t(f.labelKey) : f.label;
         const url = base + f.suffix;
-        return `<li class="flex flex-row items-center gap-1">` +
-            `<button data-fmt-copy="${escapeAttr(url)}" class="flex-1 justify-between rounded-xl px-2.5 py-2 text-xs font-medium">` +
-            `<span class="truncate">${escapeHtml(label)}</span>` +
-            `<i class="ph ph-copy text-sm opacity-60"></i>` +
-            `</button>` +
+        return `<div class="flex items-center gap-2 rounded-2xl bg-base-100/40 px-3 py-2">` +
+            `<span class="min-w-0 flex-1 truncate text-sm font-medium">${escapeHtml(label)}</span>` +
+            `<button data-fmt-copy="${escapeAttr(url)}" class="btn btn-ghost btn-xs btn-square rounded-lg" aria-label="${escapeAttr(t("copy"))}">` +
+            `<i class="ph ph-copy text-base"></i></button>` +
             `<button data-fmt-qr="${escapeAttr(url)}" data-fmt-title="${escapeAttr(label)}" ` +
-            `class="btn btn-ghost btn-xs btn-square shrink-0 rounded-lg" aria-label="${escapeAttr(t("qrcode"))}">` +
-            `<i class="ph ph-qr-code text-sm text-primary"></i>` +
-            `</button>` +
-            `</li>`;
+            `class="btn btn-ghost btn-xs btn-square rounded-lg" aria-label="${escapeAttr(t("qrcode"))}">` +
+            `<i class="ph ph-qr-code text-base text-primary"></i></button>` +
+            `</div>`;
     }).join("");
 
     $$("[data-fmt-copy]", list).forEach((btn) => {
         btn.addEventListener("click", async () => {
+            const icon = btn.querySelector("i");
             if (await copyText(btn.getAttribute("data-fmt-copy"))) {
                 toast(t("copied"));
-                closeSubFormatMenu();
+                if (icon) {
+                    icon.className = "ph ph-check text-base text-success";
+                    setTimeout(() => { icon.className = "ph ph-copy text-base"; }, 1400);
+                }
             }
         });
     });
@@ -901,34 +908,22 @@ function renderSubFormatMenu() {
 }
 
 function closeSubFormatMenu() {
-    const list = $("#sub-format-list");
-    const btn = $("#sub-format-btn");
-    if (list) setHidden(list, true);
-    if (btn) btn.setAttribute("aria-expanded", "false");
+    const modal = $("#fmt-modal");
+    if (modal && modal.open) modal.close();
 }
 
 function wireSubFormatMenu() {
     const btn = $("#sub-format-btn");
-    const wrap = $("#sub-format-wrap");
-    const list = $("#sub-format-list");
-    if (!btn || !wrap || !list) return;
-    btn.addEventListener("click", (e) => {
-        e.stopPropagation();
-        if (list.hidden) {
-            closeLangMenu();
-            closeThemeMenu();
-            setHidden(list, false);
-            btn.setAttribute("aria-expanded", "true");
-        } else {
-            closeSubFormatMenu();
-        }
+    const modal = $("#fmt-modal");
+    const closeBtn = $("#fmt-modal-close");
+    if (!btn || !modal) return;
+    btn.addEventListener("click", () => {
+        closeLangMenu();
+        closeThemeMenu();
+        renderSubFormatMenu();
+        if (!modal.open) modal.showModal();
     });
-    document.addEventListener("click", (e) => {
-        if (!wrap.contains(e.target)) closeSubFormatMenu();
-    });
-    document.addEventListener("keydown", (e) => {
-        if (e.key === "Escape") closeSubFormatMenu();
-    });
+    if (closeBtn) closeBtn.addEventListener("click", () => closeSubFormatMenu());
 }
 
 /* ----------------------------------------------------- live /info sync */
@@ -951,6 +946,7 @@ function applyUserInfo(u) {
         CTX.expire = num(u.expire);
     }
     if (u.status) CTX.status = String(u.status).trim().toLowerCase();
+    if (u.online_count != null) CTX.onlineCount = num(u.online_count);
     if (u.online_at != null) CTX.onlineAt = String(u.online_at).trim();
     if (u.created_at != null) CTX.createdAt = String(u.created_at).trim();
     if (u.on_hold_expire_duration != null) CTX.onHoldDuration = num(u.on_hold_expire_duration);
@@ -1103,6 +1099,9 @@ function renderUserDetails() {
             setHidden(lifeCell, true);
         }
     }
+
+    const visibleCount = [Boolean(online), Boolean(member), hasDeviceLimit, hasLifetime].filter(Boolean).length;
+    row.classList.toggle("sm:grid-cols-2", visibleCount !== 1);
 }
 
 /* -------------------------------------------------------------- bootstrap */

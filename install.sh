@@ -12,7 +12,7 @@ readonly RELEASE_URL="https://github.com/Ho3einK84/Aurora/releases/latest/downlo
 readonly RAW_SCRIPT_URL="https://raw.githubusercontent.com/Ho3einK84/Aurora/main/install.sh"
 
 # If invoked via `curl ... | sudo bash` (no args), re-exec from a temp file so interactive /dev/tty reads work cleanly
-if [[ ! -t 0 ]] && [[ $# -eq 0 ]] && [[ -z "${AURORA_INSTALL_REEXEC:-}" ]]; then
+if [[ ! -t 0 ]] && [[ -z "${BASH_SOURCE[0]:-}" || "${BASH_SOURCE[0]:-}" == "main" || "${BASH_SOURCE[0]:-}" == "stdin" ]] && [[ -z "${AURORA_INSTALL_REEXEC:-}" ]]; then
   tmpfile="$(mktemp /tmp/aurora-install-XXXXXX.sh)"
   cleanup() { rm -f "$tmpfile"; }
   trap cleanup EXIT
@@ -279,7 +279,7 @@ if announce_text == "-" or announce_text.lower() == "none":
 elif announce_text:
     brand_data["announcement"] = announce_text
 
-brand_json = json.dumps(brand_data, ensure_ascii=False)
+brand_json = json.dumps(brand_data, ensure_ascii=False).replace("</", "<\\/")
 content = re.sub(
     r"window\.AURORA_BRAND\s*=\s*\{.*?\};",
     lambda _: f"window.AURORA_BRAND = {brand_json};",

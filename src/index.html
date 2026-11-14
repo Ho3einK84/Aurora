@@ -435,16 +435,10 @@
                                 <i class="ph ph-copy text-lg"></i>
                                 <span data-i18n-dyn="copy_all">Copy all</span>
                             </button>
-                            <div id="sub-format-wrap" class="relative">
-                                <button id="sub-format-btn" class="btn btn-square glass lift rounded-2xl border-0"
-                                    aria-haspopup="true" aria-expanded="false"
-                                    data-i18n-label="sub_formats" data-i18n-title="sub_formats">
-                                    <i class="ph ph-sliders-horizontal text-xl text-accent"></i>
-                                </button>
-                                <ul id="sub-format-list" hidden
-                                    class="menu glass pop-menu absolute end-0 z-[100] mt-2 w-56 gap-0.5 rounded-2xl p-2 shadow-2xl shadow-black/30 backdrop-blur-2xl bg-base-100/60">
-                                </ul>
-                            </div>
+                            <button id="sub-format-btn" class="btn btn-square glass lift rounded-2xl border-0"
+                                data-i18n-label="sub_formats" data-i18n-title="sub_formats">
+                                <i class="ph ph-sliders-horizontal text-xl text-accent"></i>
+                            </button>
                             <button id="sub-qr" class="btn btn-square glass lift rounded-2xl border-0" data-i18n-label="sub_qr">
                                 <i class="ph ph-qr-code text-xl text-primary"></i>
                             </button>
@@ -584,6 +578,20 @@
             <form method="dialog" class="modal-backdrop"><button>close</button></form>
         </dialog>
 
+        <!-- ======================= SUB FORMATS MODAL ======================= -->
+        <dialog id="fmt-modal" class="modal modal-bottom sm:modal-middle">
+            <div class="modal-box glass max-w-sm rounded-[1.5rem] border-0">
+                <div class="mb-3 flex items-center justify-between gap-2">
+                    <h3 class="text-lg font-bold" data-i18n="sub_formats">Subscription format</h3>
+                    <button id="fmt-modal-close" class="btn btn-circle btn-ghost btn-sm" data-i18n-label="close">
+                        <i class="ph ph-x text-base"></i>
+                    </button>
+                </div>
+                <div id="sub-format-list" class="space-y-2"></div>
+            </div>
+            <form method="dialog" class="modal-backdrop"><button>close</button></form>
+        </dialog>
+
         <!-- ======================== CONFIG DETAILS MODAL ======================== -->
         <dialog id="cfg-modal" class="modal modal-bottom sm:modal-middle">
             <div class="modal-box glass max-w-md rounded-[1.5rem] border-0">
@@ -592,9 +600,14 @@
                         <p class="text-[10px] uppercase tracking-wider text-base-content/50" data-i18n="cfg_details">Connection details</p>
                         <h3 id="cfg-modal-title" class="truncate text-lg font-bold" dir="auto"></h3>
                     </div>
-                    <button id="cfg-modal-qr" class="btn btn-circle btn-ghost btn-sm glass shrink-0" data-i18n-label="qrcode">
-                        <i class="ph ph-qr-code text-lg text-primary"></i>
-                    </button>
+                    <div class="flex shrink-0 items-center gap-1.5">
+                        <button id="cfg-modal-pin" class="btn btn-circle btn-ghost btn-sm glass shrink-0" data-i18n-label="pin">
+                            <i class="ph ph-push-pin text-lg"></i>
+                        </button>
+                        <button id="cfg-modal-qr" class="btn btn-circle btn-ghost btn-sm glass shrink-0" data-i18n-label="qrcode">
+                            <i class="ph ph-qr-code text-lg text-primary"></i>
+                        </button>
+                    </div>
                 </div>
                 <div id="cfg-modal-fields" class="grid grid-cols-1 gap-2 sm:grid-cols-2"></div>
                 <div class="modal-action mt-4 justify-center gap-2">

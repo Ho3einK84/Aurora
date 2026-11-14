@@ -70,7 +70,16 @@ function parseUsageFromHtml(html) {
     return null;
 }
 
-const dateOf = (r) => new Date(r.date || r.day || r.t);
+const dateOf = (r) => {
+    const raw = r && (r.date || r.hour || r.time || r.timestamp || r.day || r.t);
+    if (raw == null) return new Date(NaN);
+    if (typeof raw === "number") return new Date(raw < 1e12 ? raw * 1000 : raw);
+    if (/^\d+$/.test(String(raw).trim())) {
+        const n = Number(raw);
+        return new Date(n < 1e12 ? n * 1000 : n);
+    }
+    return new Date(raw);
+};
 
 function usageValOf(r) {
     if (r == null) return 0;

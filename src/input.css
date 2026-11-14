@@ -43,9 +43,9 @@
   --color-error: oklch(68% 0.18 22);
   --color-error-content: oklch(98% 0.01 22);
 
-  --radius-selector: 1.25rem;
-  --radius-field: 0.875rem;
-  --radius-box: 1.5rem;
+  --radius-selector: 0.75rem;
+  --radius-field: 0.625rem;
+  --radius-box: 1.25rem;
   --size-selector: 0.25rem;
   --size-field: 0.25rem;
   --border: 1px;
@@ -55,7 +55,7 @@
 
 /* ----------------------------------------------------------------------------
    Amoled Dark (v4.1) — true pure-black #000000 OLED canvas with elevated carbon
-   glass cards, Electric Sapphire, Ultraviolet, and Ice Cyan highlights.
+   glass cards, Electric Sapphire, Ice Slate, and Cyan highlights.
 ---------------------------------------------------------------------------- */
 @plugin "daisyui/theme" {
   name: "amoleddark";
@@ -70,8 +70,8 @@
 
   --color-primary: oklch(73% 0.165 248);
   --color-primary-content: oklch(15% 0.03 248);
-  --color-secondary: oklch(70% 0.175 288);
-  --color-secondary-content: oklch(15% 0.03 288);
+  --color-secondary: oklch(68% 0.095 236);
+  --color-secondary-content: oklch(15% 0.025 236);
   --color-accent: oklch(80% 0.138 202);
   --color-accent-content: oklch(15% 0.03 202);
   --color-neutral: oklch(18% 0.008 258);
@@ -86,9 +86,9 @@
   --color-error: oklch(64% 0.2 24);
   --color-error-content: oklch(98% 0.01 24);
 
-  --radius-selector: 1.25rem;
-  --radius-field: 0.875rem;
-  --radius-box: 1.5rem;
+  --radius-selector: 0.75rem;
+  --radius-field: 0.625rem;
+  --radius-box: 1.25rem;
   --size-selector: 0.25rem;
   --size-field: 0.25rem;
   --border: 1px;
@@ -129,9 +129,9 @@
   --color-error: oklch(55% 0.195 24);
   --color-error-content: oklch(99% 0.005 24);
 
-  --radius-selector: 1.25rem;
-  --radius-field: 0.875rem;
-  --radius-box: 1.5rem;
+  --radius-selector: 0.75rem;
+  --radius-field: 0.625rem;
+  --radius-box: 1.25rem;
   --size-selector: 0.25rem;
   --size-field: 0.25rem;
   --border: 1px;
@@ -173,9 +173,9 @@
   --color-error: oklch(66% 0.13 18);
   --color-error-content: oklch(98% 0.01 18);
 
-  --radius-selector: 1.25rem;
-  --radius-field: 0.875rem;
-  --radius-box: 1.5rem;
+  --radius-selector: 0.75rem;
+  --radius-field: 0.625rem;
+  --radius-box: 1.25rem;
   --size-selector: 0.25rem;
   --size-field: 0.25rem;
   --border: 1px;
@@ -234,79 +234,79 @@ html[dir="rtl"] .tabular-nums {
     inset: 0;
     z-index: -1;
     background:
-      radial-gradient(65% 48% at 15% 4%, color-mix(in oklch, var(--color-primary) 26%, transparent), transparent 62%),
-      radial-gradient(58% 46% at 86% 6%, color-mix(in oklch, var(--color-secondary) 22%, transparent), transparent 64%),
-      radial-gradient(60% 42% at 50% 100%, color-mix(in oklch, var(--color-accent) 16%, transparent), transparent 68%),
+      radial-gradient(62% 44% at 16% 2%, color-mix(in oklch, var(--color-primary) 16%, transparent), transparent 60%),
+      radial-gradient(54% 42% at 86% 4%, color-mix(in oklch, var(--color-secondary) 13%, transparent), transparent 62%),
+      radial-gradient(56% 38% at 50% 100%, color-mix(in oklch, var(--color-accent) 9%, transparent), transparent 66%),
       var(--color-base-100);
   }
   [data-theme="amoleddark"] .aurora-bg {
     background:
-      radial-gradient(55% 36% at 18% 0%, color-mix(in oklch, var(--color-primary) 16%, transparent), transparent 60%),
-      radial-gradient(50% 34% at 84% 2%, color-mix(in oklch, var(--color-secondary) 14%, transparent), transparent 62%),
+      radial-gradient(52% 34% at 18% 0%, color-mix(in oklch, var(--color-primary) 11%, transparent), transparent 58%),
+      radial-gradient(46% 32% at 84% 2%, color-mix(in oklch, var(--color-secondary) 8%, transparent), transparent 60%),
       var(--color-base-100);
   }
   [data-theme="auroralight"] .aurora-bg {
     background:
-      radial-gradient(65% 50% at 12% 4%, color-mix(in oklch, var(--color-primary) 20%, transparent), transparent 64%),
-      radial-gradient(58% 46% at 88% 4%, color-mix(in oklch, var(--color-secondary) 16%, transparent), transparent 66%),
-      radial-gradient(62% 45% at 50% 100%, color-mix(in oklch, var(--color-accent) 14%, transparent), transparent 68%),
+      radial-gradient(62% 46% at 12% 2%, color-mix(in oklch, var(--color-primary) 13%, transparent), transparent 62%),
+      radial-gradient(56% 42% at 88% 3%, color-mix(in oklch, var(--color-secondary) 10%, transparent), transparent 64%),
+      radial-gradient(58% 40% at 50% 100%, color-mix(in oklch, var(--color-accent) 8%, transparent), transparent 66%),
       var(--color-base-100);
   }
 
   /* Primary elevated frosted cards */
   .glass {
-    background: color-mix(in oklch, var(--color-base-200) 70%, transparent);
-    backdrop-filter: blur(20px) saturate(145%);
-    -webkit-backdrop-filter: blur(20px) saturate(145%);
-    border: 1px solid color-mix(in oklch, var(--color-base-content) 11%, transparent);
-    box-shadow:
-      inset 0 1px 0 color-mix(in oklch, white 9%, transparent),
-      0 18px 38px -20px oklch(0% 0 0 / 0.48);
-  }
-  [data-theme="amoleddark"] .glass {
-    background: color-mix(in oklch, var(--color-base-200) 80%, #000);
-    border-color: color-mix(in oklch, white 12%, transparent);
+    background: color-mix(in oklch, var(--color-base-200) 72%, transparent);
+    backdrop-filter: blur(18px) saturate(135%);
+    -webkit-backdrop-filter: blur(18px) saturate(135%);
+    border: 1px solid color-mix(in oklch, var(--color-base-content) 10%, transparent);
     box-shadow:
       inset 0 1px 0 color-mix(in oklch, white 7%, transparent),
-      0 18px 42px -18px oklch(0% 0 0 / 0.9);
+      0 12px 28px -18px oklch(0% 0 0 / 0.42);
+  }
+  [data-theme="amoleddark"] .glass {
+    background: color-mix(in oklch, var(--color-base-200) 82%, #000);
+    border-color: color-mix(in oklch, white 11%, transparent);
+    box-shadow:
+      inset 0 1px 0 color-mix(in oklch, white 6%, transparent),
+      0 14px 32px -18px oklch(0% 0 0 / 0.85);
   }
   [data-theme="auroralight"] .glass {
-    background: color-mix(in oklch, white 76%, transparent);
-    border-color: color-mix(in oklch, var(--color-base-content) 8%, white 60%);
+    background: color-mix(in oklch, white 78%, transparent);
+    border-color: color-mix(in oklch, var(--color-base-content) 9%, white 55%);
     box-shadow:
-      inset 0 1px 0 color-mix(in oklch, white 90%, transparent),
-      0 16px 38px -18px oklch(35% 0.05 235 / 0.16);
+      inset 0 1px 0 color-mix(in oklch, white 85%, transparent),
+      0 12px 28px -16px oklch(35% 0.04 235 / 0.13);
   }
 
   /* Centerpiece hero account card with northern-lights ambient glow & hairline */
   .hero-card {
     position: relative;
     background:
-      radial-gradient(85% 50% at 50% -6%, color-mix(in oklch, var(--color-primary) 13%, transparent), transparent 68%),
-      radial-gradient(65% 42% at 88% 12%, color-mix(in oklch, var(--color-accent) 9%, transparent), transparent 72%),
-      color-mix(in oklch, var(--color-base-200) 74%, transparent);
+      radial-gradient(85% 48% at 50% -6%, color-mix(in oklch, var(--color-primary) 8%, transparent), transparent 66%),
+      radial-gradient(60% 40% at 88% 12%, color-mix(in oklch, var(--color-accent) 5%, transparent), transparent 70%),
+      color-mix(in oklch, var(--color-base-200) 75%, transparent);
   }
   [data-theme="amoleddark"] .hero-card {
     background:
-      radial-gradient(80% 46% at 50% -6%, color-mix(in oklch, var(--color-primary) 11%, transparent), transparent 66%),
-      color-mix(in oklch, var(--color-base-200) 84%, #000);
+      radial-gradient(80% 44% at 50% -6%, color-mix(in oklch, var(--color-primary) 7%, transparent), transparent 64%),
+      color-mix(in oklch, var(--color-base-200) 86%, #000);
   }
   [data-theme="auroralight"] .hero-card {
     background:
-      radial-gradient(85% 50% at 50% -6%, color-mix(in oklch, var(--color-primary) 10%, transparent), transparent 68%),
-      color-mix(in oklch, white 82%, transparent);
+      radial-gradient(85% 48% at 50% -6%, color-mix(in oklch, var(--color-primary) 6%, transparent), transparent 66%),
+      color-mix(in oklch, white 84%, transparent);
   }
   .hero-card::before {
     content: "";
     position: absolute;
     inset-block-start: 0;
-    inset-inline: 12%;
+    inset-inline: 14%;
     height: 1px;
     background: linear-gradient(
       90deg,
       transparent,
-      color-mix(in oklch, var(--color-primary) 55%, white 20%),
-      color-mix(in oklch, var(--color-accent) 45%, white 20%),
+      color-mix(in oklch, var(--color-primary) 28%, white 14%),
+      color-mix(in oklch, var(--color-accent) 22%, white 14%),
       transparent
     );
     pointer-events: none;
@@ -333,69 +333,65 @@ html[dir="rtl"] .tabular-nums {
     --btn-bg: var(--color-primary);
     --btn-fg: var(--color-primary-content);
     background-color: var(--color-primary);
-    background-image: linear-gradient(
-      135deg,
-      var(--color-primary) 0%,
-      color-mix(in oklch, var(--color-primary) 42%, var(--color-secondary)) 100%
-    );
-    border: 1px solid color-mix(in oklch, white 22%, transparent);
+    border: 1px solid color-mix(in oklch, white 18%, transparent);
     color: var(--color-primary-content);
     box-shadow:
-      inset 0 1px 0 color-mix(in oklch, white 32%, transparent),
-      0 10px 24px -10px color-mix(in oklch, var(--color-primary) 80%, transparent);
+      inset 0 1px 0 color-mix(in oklch, white 22%, transparent),
+      0 2px 6px oklch(0% 0 0 / 0.16);
   }
   .btn-aurora-cta:not(.btn-success) > i {
     color: var(--color-primary-content);
   }
   [data-theme="auroralight"] .btn-aurora-cta:not(.btn-success) {
-    border-color: color-mix(in oklch, var(--color-primary) 35%, transparent);
+    border-color: color-mix(in oklch, var(--color-primary) 30%, transparent);
     box-shadow:
-      inset 0 1px 0 color-mix(in oklch, white 38%, transparent),
-      0 10px 22px -10px color-mix(in oklch, var(--color-primary) 55%, transparent);
+      inset 0 1px 0 color-mix(in oklch, white 28%, transparent),
+      0 2px 6px oklch(30% 0.04 235 / 0.14);
   }
   @media (hover: hover) {
     .btn-aurora-cta:not(.btn-success):hover {
       filter: brightness(1.06);
       box-shadow:
-        inset 0 1px 0 color-mix(in oklch, white 40%, transparent),
-        0 12px 26px -9px color-mix(in oklch, var(--color-primary) 85%, transparent);
+        inset 0 1px 0 color-mix(in oklch, white 26%, transparent),
+        0 3px 10px oklch(0% 0 0 / 0.18);
     }
   }
 
   .gradient-text {
-    background: linear-gradient(
-      105deg,
-      var(--color-base-content) 8%,
-      color-mix(in oklch, var(--color-primary) 82%, var(--color-base-content)) 55%,
-      color-mix(in oklch, var(--color-accent) 75%, var(--color-base-content)) 100%
-    );
-    background-clip: text;
-    -webkit-background-clip: text;
-    color: transparent;
+    color: var(--color-base-content);
     letter-spacing: -0.02em;
   }
 
   /* Default monogram logo orb rim */
   .brand-orb {
     background:
-      radial-gradient(circle at 30% 25%, color-mix(in oklch, var(--color-primary) 28%, transparent), transparent 65%),
-      radial-gradient(circle at 75% 80%, color-mix(in oklch, var(--color-accent) 22%, transparent), transparent 70%),
-      color-mix(in oklch, var(--color-base-200) 78%, transparent);
-    border: 1.5px solid color-mix(in oklch, var(--color-primary) 42%, color-mix(in oklch, var(--color-base-content) 15%, transparent));
-    box-shadow: 0 4px 16px -6px color-mix(in oklch, var(--color-primary) 55%, transparent);
+      radial-gradient(circle at 30% 25%, color-mix(in oklch, var(--color-primary) 14%, transparent), transparent 65%),
+      radial-gradient(circle at 75% 80%, color-mix(in oklch, var(--color-accent) 10%, transparent), transparent 70%),
+      color-mix(in oklch, var(--color-base-200) 80%, transparent);
+    border: 1px solid color-mix(in oklch, var(--color-primary) 26%, color-mix(in oklch, var(--color-base-content) 14%, transparent));
   }
 
-  /* Smooth, tactile feedback for interactive cards/buttons. */
+  /* Calm tactile feedback + surface step row hover */
   .lift {
-    transition: transform 0.24s cubic-bezier(0.22, 1, 0.36, 1), box-shadow 0.24s ease, border-color 0.22s ease;
-  }
-  @media (hover: hover) {
-    .lift:hover {
-      transform: translateY(-2px);
-    }
+    transition: transform 0.18s ease, border-color 0.18s ease, background-color 0.18s ease;
   }
   .lift:active {
     transform: scale(0.985);
+  }
+
+  @media (hover: hover) {
+    .row-hover:hover {
+      border-color: color-mix(in oklch, var(--color-base-content) 18%, transparent);
+      background: color-mix(in oklch, var(--color-base-content) 7%, color-mix(in oklch, var(--color-base-200) 64%, transparent));
+    }
+    [data-theme="amoleddark"] .row-hover:hover {
+      border-color: color-mix(in oklch, white 18%, transparent);
+      background: color-mix(in oklch, white 8%, var(--color-base-200) 55%);
+    }
+    [data-theme="auroralight"] .row-hover:hover {
+      border-color: color-mix(in oklch, var(--color-base-content) 15%, transparent);
+      background: color-mix(in oklch, white 92%, var(--color-base-100));
+    }
   }
 
   /* Smooth height-collapse without JS measuring (grid 0fr -> 1fr trick). */
@@ -476,24 +472,13 @@ html[dir="rtl"] .tabular-nums {
 
   .alert-active {
     position: relative;
-    border-color: color-mix(in oklch, var(--color-warning) 70%, transparent) !important;
-    animation: alert-pulse 2.2s ease-in-out infinite;
-  }
-  @keyframes alert-pulse {
-    0%, 100% {
-      box-shadow: 0 0 0 0 color-mix(in oklch, var(--color-warning) 40%, transparent);
-    }
-    50% {
-      box-shadow: 0 0 12px 2px color-mix(in oklch, var(--color-warning) 30%, transparent);
-    }
-  }
-  @media (prefers-reduced-motion: reduce) {
-    .alert-active { animation: none; }
+    border-color: color-mix(in oklch, var(--color-warning) 55%, transparent) !important;
+    background: color-mix(in oklch, var(--color-warning) 6%, color-mix(in oklch, var(--color-base-200) 68%, transparent)) !important;
   }
 
-  /* Custom gradient progress bar */
+  /* Usage progress bar */
   .usage-bar-track {
-    height: 0.5625rem;
+    height: 0.5rem;
     width: 100%;
     overflow: hidden;
     border-radius: 9999px;
@@ -503,17 +488,14 @@ html[dir="rtl"] .tabular-nums {
   .usage-fill {
     height: 100%;
     border-radius: 9999px;
-    background: linear-gradient(90deg, var(--color-secondary), var(--color-primary), var(--color-accent));
-    box-shadow: 0 0 10px color-mix(in oklch, var(--color-primary) 45%, transparent);
+    background: linear-gradient(90deg, var(--color-primary), var(--color-accent));
     transition: width 0.75s cubic-bezier(0.22, 1, 0.36, 1);
   }
   .usage-fill.tone-warn {
     background: linear-gradient(90deg, var(--color-warning), color-mix(in oklch, var(--color-warning) 75%, var(--color-error)));
-    box-shadow: 0 0 10px color-mix(in oklch, var(--color-warning) 45%, transparent);
   }
   .usage-fill.tone-err {
     background: linear-gradient(90deg, var(--color-warning), var(--color-error));
-    box-shadow: 0 0 10px color-mix(in oklch, var(--color-error) 50%, transparent);
   }
 
   /* Config rows & pinned state */
@@ -583,22 +565,23 @@ html[dir="rtl"] .tabular-nums {
     }
   }
 
-  /* Protocol filter pills */
+  /* Protocol filter tabs */
   .filter-pill {
     flex-shrink: 0;
-    border-radius: 9999px;
-    padding: 0.3rem 0.85rem;
+    border-radius: 0.5rem;
+    padding: 0.3rem 0.75rem;
     font-size: 12px;
-    font-weight: 600;
+    font-weight: 500;
     color: color-mix(in oklch, var(--color-base-content) 68%, transparent);
     background: color-mix(in oklch, var(--color-base-content) 4.5%, transparent);
     border: 1px solid color-mix(in oklch, var(--color-base-content) 9%, transparent);
     transition: background 0.2s ease, color 0.2s ease, border-color 0.2s ease;
   }
   .filter-pill.active {
-    background: color-mix(in oklch, var(--color-primary) 18%, transparent);
-    border-color: color-mix(in oklch, var(--color-primary) 38%, transparent);
+    background: color-mix(in oklch, var(--color-primary) 15%, transparent);
+    border-color: color-mix(in oklch, var(--color-primary) 34%, transparent);
     color: var(--color-primary);
+    font-weight: 600;
   }
 
   /* Range pills inside segmented track */
@@ -607,17 +590,17 @@ html[dir="rtl"] .tabular-nums {
     align-items: center;
     gap: 0.2rem;
     padding: 0.2rem;
-    border-radius: 0.875rem;
+    border-radius: 0.625rem;
     background: color-mix(in oklch, var(--color-base-content) 5%, transparent);
     border: 1px solid color-mix(in oklch, var(--color-base-content) 8%, transparent);
   }
   .range-pill {
     flex-shrink: 0;
-    border-radius: 0.65rem;
+    border-radius: 0.5rem;
     padding: 0.25rem 0.7rem;
     font-size: 11px;
-    font-weight: 700;
-    letter-spacing: 0.02em;
+    font-weight: 600;
+    letter-spacing: 0.01em;
     color: color-mix(in oklch, var(--color-base-content) 60%, transparent);
     background: transparent;
     border: 1px solid transparent;
@@ -627,8 +610,8 @@ html[dir="rtl"] .tabular-nums {
     color: color-mix(in oklch, var(--color-base-content) 88%, transparent);
   }
   .range-pill.active {
-    background: color-mix(in oklch, var(--color-accent) 18%, transparent);
-    border-color: color-mix(in oklch, var(--color-accent) 34%, transparent);
+    background: color-mix(in oklch, var(--color-accent) 16%, transparent);
+    border-color: color-mix(in oklch, var(--color-accent) 32%, transparent);
     color: var(--color-accent);
   }
 
@@ -645,7 +628,7 @@ html[dir="rtl"] .tabular-nums {
   .usage-chart svg.usage-svg {
     display: block;
     width: 100%;
-    height: 6rem;
+    height: 7rem;
   }
   .usage-gridline {
     stroke: color-mix(in oklch, var(--color-base-content) 8%, transparent);
@@ -653,17 +636,20 @@ html[dir="rtl"] .tabular-nums {
     stroke-dasharray: 2 3;
   }
   .usage-bar-rect {
-    fill: url(#usage-bar-grad);
-    transition: opacity 0.16s ease;
+    fill: var(--color-primary);
+    fill-opacity: 0.45;
+    transition: fill-opacity 0.16s ease;
   }
   .usage-bar-rect.is-zero {
-    opacity: 0.22;
+    fill: var(--color-base-content);
+    fill-opacity: 0.14;
   }
   .usage-bar-rect.is-peak {
-    fill: url(#usage-bar-peak);
+    fill: var(--color-accent);
+    fill-opacity: 0.92;
   }
   .usage-bar-rect:hover {
-    opacity: 0.85;
+    fill-opacity: 0.85;
   }
 
   .usage-readout {
@@ -706,7 +692,7 @@ html[dir="rtl"] .tabular-nums {
     display: block;
     height: 100%;
     border-radius: 9999px;
-    background: linear-gradient(90deg, var(--color-primary), var(--color-accent));
+    background: var(--color-primary);
   }
 
   /* Toast */
@@ -770,8 +756,8 @@ html[dir="rtl"] .tabular-nums {
 
 .reveal {
   opacity: 0;
-  transform: translateY(16px);
-  transition: opacity 0.55s ease, transform 0.55s cubic-bezier(0.16, 1, 0.3, 1);
+  transform: translateY(8px);
+  transition: opacity 0.35s ease, transform 0.35s cubic-bezier(0.2, 0.8, 0.2, 1);
 }
 .reveal.shown {
   opacity: 1;
@@ -779,7 +765,7 @@ html[dir="rtl"] .tabular-nums {
 }
 
 /* ----------------------------------------------------------------------------
-   Progress rings — radial glow backdrop, calibration inner ring & gradient arc.
+   Progress rings — subtle radial backdrop, calibration inner ring & colored arc.
 ---------------------------------------------------------------------------- */
 .ring-wrap {
   position: relative;
@@ -798,7 +784,7 @@ html[dir="rtl"] .tabular-nums {
   position: absolute;
   inset: 0.75rem;
   border-radius: 9999px;
-  background: radial-gradient(circle, color-mix(in oklch, var(--ring-glow, var(--color-primary)) 13%, transparent), transparent 72%);
+  background: radial-gradient(circle, color-mix(in oklch, var(--ring-glow, var(--color-primary)) 8%, transparent), transparent 72%);
   pointer-events: none;
 }
 .ring-wrap-time {
@@ -829,7 +815,6 @@ html[dir="rtl"] .tabular-nums {
   stroke-linecap: round;
   stroke-dasharray: 100;
   stroke-dashoffset: 100;
-  filter: drop-shadow(0 0 6px color-mix(in oklch, var(--ring-glow, var(--color-primary)) 36%, transparent));
   transition: stroke-dashoffset 0.85s cubic-bezier(0.22, 1, 0.36, 1), stroke 0.4s ease;
 }
 .ring-label {
@@ -838,9 +823,6 @@ html[dir="rtl"] .tabular-nums {
 }
 .ring-wrap.is-urgent {
   --ring-glow: var(--color-error);
-}
-.ring-wrap.is-urgent .ring-fill {
-  filter: drop-shadow(0 0 8px color-mix(in oklch, var(--color-error) 60%, transparent));
 }
 @media (prefers-reduced-motion: reduce) {
   .ring-fill { transition: none; }

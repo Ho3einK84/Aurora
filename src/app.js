@@ -26,7 +26,7 @@ const AURORA_APPS_REMOTE_URL = "";
 
 const THEMES = [
     { id: "auroradark", label: "%brand% Dark", swatch: "linear-gradient(135deg,#0d1522,#2ad0e6,#2de0ba)" },
-    { id: "amoleddark", label: "Amoled Dark", swatch: "linear-gradient(135deg,#000000,#3b82f6,#a855f7)" },
+    { id: "amoleddark", label: "Amoled Dark", swatch: "linear-gradient(135deg,#000000,#38bdf8,#64748b)" },
     { id: "auroralight", label: "%brand% Light", swatch: "linear-gradient(135deg,#e0f2fe,#0891b2,#3b82f6)" },
     { id: "nord", label: "Nord", swatch: "linear-gradient(135deg,#2e3440,#88c0d0,#81a1c1)" },
 ];
@@ -461,7 +461,7 @@ function renderCard() {
 
     // Status badge + banner
     const badge = $("#status-badge");
-    badge.className = `badge badge-lg gap-1.5 border-0 px-3 py-3.5 font-semibold ${STATUS_BADGES[STATE] || STATUS_BADGES.disabled}`;
+    badge.className = `badge badge-md shrink-0 gap-1.5 rounded-full border border-current/15 px-2.5 py-2.5 text-xs font-medium ${STATUS_BADGES[STATE] || STATUS_BADGES.disabled}`;
     $("#status-badge-text").textContent = t("status_" + STATE) === "status_" + STATE ? t("status_unknown") : t("status_" + STATE);
 
     const banner = $("#status-banner");
@@ -475,7 +475,7 @@ function renderCard() {
     }
 
     if (STATE !== "active" && I18N.en["banner_" + STATE]) {
-        banner.className = `reveal shown alert mb-5 items-center justify-between gap-3 rounded-2xl glass border-0 ${BANNER_TONES[STATE] || ""}`;
+        banner.className = `reveal shown alert mb-4 items-center justify-between gap-3 rounded-2xl glass border border-current/15 sm:mb-5 ${BANNER_TONES[STATE] || ""}`;
         bannerText.textContent = t("banner_" + STATE);
         if (CTX.supportUrl && STATE !== "on_hold" && !hasNextPlan) {
             bannerAction.href = CTX.supportUrl;
@@ -486,7 +486,7 @@ function renderCard() {
         }
         setHidden(banner, false);
     } else if ((isLowTraffic || isLowTime) && !hasNextPlan) {
-        banner.className = `reveal shown alert mb-5 items-center justify-between gap-3 rounded-2xl glass border-0 alert-warning`;
+        banner.className = `reveal shown alert mb-4 items-center justify-between gap-3 rounded-2xl glass border border-warning/25 text-warning sm:mb-5`;
         const alertKey = isLowTraffic && isLowTime ? "banner_low_both" : isLowTraffic ? "banner_low_traffic" : "banner_low_time";
         bannerText.textContent = t(alertKey);
         if (CTX.supportUrl) {
@@ -878,13 +878,13 @@ function renderSubFormatMenu() {
     list.innerHTML = SUB_FORMATS.map((f) => {
         const label = f.labelKey ? t(f.labelKey) : f.label;
         const url = base + f.suffix;
-        return `<div class="sub-tile flex items-center gap-2 rounded-2xl px-3 py-2.5">` +
+        return `<div class="sub-tile flex items-center gap-2 rounded-xl px-3 py-2.5">` +
             `<span class="min-w-0 flex-1 truncate text-sm font-medium">${escapeHtml(label)}</span>` +
             `<button data-fmt-copy="${escapeAttr(url)}" class="btn btn-ghost btn-xs btn-square rounded-lg" aria-label="${escapeAttr(t("copy"))}">` +
             `<i class="ph ph-copy text-base"></i></button>` +
             `<button data-fmt-qr="${escapeAttr(url)}" data-fmt-title="${escapeAttr(label)}" ` +
             `class="btn btn-ghost btn-xs btn-square rounded-lg" aria-label="${escapeAttr(t("qrcode"))}">` +
-            `<i class="ph ph-qr-code text-base text-primary"></i></button>` +
+            `<i class="ph ph-qr-code text-base text-base-content/75"></i></button>` +
             `</div>`;
     }).join("");
 

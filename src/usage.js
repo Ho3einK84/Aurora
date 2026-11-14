@@ -231,13 +231,13 @@ export function mountUsage(deps) {
         if (peakBytes > 0 && rows.length > 1) {
             items.push([t("usage_peak_day"), fmtBytesStr(peakBytes, lang())]);
         }
-        box.className = `sub-tile grid gap-2 rounded-2xl p-2.5 text-center sm:p-3 ${
+        box.className = `sub-tile grid gap-2 rounded-xl p-2.5 text-center sm:p-3 ${
             items.length === 1 ? "grid-cols-1" : items.length === 2 ? "grid-cols-2" : "grid-cols-3"
         }`;
         box.innerHTML = items.map(([label, val]) =>
             `<div class="min-w-0">` +
-            `<p class="truncate text-[10px] font-medium uppercase tracking-wide text-base-content/50">${escapeHtml(label)}</p>` +
-            `<p class="mt-0.5 truncate text-xs font-extrabold text-base-content/90 sm:text-sm">${escapeHtml(val)}</p>` +
+            `<p class="truncate text-[11px] font-medium text-base-content/55">${escapeHtml(label)}</p>` +
+            `<p class="mt-0.5 truncate text-xs font-semibold tabular-nums text-base-content/90 sm:text-sm">${escapeHtml(val)}</p>` +
             `</div>`
         ).join("");
         setHidden(box, false);
@@ -261,28 +261,17 @@ export function mountUsage(deps) {
         const peakVal = Math.max(0, ...vals);
         const max = Math.max(1, peakVal);
 
-        const W = 300, H = 84, pad = 3;
+        const W = 300, H = 96, pad = 2;
         const step = (W - pad * 2) / rows.length;
-        const barW = Math.max(1.8, step - 2);
-        const defs =
-            `<defs>` +
-            `<linearGradient id="usage-bar-grad" x1="0" y1="0" x2="0" y2="1">` +
-            `<stop offset="0%" style="stop-color:var(--color-primary)" />` +
-            `<stop offset="100%" style="stop-color:var(--color-secondary);stop-opacity:0.35" />` +
-            `</linearGradient>` +
-            `<linearGradient id="usage-bar-peak" x1="0" y1="0" x2="0" y2="1">` +
-            `<stop offset="0%" style="stop-color:var(--color-accent)" />` +
-            `<stop offset="100%" style="stop-color:var(--color-primary);stop-opacity:0.5" />` +
-            `</linearGradient>` +
-            `</defs>`;
-        const guides = [22, 46, 70]
+        const barW = Math.max(1.8, step - 2.2);
+        const guides = [24, 48, 72]
             .map((gy) => `<line class="usage-gridline" x1="${pad}" y1="${gy}" x2="${W - pad}" y2="${gy}" />`)
             .join("");
 
         let rects = "";
         rows.forEach((r, i) => {
             const v = vals[i];
-            const h = Math.max(v > 0 ? 2.5 : 1, (v / max) * (H - 10));
+            const h = Math.max(v > 0 ? 3 : 1.5, (v / max) * (H - 12));
             const x = pad + i * step;
             const y = H - h;
             const d = dateOf(r);
@@ -294,10 +283,10 @@ export function mountUsage(deps) {
                     ? ` ${t("usage_on")} ${fmtClock(d, lang())}`
                     : ` ${t("usage_on")} ${fmtDayMonth(d, lang())}`;
             rects += `<rect class="usage-bar-rect${isPeak ? " is-peak" : ""}${v <= 0 ? " is-zero" : ""}" x="${x.toFixed(2)}" y="${y.toFixed(2)}" width="${barW.toFixed(2)}" ` +
-                `height="${h.toFixed(2)}" rx="2"><title>${escapeHtml(`${locNum(f.value, lang())} ${f.unit}${whenStr}`)}</title></rect>`;
+                `height="${h.toFixed(2)}" rx="1.8"><title>${escapeHtml(`${locNum(f.value, lang())} ${f.unit}${whenStr}`)}</title></rect>`;
         });
         chart.innerHTML =
-            `<svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="none" class="usage-svg">${defs}${guides}${rects}</svg>`;
+            `<svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="none" class="usage-svg">${guides}${rects}</svg>`;
 
         const total = fmtBytes(rows.reduce((s, r) => s + usageValOf(r), 0), lang());
         chart.setAttribute("aria-label",
@@ -440,7 +429,7 @@ export function mountUsage(deps) {
         const max = Math.max(1, ...rows.map((r) => r.value));
         const total = nodes.reduce((s, r) => s + r.value, 0);
         box.innerHTML =
-            `<p class="text-[11px] font-semibold uppercase tracking-wide text-base-content/50">${escapeHtml(t("usage_by_server"))}</p>` +
+            `<p class="text-xs font-medium text-base-content/55">${escapeHtml(t("usage_by_server"))}</p>` +
             rows.map((r) => {
                 const f = fmtBytes(r.value, lang());
                 const pct = total > 0 ? Math.round((r.value / total) * 100) : 0;
@@ -448,7 +437,7 @@ export function mountUsage(deps) {
                 return `<div>` +
                     `<div class="flex items-baseline justify-between gap-2 text-[12px]">` +
                     `<span class="truncate font-medium" dir="auto" title="${escapeAttr(r.name)}">${escapeHtml(r.name)}</span>` +
-                    `<span class="shrink-0 text-base-content/50">${locNum(f.value, lang())} ${f.unit} · ${locPct(pct, lang())}</span>` +
+                    `<span class="shrink-0 tabular-nums text-base-content/55">${locNum(f.value, lang())} ${f.unit} · ${locPct(pct, lang())}</span>` +
                     `</div>` +
                     `<div class="node-bar mt-1"><span style="width:${w}%"></span></div>` +
                     `</div>`;

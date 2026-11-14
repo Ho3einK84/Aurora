@@ -385,10 +385,10 @@ export function mountVpn(deps) {
         const { icon, secret, key } = opts;
         const hidden = secret && !revealed.has(key);
         const shown = hidden ? "••••••••" : value;
-        return `<div class="sub-tile flex items-center gap-2 rounded-xl px-3 py-2">` +
-            `<i class="ph ${icon} shrink-0 text-base text-base-content/40"></i>` +
-            `<div class="min-w-0 flex-1">` +
-            `<p class="text-[10px] uppercase tracking-wide text-base-content/50">${escapeHtml(t(labelKey))}</p>` +
+        return `<div class="sub-tile flex items-center gap-2 rounded-lg px-3 py-2">` +
+            `<i class="ph ${icon} shrink-0 text-base text-base-content/45"></i>` +
+            `<div class="min-w-0 flex-1 text-start">` +
+            `<p class="text-[11px] font-medium text-base-content/55">${escapeHtml(t(labelKey))}</p>` +
             `<p class="truncate font-mono text-[12px]" dir="ltr">${escapeHtml(shown)}</p>` +
             `</div>` +
             (secret
@@ -401,16 +401,16 @@ export function mountVpn(deps) {
     }
 
     function ovpnRow(profile) {
-        return `<div class="group card glass lift rounded-2xl">` +
-            `<div class="flex items-center gap-3 p-3">` +
-            `<div class="grid h-9 w-9 shrink-0 place-items-center rounded-xl border border-primary/25 bg-gradient-to-br from-primary/25 to-secondary/15 text-[10px] font-bold text-primary">OVPN</div>` +
-            `<div class="min-w-0 flex-1">` +
-            `<p class="truncate text-sm font-semibold" dir="auto">${escapeHtml(profile.name)}</p>` +
-            `<p class="truncate text-start font-mono text-[11px] text-base-content/40" dir="ltr">${escapeHtml(profile.url)}</p>` +
+        return `<div class="group card glass row-hover rounded-xl">` +
+            `<div class="flex items-center gap-2.5 p-2.5 sm:gap-3 sm:p-3">` +
+            `<div class="grid h-9 w-9 shrink-0 place-items-center rounded-lg border border-primary/20 bg-primary/10 text-[10px] font-semibold text-primary">OVPN</div>` +
+            `<div class="min-w-0 flex-1 text-start">` +
+            `<p class="truncate text-sm font-medium"><span dir="auto">${escapeHtml(profile.name)}</span></p>` +
+            `<p class="truncate text-start font-mono text-[11px] text-base-content/45"><span class="inline-block max-w-full truncate align-bottom" dir="ltr">${escapeHtml(profile.url)}</span></p>` +
             `</div>` +
             `<button class="btn btn-circle btn-ghost btn-sm" data-copy="${escapeAttr(profile.url)}" aria-label="${escapeAttr(t("copy"))}">` +
             `<i class="ph ph-copy text-lg"></i></button>` +
-            `<a class="btn btn-sm btn-primary gap-1.5 rounded-xl font-semibold" href="${escapeAttr(profile.url)}" download>` +
+            `<a class="btn btn-sm btn-primary h-8 min-h-0 gap-1.5 rounded-lg px-3 text-xs font-medium" href="${escapeAttr(profile.url)}" download>` +
             `<i class="ph ph-download-simple text-base"></i><span class="hidden sm:inline">${escapeHtml(t("ovpn_download"))}</span></a>` +
             `</div></div>`;
     }
@@ -431,35 +431,35 @@ export function mountVpn(deps) {
         }
         if (profile.downloadUrl) {
             buttons.push(
-                `<a class="btn btn-sm btn-primary gap-1.5 rounded-xl font-semibold" ` +
+                `<a class="btn btn-sm btn-primary h-8 min-h-0 gap-1.5 rounded-lg px-3 text-xs font-medium" ` +
                 `href="${escapeAttr(profile.downloadUrl)}" download>` +
                 `<i class="ph ph-download-simple text-base"></i>` +
                 `<span class="hidden sm:inline">${escapeHtml(t("download_conf"))}</span></a>`
             );
         } else if (profile.body || profile.link) {
             buttons.push(
-                `<button class="btn btn-sm btn-primary gap-1.5 rounded-xl font-semibold" data-dl-wg="${i}" ` +
+                `<button class="btn btn-sm btn-primary h-8 min-h-0 gap-1.5 rounded-lg px-3 text-xs font-medium" data-dl-wg="${i}" ` +
                 `aria-label="${escapeAttr(t("download_conf"))}"><i class="ph ph-download-simple text-base"></i>` +
                 `<span class="hidden sm:inline">${escapeHtml(t("download_conf"))}</span></button>`
             );
         }
         if (profile.link && /^wireguard:\/\//i.test(profile.link)) {
             buttons.push(
-                `<a class="btn btn-sm btn-accent gap-1.5 rounded-xl font-semibold" ` +
+                `<a class="btn btn-sm btn-accent h-8 min-h-0 gap-1.5 rounded-lg px-3 text-xs font-medium" ` +
                 `href="${escapeAttr(profile.link)}" ` +
                 `aria-label="${escapeAttr(t("connect"))}"><i class="ph ph-plug-charging text-base"></i>` +
                 `<span class="hidden sm:inline">${escapeHtml(t("connect"))}</span></a>`
             );
         }
-        return `<div class="group card glass lift rounded-2xl">` +
-            `<div class="flex items-center gap-3 p-3">` +
-            `<div class="grid h-9 w-9 shrink-0 place-items-center rounded-xl border border-success/25 bg-gradient-to-br from-success/25 to-primary/15 text-[10px] font-bold text-success">WG</div>` +
-            `<div class="min-w-0 flex-1">` +
-            `<p class="truncate text-sm font-semibold" dir="auto">${escapeHtml(profile.name)}</p>` +
+        return `<div class="group card glass row-hover rounded-xl">` +
+            `<div class="flex items-center gap-2.5 p-2.5 sm:gap-3 sm:p-3">` +
+            `<div class="grid h-9 w-9 shrink-0 place-items-center rounded-lg border border-success/20 bg-success/10 text-[10px] font-semibold text-success">WG</div>` +
+            `<div class="min-w-0 flex-1 text-start">` +
+            `<p class="truncate text-sm font-medium"><span dir="auto">${escapeHtml(profile.name)}</span></p>` +
             (profile.downloadUrl
-                ? `<p class="truncate text-start font-mono text-[11px] text-base-content/40" dir="ltr">${escapeHtml(profile.downloadUrl)}</p>`
+                ? `<p class="truncate text-start font-mono text-[11px] text-base-content/45"><span class="inline-block max-w-full truncate align-bottom" dir="ltr">${escapeHtml(profile.downloadUrl)}</span></p>`
                 : profile.link
-                    ? `<p class="truncate text-start font-mono text-[11px] text-base-content/40" dir="ltr">${escapeHtml(profile.link)}</p>`
+                    ? `<p class="truncate text-start font-mono text-[11px] text-base-content/45"><span class="inline-block max-w-full truncate align-bottom" dir="ltr">${escapeHtml(profile.link)}</span></p>`
                     : "") +
             `</div>` +
             buttons.join("") +
@@ -490,27 +490,27 @@ export function mountVpn(deps) {
         }
         if (profile.downloadUrl) {
             buttons.push(
-                `<a class="btn btn-sm btn-primary gap-1.5 rounded-xl font-semibold" ` +
+                `<a class="btn btn-sm btn-primary h-8 min-h-0 gap-1.5 rounded-lg px-3 text-xs font-medium" ` +
                 `href="${escapeAttr(profile.downloadUrl)}" download>` +
                 `<i class="ph ph-download-simple text-base"></i>` +
                 `<span class="hidden sm:inline">${escapeHtml(t("download_conf"))}</span></a>`
             );
         } else if (profile.body || profile.link) {
             buttons.push(
-                `<button class="btn btn-sm btn-primary gap-1.5 rounded-xl font-semibold" data-dl-awg="${i}" ` +
+                `<button class="btn btn-sm btn-primary h-8 min-h-0 gap-1.5 rounded-lg px-3 text-xs font-medium" data-dl-awg="${i}" ` +
                 `aria-label="${escapeAttr(t("download_conf"))}"><i class="ph ph-download-simple text-base"></i>` +
                 `<span class="hidden sm:inline">${escapeHtml(t("download_conf"))}</span></button>`
             );
         }
-        return `<div class="group card glass lift rounded-2xl">` +
-            `<div class="flex items-center gap-3 p-3">` +
-            `<div class="grid h-9 w-9 shrink-0 place-items-center rounded-xl border border-accent/25 bg-gradient-to-br from-accent/25 to-primary/15 text-[10px] font-bold text-accent">AWG</div>` +
-            `<div class="min-w-0 flex-1">` +
-            `<p class="truncate text-sm font-semibold" dir="auto">${escapeHtml(profile.name)}</p>` +
+        return `<div class="group card glass row-hover rounded-xl">` +
+            `<div class="flex items-center gap-2.5 p-2.5 sm:gap-3 sm:p-3">` +
+            `<div class="grid h-9 w-9 shrink-0 place-items-center rounded-lg border border-accent/20 bg-accent/10 text-[10px] font-semibold text-accent">AWG</div>` +
+            `<div class="min-w-0 flex-1 text-start">` +
+            `<p class="truncate text-sm font-medium"><span dir="auto">${escapeHtml(profile.name)}</span></p>` +
             (profile.downloadUrl
-                ? `<p class="truncate text-start font-mono text-[11px] text-base-content/40" dir="ltr">${escapeHtml(profile.downloadUrl)}</p>`
+                ? `<p class="truncate text-start font-mono text-[11px] text-base-content/45"><span class="inline-block max-w-full truncate align-bottom" dir="ltr">${escapeHtml(profile.downloadUrl)}</span></p>`
                 : profile.link
-                    ? `<p class="truncate text-start font-mono text-[11px] text-base-content/40" dir="ltr">${escapeHtml(profile.link)}</p>`
+                    ? `<p class="truncate text-start font-mono text-[11px] text-base-content/45"><span class="inline-block max-w-full truncate align-bottom" dir="ltr">${escapeHtml(profile.link)}</span></p>`
                     : "") +
             `</div>` +
             buttons.join("") +
@@ -528,13 +528,13 @@ export function mountVpn(deps) {
     function credsRow(item, tab, index) {
         const badge = tab === "l2tp" ? "L2TP" : "PPTP";
         const keyOf = (field) => `${tab}:${index}:${field}`;
-        return `<div class="card glass rounded-2xl">` +
-            `<div class="space-y-2 p-3">` +
-            `<div class="flex items-center gap-3">` +
-            `<div class="grid h-9 w-9 shrink-0 place-items-center rounded-xl border border-secondary/25 bg-gradient-to-br from-secondary/25 to-primary/15 text-[10px] font-bold text-secondary">${badge}</div>` +
-            `<p class="min-w-0 flex-1 truncate text-sm font-semibold" dir="auto">${escapeHtml(item.remark || badge)}</p>` +
+        return `<div class="card glass rounded-xl">` +
+            `<div class="space-y-2 p-2.5 sm:p-3">` +
+            `<div class="flex items-center gap-2.5 sm:gap-3">` +
+            `<div class="grid h-9 w-9 shrink-0 place-items-center rounded-lg border border-secondary/20 bg-secondary/10 text-[10px] font-semibold text-secondary">${badge}</div>` +
+            `<p class="min-w-0 flex-1 truncate text-start text-sm font-medium"><span dir="auto">${escapeHtml(item.remark || badge)}</span></p>` +
             (item.server
-                ? `<button class="btn btn-sm btn-primary gap-1.5 rounded-xl font-semibold" data-dl-pbk="${escapeAttr(tab)}:${index}" ` +
+                ? `<button class="btn btn-sm btn-primary h-8 min-h-0 gap-1.5 rounded-lg px-3 text-xs font-medium" data-dl-pbk="${escapeAttr(tab)}:${index}" ` +
                   `aria-label="${escapeAttr(t("download_pbk"))}"><i class="ph ph-windows-logo text-base"></i>` +
                   `<span class="hidden sm:inline">${escapeHtml(t("download_pbk"))}</span></button>`
                 : "") +
@@ -550,22 +550,22 @@ export function mountVpn(deps) {
     }
 
     function remoteAccessRow(item, tab, index) {
-        const badge = tab === "ikev2" ? "IKEv2" : tab === "anyconnect" ? "AnyConnect" : tab === "sstp" ? "SSTP" : "GRE";
+        const badge = tab === "ikev2" ? "IKEv2" : tab === "anyconnect" ? "Cisco" : tab === "sstp" ? "SSTP" : "GRE";
         const keyOf = (field) => `${tab}:${index}:${field}`;
         const isCert = item.authMode === "certificate";
 
         if (tab === "gre") {
             const cli = generateGreCli(item);
-            return `<div class="card glass rounded-2xl">` +
-                `<div class="space-y-2 p-3">` +
+            return `<div class="card glass rounded-xl">` +
+                `<div class="space-y-2 p-2.5 sm:p-3">` +
                 `<div class="flex flex-wrap items-center gap-2">` +
-                `<div class="grid h-9 w-9 shrink-0 place-items-center rounded-xl border border-info/25 bg-gradient-to-br from-info/25 to-primary/15 text-[10px] font-bold text-info">${badge}</div>` +
-                `<p class="min-w-0 flex-1 truncate text-sm font-semibold" dir="auto">${escapeHtml(item.remark || badge)}</p>` +
+                `<div class="grid h-9 w-9 shrink-0 place-items-center rounded-lg border border-info/20 bg-info/10 text-[10px] font-semibold text-info">${badge}</div>` +
+                `<p class="min-w-0 flex-1 truncate text-start text-sm font-medium"><span dir="auto">${escapeHtml(item.remark || badge)}</span></p>` +
                 (cli
-                    ? `<button class="btn btn-xs btn-ghost glass gap-1 rounded-xl font-semibold" data-copy="${escapeAttr(cli.linux)}" ` +
+                    ? `<button class="btn btn-xs btn-ghost glass gap-1 rounded-lg font-medium" data-copy="${escapeAttr(cli.linux)}" ` +
                       `aria-label="${escapeAttr(t("copy_linux_cmd"))}"><i class="ph ph-terminal-window text-sm"></i>` +
                       `<span>${escapeHtml(t("copy_linux_cmd"))}</span></button>` +
-                      `<button class="btn btn-xs btn-ghost glass gap-1 rounded-xl font-semibold" data-copy="${escapeAttr(cli.mikrotik)}" ` +
+                      `<button class="btn btn-xs btn-ghost glass gap-1 rounded-lg font-medium" data-copy="${escapeAttr(cli.mikrotik)}" ` +
                       `aria-label="${escapeAttr(t("copy_mikrotik_cmd"))}"><i class="ph ph-terminal text-sm"></i>` +
                       `<span>${escapeHtml(t("copy_mikrotik_cmd"))}</span></button>`
                     : "") +
@@ -584,13 +584,13 @@ export function mountVpn(deps) {
                 `</div></div></div>`;
         }
 
-        return `<div class="card glass rounded-2xl">` +
-            `<div class="space-y-2 p-3">` +
-            `<div class="flex items-center gap-3">` +
-            `<div class="grid h-9 w-9 shrink-0 place-items-center rounded-xl border border-secondary/25 bg-gradient-to-br from-secondary/25 to-primary/15 text-[10px] font-bold text-secondary">${badge}</div>` +
-            `<p class="min-w-0 flex-1 truncate text-sm font-semibold" dir="auto">${escapeHtml(item.remark || badge)}</p>` +
+        return `<div class="card glass rounded-xl">` +
+            `<div class="space-y-2 p-2.5 sm:p-3">` +
+            `<div class="flex items-center gap-2.5 sm:gap-3">` +
+            `<div class="grid h-9 w-9 shrink-0 place-items-center rounded-lg border border-secondary/20 bg-secondary/10 text-[10px] font-semibold text-secondary">${badge}</div>` +
+            `<p class="min-w-0 flex-1 truncate text-start text-sm font-medium"><span dir="auto">${escapeHtml(item.remark || badge)}</span></p>` +
             (item.server && (tab === "ikev2" || tab === "sstp")
-                ? `<button class="btn btn-sm btn-primary gap-1.5 rounded-xl font-semibold" data-dl-pbk="${escapeAttr(tab)}:${index}" ` +
+                ? `<button class="btn btn-sm btn-primary h-8 min-h-0 gap-1.5 rounded-lg px-3 text-xs font-medium" data-dl-pbk="${escapeAttr(tab)}:${index}" ` +
                   `aria-label="${escapeAttr(t("download_pbk"))}"><i class="ph ph-windows-logo text-base"></i>` +
                   `<span class="hidden sm:inline">${escapeHtml(t("download_pbk"))}</span></button>`
                 : "") +

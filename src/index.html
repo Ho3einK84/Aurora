@@ -92,7 +92,7 @@
     <div id="aurora-loader">
         <div class="flex flex-col items-center gap-4">
             <div class="aurora-spinner"></div>
-            <p id="splash-brand" class="text-lg font-extrabold tracking-tight gradient-text">Aurora</p>
+            <p id="splash-brand" class="text-lg font-semibold tracking-tight text-base-content">Aurora</p>
         </div>
     </div>
     <script>
@@ -186,14 +186,15 @@
                 <!-- Default aurora emblem or custom brand logo when configured -->
                 <div id="brand-logo" class="brand-orb grid h-10 w-10 shrink-0 place-items-center overflow-hidden rounded-full sm:h-11 sm:w-11">
                     <svg class="h-5 w-5 text-primary" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-                        <path d="M12 3.2L14.4 9.6L20.8 12L14.4 14.4L12 20.8L9.6 14.4L3.2 12L9.6 9.6L12 3.2Z" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round" fill="currentColor" fill-opacity="0.16" />
+                        <path d="M4 15C6.5 9.5 9.5 8.5 12 12C14.5 15.5 17.5 14 20 8.5" stroke="currentColor" stroke-width="1.85" stroke-linecap="round" stroke-linejoin="round" />
+                        <path d="M5 17.5C7.5 13.5 10 12.5 12.5 15C14.8 17.3 17.5 16 19.5 12" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round" opacity="0.55" />
                     </svg>
                 </div>
                 <div class="min-w-0 leading-tight">
                     <div class="flex items-center gap-2">
-                        <p id="brand-name" class="truncate text-lg font-extrabold tracking-tight gradient-text sm:text-xl">Aurora</p>
+                        <p id="brand-name" class="truncate text-lg font-semibold tracking-tight text-base-content sm:text-xl">Aurora</p>
                         <span id="online-badge" hidden
-                            class="badge badge-sm gap-1 border border-success/25 bg-success/15 font-semibold text-success">
+                            class="badge badge-sm gap-1 border border-success/25 bg-success/15 font-medium text-success">
                             <span class="online-dot"></span>
                             <span id="online-count" class="tabular-nums">0</span>
                             <span class="hidden sm:inline" data-i18n="online_now">online now</span>
@@ -206,7 +207,7 @@
             <div class="flex shrink-0 items-center gap-1.5 sm:gap-2">
                 <!-- Top support button -->
                 <a id="top-support-btn" hidden target="_blank" rel="noopener"
-                    class="btn btn-sm btn-ghost glass h-9 gap-1.5 rounded-xl px-2.5 font-semibold"
+                    class="btn btn-sm btn-ghost glass h-9 gap-1.5 rounded-[10px] px-2.5 font-medium"
                     data-i18n-title="support" data-i18n-label="support">
                     <i class="ph ph-lifebuoy text-lg"></i>
                     <span class="hidden sm:inline" data-i18n="support">Support</span>
@@ -214,24 +215,24 @@
 
                 <!-- Language switcher popover -->
                 <div id="lang-menu" class="relative">
-                    <button id="lang-toggle" class="btn btn-sm btn-ghost glass h-9 gap-1.5 rounded-xl px-2.5 font-semibold"
+                    <button id="lang-toggle" class="btn btn-sm btn-ghost glass h-9 gap-1.5 rounded-[10px] px-2.5 font-medium"
                         aria-haspopup="true" aria-expanded="false" data-i18n-label="switch_lang">
                         <i class="ph ph-globe text-lg opacity-75"></i>
                         <span id="lang-label">EN</span>
                     </button>
                     <ul id="lang-list" hidden
-                        class="menu glass pop-menu absolute end-0 z-[100] mt-2 w-44 gap-0.5 rounded-2xl p-2 shadow-2xl shadow-black/30">
+                        class="menu glass pop-menu absolute end-0 z-[100] mt-2 w-44 gap-0.5 rounded-xl p-1.5 shadow-lg shadow-black/25">
                     </ul>
                 </div>
 
                 <!-- Theme switcher popover -->
                 <div id="theme-menu" class="relative">
-                    <button id="theme-toggle" class="btn btn-sm btn-ghost glass h-9 w-9 rounded-xl p-0" aria-haspopup="true"
+                    <button id="theme-toggle" class="btn btn-sm btn-ghost glass h-9 w-9 rounded-[10px] p-0" aria-haspopup="true"
                         aria-expanded="false" data-i18n-label="switch_theme">
                         <i class="ph ph-palette text-lg"></i>
                     </button>
                     <ul id="theme-list" hidden
-                        class="menu glass pop-menu absolute end-0 z-[100] mt-2 w-48 gap-0.5 rounded-2xl p-2 shadow-2xl shadow-black/30">
+                        class="menu glass pop-menu absolute end-0 z-[100] mt-2 w-48 gap-0.5 rounded-xl p-1.5 shadow-lg shadow-black/25">
                     </ul>
                 </div>
             </div>
@@ -262,16 +263,16 @@
         </div>
 
         <!-- ========================= SERVICE INFO CARD ========================= -->
-        <section class="reveal card glass hero-card lift mb-5 overflow-hidden rounded-[1.5rem] sm:mb-6">
-            <div class="card-body gap-4 p-4 sm:gap-5 sm:p-7">
+        <section class="reveal card glass hero-card mb-4 overflow-hidden rounded-[20px] sm:mb-5">
+            <div class="card-body gap-4 p-4 sm:gap-5 sm:p-6">
                 <div class="flex items-start justify-between gap-3">
                     <div class="min-w-0">
-                        <p class="text-[10px] font-semibold uppercase tracking-widest text-base-content/50" data-i18n="account">Account</p>
-                        <h1 id="username" class="mt-0.5 truncate text-2xl font-extrabold tracking-tight sm:text-3xl"></h1>
-                        <span id="service-name" hidden class="mt-1 inline-flex max-w-full items-center gap-1.5 truncate rounded-full border border-base-content/10 bg-base-content/[0.06] px-2.5 py-0.5 text-[11px] font-semibold text-base-content/75"></span>
+                        <p class="text-[11px] font-medium text-base-content/50" data-i18n="account">Account</p>
+                        <h1 id="username" class="mt-0.5 truncate text-2xl font-semibold tracking-tight sm:text-[1.75rem]"></h1>
+                        <span id="service-name" hidden class="mt-1.5 inline-flex max-w-full items-center gap-1.5 truncate rounded-lg border border-base-content/10 bg-base-content/[0.05] px-2 py-0.5 text-[11px] font-medium text-base-content/75"></span>
                     </div>
-                    <span id="status-badge" class="badge badge-lg shrink-0 gap-1.5 rounded-full border border-current/20 px-3 py-3 font-semibold">
-                        <span class="h-2 w-2 rounded-full bg-current shadow-[0_0_8px_currentColor]"></span>
+                    <span id="status-badge" class="badge badge-md shrink-0 gap-1.5 rounded-full border border-current/20 px-2.5 py-2.5 text-xs font-medium">
+                        <span class="h-1.5 w-1.5 rounded-full bg-current"></span>
                         <span id="status-badge-text"></span>
                     </span>
                 </div>
@@ -285,8 +286,8 @@
                             <circle id="ring-data-fill" class="ring-fill" cx="50" cy="50" r="44" pathLength="100" />
                         </svg>
                         <div class="ring-label text-center leading-none">
-                            <p id="ring-data-pct" class="text-2xl font-extrabold"></p>
-                            <p class="mt-1 text-[10px] font-medium uppercase tracking-wider text-base-content/55" data-i18n="used">Used</p>
+                            <p id="ring-data-pct" class="text-2xl font-semibold tabular-nums"></p>
+                            <p class="mt-1 text-[11px] font-medium text-base-content/55" data-i18n="used">Used</p>
                         </div>
                     </div>
                     <div id="ring-time" class="ring-wrap ring-wrap-time">
@@ -296,42 +297,42 @@
                             <circle id="ring-time-fill" class="ring-fill" cx="50" cy="50" r="44" pathLength="100" />
                         </svg>
                         <div class="ring-label text-center leading-none">
-                            <p id="ring-time-val" class="text-2xl font-extrabold"></p>
-                            <p id="ring-time-unit" class="mt-1 text-[10px] font-medium uppercase tracking-wider text-base-content/55" data-i18n="days">days</p>
+                            <p id="ring-time-val" class="text-2xl font-semibold tabular-nums"></p>
+                            <p id="ring-time-unit" class="mt-1 text-[11px] font-medium text-base-content/55" data-i18n="days">days</p>
                         </div>
                     </div>
                 </div>
 
                 <!-- Traffic + expiry stats -->
                 <div class="grid grid-cols-2 gap-2.5 sm:grid-cols-4 sm:gap-3">
-                    <div class="sub-tile rounded-2xl p-3 sm:p-3.5">
+                    <div class="sub-tile rounded-xl p-3 sm:p-3.5">
                         <div class="flex items-center justify-between gap-1">
-                            <p class="truncate text-[10.5px] font-medium uppercase tracking-wide text-base-content/55" data-i18n="used">Used</p>
-                            <i class="ph ph-arrow-up-right shrink-0 text-sm text-primary/80"></i>
+                            <p class="truncate text-[11px] font-medium text-base-content/55" data-i18n="used">Used</p>
+                            <i class="ph ph-arrow-up-right shrink-0 text-sm text-base-content/45"></i>
                         </div>
-                        <p class="mt-1.5 text-base font-extrabold sm:text-lg"><span id="stat-used"></span> <span id="stat-used-unit" class="stat-unit"></span></p>
+                        <p class="mt-1.5 text-base font-semibold tabular-nums sm:text-lg"><span id="stat-used"></span> <span id="stat-used-unit" class="stat-unit"></span></p>
                     </div>
-                    <div class="sub-tile rounded-2xl p-3 sm:p-3.5">
+                    <div class="sub-tile rounded-xl p-3 sm:p-3.5">
                         <div class="flex items-center justify-between gap-1">
-                            <p class="truncate text-[10.5px] font-medium uppercase tracking-wide text-base-content/55" data-i18n="total">Total</p>
-                            <i class="ph ph-database shrink-0 text-sm text-secondary/80"></i>
+                            <p class="truncate text-[11px] font-medium text-base-content/55" data-i18n="total">Total</p>
+                            <i class="ph ph-database shrink-0 text-sm text-base-content/45"></i>
                         </div>
-                        <p class="mt-1.5 text-base font-extrabold sm:text-lg"><span id="stat-total"></span> <span id="stat-total-unit" class="stat-unit"></span></p>
+                        <p class="mt-1.5 text-base font-semibold tabular-nums sm:text-lg"><span id="stat-total"></span> <span id="stat-total-unit" class="stat-unit"></span></p>
                     </div>
-                    <div class="sub-tile rounded-2xl p-3 sm:p-3.5">
+                    <div class="sub-tile rounded-xl p-3 sm:p-3.5">
                         <div class="flex items-center justify-between gap-1">
-                            <p class="truncate text-[10.5px] font-medium uppercase tracking-wide text-base-content/55" data-i18n="remaining">Remaining</p>
-                            <i class="ph ph-gauge shrink-0 text-sm text-accent"></i>
+                            <p class="truncate text-[11px] font-medium text-base-content/55" data-i18n="remaining">Remaining</p>
+                            <i class="ph ph-gauge shrink-0 text-sm text-base-content/45"></i>
                         </div>
-                        <p class="mt-1.5 text-base font-extrabold text-accent sm:text-lg"><span id="stat-remaining"></span> <span id="stat-remaining-unit" class="stat-unit"></span></p>
+                        <p class="mt-1.5 text-base font-semibold tabular-nums text-base-content sm:text-lg"><span id="stat-remaining"></span> <span id="stat-remaining-unit" class="stat-unit"></span></p>
                     </div>
-                    <div class="sub-tile rounded-2xl p-3 sm:p-3.5">
+                    <div class="sub-tile rounded-xl p-3 sm:p-3.5">
                         <div class="flex items-center justify-between gap-1">
-                            <p class="truncate text-[10.5px] font-medium uppercase tracking-wide text-base-content/55" data-i18n="expires">Expires</p>
-                            <i class="ph ph-calendar-blank shrink-0 text-sm text-info/80"></i>
+                            <p class="truncate text-[11px] font-medium text-base-content/55" data-i18n="expires">Expires</p>
+                            <i class="ph ph-calendar-blank shrink-0 text-sm text-base-content/45"></i>
                         </div>
-                        <p id="stat-expire" class="mt-1.5 text-base font-extrabold sm:text-lg"></p>
-                        <p id="stat-expire-rel" class="mt-0.5 text-[10.5px] font-medium text-base-content/55"></p>
+                        <p id="stat-expire" class="mt-1.5 text-base font-semibold tabular-nums sm:text-lg"></p>
+                        <p id="stat-expire-rel" class="mt-0.5 text-[11px] font-medium text-base-content/55"></p>
                     </div>
                 </div>
 
@@ -342,75 +343,75 @@
                     </div>
                     <div class="flex justify-between text-[11px] font-medium text-base-content/55">
                         <span id="usage-caption"></span>
-                        <span id="usage-pct" class="font-bold text-base-content/75"></span>
+                        <span id="usage-pct" class="font-semibold tabular-nums text-base-content/80"></span>
                     </div>
                 </div>
 
                 <!-- User details: 2-column compact bento on mobile & desktop -->
-                <div id="user-details" hidden class="grid grid-cols-2 gap-2 sm:gap-3">
-                    <div id="cell-last-online" class="sub-tile flex items-center gap-2 rounded-2xl px-2.5 py-2.5 sm:gap-2.5 sm:px-3.5 sm:py-3">
-                        <span class="grid h-7 w-7 shrink-0 place-items-center rounded-xl bg-success/12 text-success sm:h-8 sm:w-8">
+                <div id="user-details" hidden class="grid grid-cols-2 gap-2 sm:gap-2.5">
+                    <div id="cell-last-online" class="sub-tile flex items-center gap-2.5 rounded-xl px-3 py-2.5 sm:px-3.5 sm:py-3">
+                        <span class="grid h-7 w-7 shrink-0 place-items-center rounded-lg bg-base-content/[0.06] text-base-content/60 sm:h-8 sm:w-8">
                             <i class="ph ph-pulse text-sm sm:text-base"></i>
                         </span>
                         <div class="min-w-0 flex-1">
-                            <p class="truncate text-[10px] uppercase tracking-wide text-base-content/55 sm:text-[11px]" data-i18n="last_online">Last online</p>
-                            <p id="last-online" class="truncate text-xs font-bold sm:text-sm"></p>
+                            <p class="truncate text-[11px] font-medium text-base-content/55" data-i18n="last_online">Last online</p>
+                            <p id="last-online" class="truncate text-xs font-semibold tabular-nums sm:text-sm"></p>
                         </div>
                     </div>
-                    <div id="cell-member-since" class="sub-tile flex items-center gap-2 rounded-2xl px-2.5 py-2.5 sm:gap-2.5 sm:px-3.5 sm:py-3">
-                        <span class="grid h-7 w-7 shrink-0 place-items-center rounded-xl bg-secondary/12 text-secondary sm:h-8 sm:w-8">
+                    <div id="cell-member-since" class="sub-tile flex items-center gap-2.5 rounded-xl px-3 py-2.5 sm:px-3.5 sm:py-3">
+                        <span class="grid h-7 w-7 shrink-0 place-items-center rounded-lg bg-base-content/[0.06] text-base-content/60 sm:h-8 sm:w-8">
                             <i class="ph ph-calendar-blank text-sm sm:text-base"></i>
                         </span>
                         <div class="min-w-0 flex-1">
-                            <p class="truncate text-[10px] uppercase tracking-wide text-base-content/55 sm:text-[11px]" data-i18n="member_since">Member since</p>
-                            <p id="member-since" class="truncate text-xs font-bold sm:text-sm"></p>
+                            <p class="truncate text-[11px] font-medium text-base-content/55" data-i18n="member_since">Member since</p>
+                            <p id="member-since" class="truncate text-xs font-semibold tabular-nums sm:text-sm"></p>
                         </div>
                     </div>
-                    <div id="cell-device-limit" hidden class="sub-tile flex items-center gap-2 rounded-2xl px-2.5 py-2.5 sm:gap-2.5 sm:px-3.5 sm:py-3">
-                        <span class="grid h-7 w-7 shrink-0 place-items-center rounded-xl bg-primary/12 text-primary sm:h-8 sm:w-8">
+                    <div id="cell-device-limit" hidden class="sub-tile flex items-center gap-2.5 rounded-xl px-3 py-2.5 sm:px-3.5 sm:py-3">
+                        <span class="grid h-7 w-7 shrink-0 place-items-center rounded-lg bg-base-content/[0.06] text-base-content/60 sm:h-8 sm:w-8">
                             <i class="ph ph-devices text-sm sm:text-base"></i>
                         </span>
                         <div class="min-w-0 flex-1">
-                            <p class="truncate text-[10px] uppercase tracking-wide text-base-content/55 sm:text-[11px]" data-i18n="device_limit">Device limit</p>
-                            <p id="device-limit-val" class="truncate text-xs font-bold sm:text-sm"></p>
+                            <p class="truncate text-[11px] font-medium text-base-content/55" data-i18n="device_limit">Device limit</p>
+                            <p id="device-limit-val" class="truncate text-xs font-semibold tabular-nums sm:text-sm"></p>
                         </div>
                     </div>
-                    <div id="cell-lifetime-used" hidden class="sub-tile flex items-center gap-2 rounded-2xl px-2.5 py-2.5 sm:gap-2.5 sm:px-3.5 sm:py-3">
-                        <span class="grid h-7 w-7 shrink-0 place-items-center rounded-xl bg-accent/12 text-accent sm:h-8 sm:w-8">
+                    <div id="cell-lifetime-used" hidden class="sub-tile flex items-center gap-2.5 rounded-xl px-3 py-2.5 sm:px-3.5 sm:py-3">
+                        <span class="grid h-7 w-7 shrink-0 place-items-center rounded-lg bg-base-content/[0.06] text-base-content/60 sm:h-8 sm:w-8">
                             <i class="ph ph-clock-counter-clockwise text-sm sm:text-base"></i>
                         </span>
                         <div class="min-w-0 flex-1">
-                            <p class="truncate text-[10px] uppercase tracking-wide text-base-content/55 sm:text-[11px]" data-i18n="lifetime_used">Lifetime used</p>
-                            <p id="lifetime-used-val" class="truncate text-xs font-bold sm:text-sm"></p>
+                            <p class="truncate text-[11px] font-medium text-base-content/55" data-i18n="lifetime_used">Lifetime used</p>
+                            <p id="lifetime-used-val" class="truncate text-xs font-semibold tabular-nums sm:text-sm"></p>
                         </div>
                     </div>
                 </div>
 
                 <!-- Quota reset strategy + live countdown -->
                 <div id="reset-row" hidden
-                    class="sub-tile flex flex-wrap items-center justify-between gap-2 rounded-2xl px-3 py-2.5 sm:px-3.5">
+                    class="sub-tile flex flex-wrap items-center justify-between gap-2 rounded-xl px-3 py-2.5 sm:px-3.5">
                     <span class="flex items-center gap-2 text-xs font-semibold sm:text-sm">
-                        <span class="grid h-7 w-7 shrink-0 place-items-center rounded-xl bg-accent/12 text-accent">
+                        <span class="grid h-7 w-7 shrink-0 place-items-center rounded-lg bg-base-content/[0.06] text-base-content/60">
                             <i class="ph ph-arrows-clockwise text-sm sm:text-base"></i>
                         </span>
                         <span data-i18n="reset">Quota reset</span>
-                        <span id="reset-label" class="badge badge-sm badge-accent badge-soft font-semibold"></span>
+                        <span id="reset-label" class="badge badge-sm badge-accent badge-soft font-medium"></span>
                     </span>
                     <span class="flex items-center gap-1.5 text-[11px] text-base-content/55">
                         <span data-i18n="resets_in">next in</span>
-                        <span id="reset-countdown" class="rounded-lg bg-base-content/[0.06] px-2 py-0.5 font-bold tabular-nums text-base-content/85"></span>
+                        <span id="reset-countdown" class="rounded-md bg-base-content/[0.06] px-2 py-0.5 font-semibold tabular-nums text-base-content/85"></span>
                     </span>
                 </div>
 
                 <!-- Reserved / Next plan row -->
                 <div id="next-plan-row" hidden
-                    class="sub-tile flex flex-wrap items-center justify-between gap-2 rounded-2xl px-3 py-2.5 sm:px-3.5">
+                    class="sub-tile flex flex-wrap items-center justify-between gap-2 rounded-xl px-3 py-2.5 sm:px-3.5">
                     <span class="flex items-center gap-2 text-xs font-semibold sm:text-sm">
-                        <span class="grid h-7 w-7 shrink-0 place-items-center rounded-xl bg-success/12 text-success">
+                        <span class="grid h-7 w-7 shrink-0 place-items-center rounded-lg bg-base-content/[0.06] text-base-content/60">
                             <i class="ph ph-stack text-sm sm:text-base"></i>
                         </span>
                         <span data-i18n="next_plan">Reserved plan</span>
-                        <span id="next-plan-label" class="badge badge-sm badge-success badge-soft font-semibold"></span>
+                        <span id="next-plan-label" class="badge badge-sm badge-success badge-soft font-medium"></span>
                     </span>
                     <span class="text-[11px] font-medium text-base-content/60" data-i18n="next_plan_ready">Activates automatically</span>
                 </div>
@@ -419,11 +420,11 @@
 
         <!-- ========================= USAGE DASHBOARD ========================= -->
         <div id="usage-sentinel" aria-hidden="true" class="h-px"></div>
-        <section id="usage-card" hidden class="reveal card glass mb-5 overflow-hidden rounded-[1.5rem] sm:mb-6">
+        <section id="usage-card" hidden class="reveal card glass mb-4 overflow-hidden rounded-[20px] sm:mb-5">
             <button id="usage-head" class="flex w-full items-center justify-between gap-2 p-4 sm:px-5"
                 data-collapse="usage-body" aria-expanded="true" aria-controls="usage-body">
-                <span class="flex min-w-0 items-center gap-2 text-base font-bold sm:text-lg">
-                    <i class="ph ph-chart-bar shrink-0 text-xl text-accent"></i>
+                <span class="flex min-w-0 items-center gap-2 text-base font-semibold sm:text-[17px]">
+                    <i class="ph ph-chart-bar shrink-0 text-lg text-base-content/65"></i>
                     <span data-i18n="usage_history">Usage history</span>
                     <span id="usage-period" class="truncate text-xs font-normal text-base-content/50"></span>
                 </span>
@@ -442,14 +443,14 @@
                             </div>
                         </div>
                         <div id="usage-chart" class="usage-chart" role="img">
-                            <div class="aurora-skeleton" style="height:6rem"></div>
+                            <div class="aurora-skeleton" style="height:7rem"></div>
                         </div>
-                        <div id="usage-summary" hidden class="sub-tile grid grid-cols-3 gap-2 rounded-2xl p-2.5 text-center sm:p-3"></div>
+                        <div id="usage-summary" hidden class="sub-tile grid grid-cols-3 gap-2 rounded-xl p-2.5 text-center sm:p-3"></div>
                         <p id="usage-forecast" hidden class="flex items-center gap-2 text-[12px] text-base-content/65">
-                            <i class="ph ph-hourglass-medium shrink-0 text-base text-accent"></i>
+                            <i class="ph ph-hourglass-medium shrink-0 text-base text-base-content/55"></i>
                             <span id="usage-forecast-text"></span>
                         </p>
-                        <div id="usage-alert" hidden class="rounded-xl px-3 py-2 text-[12px] font-semibold"></div>
+                        <div id="usage-alert" hidden class="rounded-xl px-3 py-2 text-[12px] font-medium"></div>
                         <div id="usage-nodes" hidden class="space-y-2"></div>
                         <p id="usage-updated" hidden class="text-end text-[10px] text-base-content/45"></p>
                     </div>
@@ -458,13 +459,13 @@
         </section>
 
         <!-- ============================ CONFIGS ============================ -->
-        <section class="reveal card glass mb-5 overflow-hidden rounded-[1.5rem] sm:mb-6">
+        <section class="reveal card glass mb-4 overflow-hidden rounded-[20px] sm:mb-5">
             <button class="flex w-full items-center justify-between gap-2 p-4 sm:px-5"
                 data-collapse="configs-body" aria-expanded="true" aria-controls="configs-body">
-                <span class="flex items-center gap-2 text-base font-bold sm:text-lg">
-                    <i class="ph ph-list-bullets shrink-0 text-xl text-primary"></i>
+                <span class="flex items-center gap-2 text-base font-semibold sm:text-[17px]">
+                    <i class="ph ph-list-bullets shrink-0 text-lg text-base-content/65"></i>
                     <span data-i18n="configs">Configurations</span>
-                    <span id="configs-count" class="badge badge-sm badge-primary badge-soft font-bold tabular-nums">0</span>
+                    <span id="configs-count" class="rounded-md bg-base-content/[0.06] px-1.5 py-0.5 font-mono text-[11px] font-medium tabular-nums text-base-content/60">0</span>
                 </span>
                 <i class="ph ph-caret-down chev text-xl text-base-content/50"></i>
             </button>
@@ -474,45 +475,45 @@
                     <div class="px-4 pb-4 sm:px-5 sm:pb-5">
                         <!-- Bulk actions: single balanced row even on compact 360px phones -->
                         <div class="mb-3 flex items-center gap-1.5 sm:gap-2">
-                            <button id="copy-sub" class="btn btn-aurora-cta lift h-10 min-w-0 flex-1 gap-1 whitespace-nowrap rounded-2xl px-2 text-xs font-bold sm:h-11 sm:gap-1.5 sm:px-3.5 sm:text-sm">
+                            <button id="copy-sub" class="btn btn-aurora-cta h-10 min-w-0 flex-1 gap-1.5 whitespace-nowrap rounded-xl px-2.5 text-xs font-semibold sm:h-11 sm:px-3.5 sm:text-sm">
                                 <i class="ph ph-link-simple shrink-0 text-base sm:text-lg"></i>
                                 <span class="truncate" data-i18n-dyn="copy_sub">Copy sub</span>
                             </button>
-                            <button id="copy-all" class="btn glass lift h-10 min-w-0 flex-1 gap-1 whitespace-nowrap rounded-2xl px-2 text-xs font-semibold sm:h-11 sm:gap-1.5 sm:px-3.5 sm:text-sm">
+                            <button id="copy-all" class="btn glass h-10 min-w-0 flex-1 gap-1.5 whitespace-nowrap rounded-xl px-2.5 text-xs font-medium sm:h-11 sm:px-3.5 sm:text-sm">
                                 <i class="ph ph-copy shrink-0 text-base sm:text-lg"></i>
                                 <span class="truncate" data-i18n-dyn="copy_all">Copy all</span>
                             </button>
-                            <button id="sub-format-btn" class="btn btn-square glass lift h-10 w-10 shrink-0 rounded-2xl sm:h-11 sm:w-11"
+                            <button id="sub-format-btn" class="btn btn-square glass h-10 w-10 shrink-0 rounded-xl sm:h-11 sm:w-11"
                                 data-i18n-label="sub_formats" data-i18n-title="sub_formats">
-                                <i class="ph ph-sliders-horizontal text-lg text-accent sm:text-xl"></i>
+                                <i class="ph ph-sliders-horizontal text-lg text-base-content/75 sm:text-xl"></i>
                             </button>
-                            <button id="sub-qr" class="btn btn-square glass lift h-10 w-10 shrink-0 rounded-2xl sm:h-11 sm:w-11" data-i18n-label="sub_qr">
-                                <i class="ph ph-qr-code text-lg text-primary sm:text-xl"></i>
+                            <button id="sub-qr" class="btn btn-square glass h-10 w-10 shrink-0 rounded-xl sm:h-11 sm:w-11" data-i18n-label="sub_qr">
+                                <i class="ph ph-qr-code text-lg text-base-content/75 sm:text-xl"></i>
                             </button>
                         </div>
 
                         <!-- Search + unified tool capsule -->
                         <div id="configs-toolbar" class="mb-3 flex items-center gap-1.5 sm:gap-2">
-                            <label class="cfg-search sub-tile flex min-w-0 flex-1 items-center gap-2 rounded-2xl px-3">
+                            <label class="cfg-search sub-tile flex min-w-0 flex-1 items-center gap-2 rounded-xl px-3">
                                 <i class="ph ph-magnifying-glass shrink-0 text-base text-base-content/45"></i>
                                 <input id="config-search" type="search" autocomplete="off" spellcheck="false"
                                     class="h-10 w-full min-w-0 bg-transparent text-xs outline-none placeholder:text-base-content/40 sm:text-sm"
                                     data-i18n-ph="search_configs" data-i18n-label="search_configs" />
                             </label>
-                            <div class="sub-tile inline-flex shrink-0 items-center gap-0.5 rounded-2xl p-1">
-                                <button id="config-group" class="btn btn-ghost btn-square h-8 w-8 rounded-xl"
+                            <div class="sub-tile inline-flex shrink-0 items-center gap-0.5 rounded-xl p-1">
+                                <button id="config-group" class="btn btn-ghost btn-square h-8 w-8 rounded-lg"
                                     aria-pressed="false" data-i18n-label="group_by_country" data-i18n-title="group_by_country">
                                     <i class="ph ph-flag text-base sm:text-lg"></i>
                                 </button>
-                                <button id="config-select" class="btn btn-ghost btn-square h-8 w-8 rounded-xl"
+                                <button id="config-select" class="btn btn-ghost btn-square h-8 w-8 rounded-lg"
                                     aria-pressed="false" data-i18n-label="select_configs" data-i18n-title="select_configs">
                                     <i class="ph ph-checks text-base sm:text-lg"></i>
                                 </button>
-                                <button id="config-export" class="btn btn-ghost btn-square h-8 w-8 rounded-xl"
+                                <button id="config-export" class="btn btn-ghost btn-square h-8 w-8 rounded-lg"
                                     data-i18n-label="export_configs" data-i18n-title="export_configs">
                                     <i class="ph ph-download-simple text-base sm:text-lg"></i>
                                 </button>
-                                <button id="config-export-json" class="btn btn-ghost btn-square h-8 w-8 rounded-xl"
+                                <button id="config-export-json" class="btn btn-ghost btn-square h-8 w-8 rounded-lg"
                                     data-i18n-label="export_json" data-i18n-title="export_json">
                                     <i class="ph ph-brackets-curly text-base sm:text-lg"></i>
                                 </button>
@@ -524,12 +525,12 @@
                             role="tablist" aria-label="Filter by protocol"></div>
 
                         <!-- Bulk-selection bar -->
-                        <div id="selection-bar" hidden class="mb-3 flex items-center justify-between gap-2 rounded-2xl border border-primary/25 bg-primary/10 px-3.5 py-2">
+                        <div id="selection-bar" hidden class="mb-3 flex items-center justify-between gap-2 rounded-xl border border-primary/25 bg-primary/10 px-3.5 py-2">
                             <span class="text-sm font-medium">
-                                <span id="selection-count" class="font-bold tabular-nums text-primary">0</span>
+                                <span id="selection-count" class="font-semibold tabular-nums text-primary">0</span>
                                 <span data-i18n-dyn="selected">selected</span>
                             </span>
-                            <button id="copy-selected" class="btn btn-sm btn-primary gap-1.5 rounded-xl font-semibold">
+                            <button id="copy-selected" class="btn btn-sm btn-primary gap-1.5 rounded-lg font-medium">
                                 <i class="ph ph-copy text-base"></i>
                                 <span data-i18n-dyn="copy_selected">Copy selected</span>
                             </button>
@@ -544,11 +545,11 @@
 
         <!-- ========================= OPENVPN & VPN FILES ========================= -->
         <div id="vpn-sentinel" aria-hidden="true" class="h-px"></div>
-        <section id="vpn-card" hidden class="reveal card glass mb-5 overflow-hidden rounded-[1.5rem] sm:mb-6">
+        <section id="vpn-card" hidden class="reveal card glass mb-4 overflow-hidden rounded-[20px] sm:mb-5">
             <button class="flex w-full items-center justify-between gap-2 p-4 sm:px-5"
                 data-collapse="vpn-body" aria-expanded="true" aria-controls="vpn-body">
-                <span class="flex items-center gap-2 text-base font-bold sm:text-lg">
-                    <i class="ph ph-shield-check shrink-0 text-xl text-accent"></i>
+                <span class="flex items-center gap-2 text-base font-semibold sm:text-[17px]">
+                    <i class="ph ph-shield-check shrink-0 text-lg text-base-content/65"></i>
                     <span data-i18n="vpn_access">VPN Files</span>
                 </span>
                 <i class="ph ph-caret-down chev text-xl text-base-content/50"></i>
@@ -558,7 +559,7 @@
                 <div class="collapsey-inner">
                     <div class="px-4 pb-4 sm:px-5 sm:pb-5">
                         <!-- Protocol tabs (built at runtime) -->
-                        <div id="vpn-tabs" hidden class="no-scrollbar mb-3 flex gap-1.5 overflow-x-auto"
+                        <div id="vpn-tabs" hidden class="no-scrollbar mb-3 flex gap-1.5 overflow-x-auto sm:flex-wrap"
                             role="tablist" aria-label="VPN protocol"></div>
                         <div id="vpn-list" class="space-y-2.5">
                             <div class="aurora-skeleton" style="height:3rem"></div>
@@ -571,11 +572,11 @@
         </section>
 
         <!-- ============================== APPS ============================== -->
-        <section id="apps-card" hidden class="reveal card glass mb-5 overflow-hidden rounded-[1.5rem] sm:mb-6">
+        <section id="apps-card" hidden class="reveal card glass mb-4 overflow-hidden rounded-[20px] sm:mb-5">
             <button class="flex w-full items-center justify-between gap-2 p-4 sm:px-5"
                 data-collapse="apps-body" aria-expanded="true" aria-controls="apps-body">
-                <span class="flex items-center gap-2 text-base font-bold sm:text-lg">
-                    <i class="ph ph-squares-four shrink-0 text-xl text-secondary"></i>
+                <span class="flex items-center gap-2 text-base font-semibold sm:text-[17px]">
+                    <i class="ph ph-squares-four shrink-0 text-lg text-base-content/65"></i>
                     <span data-i18n="apps">Recommended apps</span>
                 </span>
                 <i class="ph ph-caret-down chev text-xl text-base-content/50"></i>
@@ -584,7 +585,7 @@
             <div id="apps-body" class="collapsey open">
                 <div class="collapsey-inner">
                     <div class="px-4 pb-4 sm:px-5 sm:pb-5">
-                        <div id="os-tabs" role="tablist" class="sub-tile tabs tabs-box no-scrollbar mb-3.5 flex-nowrap overflow-x-auto rounded-2xl p-1"></div>
+                        <div id="os-tabs" role="tablist" class="sub-tile tabs tabs-box no-scrollbar mb-3.5 flex-nowrap overflow-x-auto rounded-xl p-1"></div>
                         <div id="apps-list" class="aurora-scroll grid max-h-[20rem] grid-cols-1 gap-2.5 overflow-y-auto pe-1 sm:max-h-none sm:grid-cols-2 sm:overflow-visible sm:pe-0"></div>
                     </div>
                 </div>
@@ -592,15 +593,15 @@
         </section>
 
         <!-- ============================= FOOTER ============================= -->
-        <footer class="reveal mt-6 flex flex-wrap items-center justify-center gap-2.5 text-center sm:mt-8">
+        <footer class="reveal mt-6 flex flex-wrap items-center justify-center gap-2.5 text-center sm:mt-7">
             <a id="usage-link" hidden target="_blank" rel="noopener"
-                class="btn btn-ghost btn-sm glass h-9 gap-2 rounded-2xl px-3.5"
+                class="btn btn-ghost btn-sm glass h-9 gap-2 rounded-[10px] px-3.5 font-medium"
                 data-i18n-label="usage_api">
                 <i class="ph ph-chart-line-up text-base"></i>
                 <span data-i18n="usage_api">Usage data</span>
             </a>
             <a id="support-link" hidden target="_blank" rel="noopener"
-                class="btn btn-ghost btn-sm glass h-9 gap-2 rounded-2xl px-3.5">
+                class="btn btn-ghost btn-sm glass h-9 gap-2 rounded-[10px] px-3.5 font-medium">
                 <i class="ph ph-lifebuoy text-base"></i>
                 <span data-i18n="support">Get support</span>
             </a>
@@ -608,17 +609,17 @@
 
         <!-- ============================ QR MODAL ============================ -->
         <dialog id="qr-modal" class="modal modal-bottom sm:modal-middle">
-            <div class="modal-box glass max-w-sm rounded-[1.5rem] text-center">
-                <h3 id="qr-title" class="mb-1 text-lg font-bold"></h3>
+            <div class="modal-box glass max-w-sm rounded-[20px] text-center">
+                <h3 id="qr-title" class="mb-1 text-lg font-semibold"></h3>
                 <p id="qr-text" dir="ltr" class="mb-4 truncate font-mono text-[11px] text-base-content/45"></p>
                 <div class="mx-auto grid aspect-square w-full max-w-[260px] place-items-center rounded-2xl bg-white p-4 shadow-inner">
                     <div id="qr-box" class="qr-box h-full w-full"></div>
                 </div>
                 <div class="modal-action mt-5 justify-center gap-2">
-                    <button id="qr-copy" class="btn btn-primary btn-aurora-cta flex-1 rounded-2xl font-semibold">
+                    <button id="qr-copy" class="btn btn-primary btn-aurora-cta flex-1 rounded-xl font-semibold">
                         <span data-i18n-dyn="copy">Copy</span>
                     </button>
-                    <button id="qr-close" class="btn btn-ghost glass flex-1 rounded-2xl" data-i18n="close">Close</button>
+                    <button id="qr-close" class="btn btn-ghost glass flex-1 rounded-xl font-medium" data-i18n="close">Close</button>
                 </div>
             </div>
             <form method="dialog" class="modal-backdrop"><button>close</button></form>
@@ -626,9 +627,9 @@
 
         <!-- ======================= SUB FORMATS MODAL ======================= -->
         <dialog id="fmt-modal" class="modal modal-bottom sm:modal-middle">
-            <div class="modal-box glass max-w-sm rounded-[1.5rem]">
+            <div class="modal-box glass max-w-sm rounded-[20px]">
                 <div class="mb-3 flex items-center justify-between gap-2">
-                    <h3 class="text-lg font-bold" data-i18n="sub_formats">Subscription format</h3>
+                    <h3 class="text-lg font-semibold" data-i18n="sub_formats">Subscription format</h3>
                     <button id="fmt-modal-close" class="btn btn-circle btn-ghost btn-sm" data-i18n-label="close">
                         <i class="ph ph-x text-base"></i>
                     </button>
@@ -640,28 +641,28 @@
 
         <!-- ======================== CONFIG DETAILS MODAL ======================== -->
         <dialog id="cfg-modal" class="modal modal-bottom sm:modal-middle">
-            <div class="modal-box glass max-w-md rounded-[1.5rem]">
+            <div class="modal-box glass max-w-md rounded-[20px]">
                 <div class="mb-3 flex items-center justify-between gap-2">
                     <div class="min-w-0">
-                        <p class="text-[10px] font-semibold uppercase tracking-wider text-base-content/50" data-i18n="cfg_details">Connection details</p>
-                        <h3 id="cfg-modal-title" class="truncate text-lg font-bold" dir="auto"></h3>
+                        <p class="text-[11px] font-medium text-base-content/50" data-i18n="cfg_details">Connection details</p>
+                        <h3 id="cfg-modal-title" class="truncate text-lg font-semibold" dir="auto"></h3>
                     </div>
                     <div class="flex shrink-0 items-center gap-1.5">
                         <button id="cfg-modal-pin" class="btn btn-circle btn-ghost btn-sm glass shrink-0" data-i18n-label="pin">
                             <i class="ph ph-push-pin text-lg"></i>
                         </button>
                         <button id="cfg-modal-qr" class="btn btn-circle btn-ghost btn-sm glass shrink-0" data-i18n-label="qrcode">
-                            <i class="ph ph-qr-code text-lg text-primary"></i>
+                            <i class="ph ph-qr-code text-lg text-base-content/75"></i>
                         </button>
                     </div>
                 </div>
                 <div id="cfg-modal-fields" class="grid grid-cols-2 gap-2"></div>
                 <div class="modal-action mt-4 justify-center gap-2">
-                    <button id="cfg-modal-copy" class="btn btn-primary btn-aurora-cta flex-1 gap-1.5 rounded-2xl font-semibold">
+                    <button id="cfg-modal-copy" class="btn btn-primary btn-aurora-cta flex-1 gap-1.5 rounded-xl font-semibold">
                         <i class="ph ph-copy text-base"></i>
                         <span data-i18n-dyn="copy_link">Copy link</span>
                     </button>
-                    <button id="cfg-modal-close" class="btn btn-ghost glass flex-1 rounded-2xl" data-i18n="close">Close</button>
+                    <button id="cfg-modal-close" class="btn btn-ghost glass flex-1 rounded-xl font-medium" data-i18n="close">Close</button>
                 </div>
             </div>
             <form method="dialog" class="modal-backdrop"><button>close</button></form>
@@ -669,7 +670,7 @@
 
         <!-- ============================== TOAST ============================== -->
         <div id="toast" hidden role="status" aria-live="polite"
-            class="toast-pill glass fixed bottom-5 left-1/2 z-[300] rounded-2xl px-4 py-2.5 text-sm font-semibold shadow-2xl shadow-black/30"></div>
+            class="toast-pill glass fixed bottom-5 left-1/2 z-[300] rounded-xl px-4 py-2.5 text-sm font-medium shadow-lg shadow-black/25"></div>
     </main>
 
     <!-- Aurora application logic is inlined here at build time. -->

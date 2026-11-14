@@ -42,24 +42,24 @@ const PROTO_BADGES = {
 };
 
 const PROTO_TONES = {
-    VLESS: "from-primary/25 to-secondary/15 text-primary border-primary/25",
-    VMESS: "from-primary/20 to-info/15 text-primary border-primary/20",
-    TROJAN: "from-secondary/25 to-primary/15 text-secondary border-secondary/25",
-    HYSTERIA2: "from-accent/25 to-primary/15 text-accent border-accent/25",
-    HY2: "from-accent/25 to-primary/15 text-accent border-accent/25",
-    HYSTERIA: "from-accent/25 to-primary/15 text-accent border-accent/25",
-    TUIC: "from-accent/25 to-secondary/15 text-accent border-accent/25",
-    WIREGUARD: "from-success/25 to-accent/15 text-success border-success/25",
-    AMNEZIAWG: "from-success/25 to-primary/15 text-success border-success/25",
-    AWG: "from-success/25 to-primary/15 text-success border-success/25",
-    SS: "from-warning/20 to-secondary/15 text-warning border-warning/25",
-    SSR: "from-warning/20 to-secondary/15 text-warning border-warning/25",
-    SSH: "from-warning/20 to-primary/15 text-warning border-warning/25",
-    TG: "from-info/25 to-primary/15 text-info border-info/25",
-    MTPROTO: "from-info/25 to-primary/15 text-info border-info/25",
+    VLESS: "bg-primary/10 text-primary border-primary/20",
+    VMESS: "bg-primary/10 text-primary border-primary/20",
+    TROJAN: "bg-secondary/10 text-secondary border-secondary/20",
+    HYSTERIA2: "bg-accent/10 text-accent border-accent/20",
+    HY2: "bg-accent/10 text-accent border-accent/20",
+    HYSTERIA: "bg-accent/10 text-accent border-accent/20",
+    TUIC: "bg-accent/10 text-accent border-accent/20",
+    WIREGUARD: "bg-success/10 text-success border-success/20",
+    AMNEZIAWG: "bg-success/10 text-success border-success/20",
+    AWG: "bg-success/10 text-success border-success/20",
+    SS: "bg-warning/10 text-warning border-warning/20",
+    SSR: "bg-warning/10 text-warning border-warning/20",
+    SSH: "bg-warning/10 text-warning border-warning/20",
+    TG: "bg-info/10 text-info border-info/20",
+    MTPROTO: "bg-info/10 text-info border-info/20",
 };
 
-const protoTone = (proto) => PROTO_TONES[proto] || "from-primary/20 to-secondary/20 text-primary border-primary/20";
+const protoTone = (proto) => PROTO_TONES[proto] || "bg-base-content/[0.06] text-base-content/75 border-base-content/12";
 
 /** Short badge for the tile ("VL", "TR", …). */
 export function protocolBadge(uri) {
@@ -265,7 +265,7 @@ export function mountConfigs(deps) {
             `<div class="sub-tile flex items-center gap-2 rounded-xl px-3 py-2${full ? " col-span-2" : ""}">` +
             `<i class="ph ${icon} shrink-0 text-base text-base-content/45"></i>` +
             `<div class="min-w-0 flex-1">` +
-            `<p class="text-[10px] uppercase tracking-wide text-base-content/50">${escapeHtml(label)}</p>` +
+            `<p class="text-[11px] font-medium text-base-content/55">${escapeHtml(label)}</p>` +
             `<p class="truncate font-mono text-[12px]" dir="ltr">${escapeHtml(val)}</p>` +
             `</div>` +
             `<button class="btn btn-circle btn-ghost btn-xs" data-cfg-copy="${escapeAttr(val)}" aria-label="${escapeAttr(t("copy"))}">` +
@@ -346,7 +346,7 @@ export function mountConfigs(deps) {
     function buildRow(r) {
         const el = document.createElement("div");
         const pinActive = isPinned(r);
-        el.className = "group card glass lift cfg-row cursor-pointer rounded-2xl" + (pinActive ? " cfg-row-pinned" : "");
+        el.className = "group card glass row-hover cfg-row cursor-pointer rounded-xl" + (pinActive ? " cfg-row-pinned" : "");
         el.tabIndex = 0;
         el.dataset.link = r.link;
         const canShare = typeof navigator.share === "function";
@@ -354,17 +354,17 @@ export function mountConfigs(deps) {
             /^(?:wireguard|amneziawg|awg):\/\//i.test(r.link) || /\.conf(?:[?#]|$)/i.test(r.link);
         const subline = (r.meta && r.meta.summary) || r.link;
         el.innerHTML =
-            `<div class="flex items-center gap-2.5 p-3 sm:gap-3">` +
+            `<div class="flex items-center gap-2.5 p-2.5 sm:gap-3 sm:p-3">` +
             `<label class="cfg-check${selecting ? "" : " hidden"}">` +
             `<input type="checkbox" class="checkbox checkbox-sm checkbox-primary" ` +
             `aria-label="${escapeAttr(t("select_configs"))}"${selected.has(r.link) ? " checked" : ""} /></label>` +
-            `<div class="grid h-9 w-9 shrink-0 place-items-center rounded-xl border bg-gradient-to-br text-[11px] font-bold ${protoTone(r.proto)}">${escapeHtml(r.badge)}</div>` +
-            `<div class="min-w-0 flex-1">` +
-            `<p class="flex items-center gap-1.5 text-sm font-semibold" dir="auto">` +
-            `<span class="truncate">${escapeHtml(r.name)}</span>` +
-            (pinActive ? `<span class="inline-flex shrink-0 items-center rounded-full bg-primary/15 px-1.5 py-0.5 text-[10px] text-primary" aria-hidden="true"><i class="ph ph-push-pin"></i></span>` : "") +
+            `<div class="grid h-9 w-9 shrink-0 place-items-center rounded-lg border text-[11px] font-semibold ${protoTone(r.proto)}">${escapeHtml(r.badge)}</div>` +
+            `<div class="min-w-0 flex-1 text-start">` +
+            `<p class="flex items-center gap-1.5 text-sm font-medium">` +
+            `<span class="truncate" dir="auto">${escapeHtml(r.name)}</span>` +
+            (pinActive ? `<i class="ph ph-push-pin shrink-0 text-xs text-primary/80" aria-hidden="true"></i>` : "") +
             `</p>` +
-            `<p class="truncate text-start font-mono text-[11px] text-base-content/50" dir="ltr">${escapeHtml(subline)}</p>` +
+            `<p class="truncate text-start font-mono text-[11px] text-base-content/50"><span class="inline-block max-w-full truncate align-bottom" dir="ltr">${escapeHtml(subline)}</span></p>` +
             `</div>` +
             `<div class="cfg-actions">` +
             `<button class="cfg-action cfg-action-pin${pinActive ? " text-primary opacity-100" : ""}" data-act="pin" ` +
@@ -482,10 +482,10 @@ export function mountConfigs(deps) {
                 .sort((a, b) => (a.other !== b.other ? (a.other ? 1 : -1) : b.items.length - a.items.length))
                 .forEach((g) => {
                     const head = document.createElement("div");
-                    head.className = "flex items-center gap-2 px-1 pt-1 text-[12px] font-semibold text-base-content/60";
+                    head.className = "flex items-center gap-2 px-1 pt-1 text-xs font-medium text-base-content/60";
                     head.innerHTML =
                         `<span>${escapeHtml(g.flag)}</span><span dir="auto">${escapeHtml(g.name)}</span>` +
-                        `<span class="badge badge-xs badge-ghost">${locNum(g.items.length, lang())}</span>`;
+                        `<span class="font-mono text-[11px] tabular-nums text-base-content/45">${locNum(g.items.length, lang())}</span>`;
                     frag.appendChild(head);
                     g.items.forEach((r) => frag.appendChild(buildRow(r)));
                 });

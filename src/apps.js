@@ -67,10 +67,10 @@ export function mountApps(deps) {
 
     function renderTabs() {
         tabsEl.innerHTML = osList.map((os) =>
-            `<button role="tab" class="tab shrink-0 gap-1 rounded-xl px-2.5 text-xs font-semibold transition sm:gap-1.5 sm:px-3.5 sm:text-[13px]` +
-            `${os === activeOs ? " tab-active border border-primary/30 bg-primary/15 text-primary shadow-sm" : ""}" ` +
+            `<button role="tab" class="tab shrink-0 gap-1 rounded-lg px-2.5 text-xs font-medium transition-colors sm:gap-1.5 sm:px-3 sm:text-[13px]` +
+            `${os === activeOs ? " tab-active border border-primary/25 bg-primary/14 text-primary" : ""}" ` +
             `aria-selected="${os === activeOs}" data-os="${escapeAttr(os)}">` +
-            `<i class="ph ${OS_ICONS[os] || "ph-device-mobile"} text-base sm:text-lg"></i>` +
+            `<i class="ph ${OS_ICONS[os] || "ph-device-mobile"} text-base"></i>` +
             `<span>${escapeHtml(os)}</span></button>`
         ).join("");
         $$("[data-os]", tabsEl).forEach((btn) => {
@@ -83,16 +83,15 @@ export function mountApps(deps) {
     }
 
     function appTile(app) {
-        // Bundled entries ship without logos; a gradient letter tile keeps the
-        // list consistent and theme-aware. Remote catalogues may still provide
-        // an image URL, honoured with a lazy <img> that falls back to the tile.
+        // Bundled entries ship without logos; a quiet letter tile keeps the
+        // list consistent with the 36px icon column across Configs and VPN.
         const letter = escapeHtml(String(app.name).trim().charAt(0).toUpperCase() || "?");
-        const tile = `<div class="app-tile grid h-11 w-11 shrink-0 place-items-center rounded-xl ` +
-            `bg-gradient-to-br from-primary/25 to-secondary/25 text-lg font-extrabold text-primary">${letter}</div>`;
+        const tile = `<div class="app-tile grid h-9 w-9 shrink-0 place-items-center rounded-lg border border-base-content/10 ` +
+            `bg-base-content/[0.06] text-sm font-semibold text-base-content/85">${letter}</div>`;
         if (!app.image) return tile;
-        return `<div class="relative h-11 w-11 shrink-0" data-app-tile>` +
+        return `<div class="relative h-9 w-9 shrink-0" data-app-tile>` +
             `<img src="${escapeAttr(app.image)}" alt="" loading="lazy" decoding="async" ` +
-            `class="h-11 w-11 rounded-xl bg-base-100/50 object-contain p-1" />` +
+            `class="h-9 w-9 rounded-lg bg-base-100/50 object-contain p-1" />` +
             `${tile}</div>`;
     }
 
@@ -104,19 +103,19 @@ export function mountApps(deps) {
                 : "";
             const dl = (app.downloadLinks && app.downloadLinks[activeOs]) || app.link || "";
             const subtitle = scheme ? t("tap_to_add") : t("download");
-            return `<div class="card glass lift rounded-2xl">` +
-                `<div class="flex items-center gap-3 p-3">` +
+            return `<div class="card glass row-hover rounded-xl">` +
+                `<div class="flex items-center gap-2.5 p-2.5 sm:gap-3 sm:p-3">` +
                 appTile(app) +
                 `<div class="min-w-0 flex-1">` +
-                `<p class="truncate font-semibold">${escapeHtml(app.name)}</p>` +
+                `<p class="truncate text-sm font-medium">${escapeHtml(app.name)}</p>` +
                 `<p class="text-[11px] text-base-content/50">${escapeHtml(subtitle)}</p>` +
                 `</div>` +
                 `<div class="flex shrink-0 items-center gap-1.5">` +
                 (scheme
-                    ? `<a class="btn btn-primary btn-sm rounded-xl font-semibold" href="${escapeAttr(scheme)}">${escapeHtml(t("add"))}</a>`
+                    ? `<a class="btn btn-primary btn-sm h-8 min-h-0 rounded-lg px-3 text-xs font-medium" href="${escapeAttr(scheme)}">${escapeHtml(t("add"))}</a>`
                     : "") +
                 (dl
-                    ? `<a class="btn btn-ghost btn-sm glass gap-1 rounded-xl font-semibold${scheme ? " w-8 px-0" : ""}" target="_blank" ` +
+                    ? `<a class="btn btn-ghost btn-sm glass h-8 min-h-0 gap-1 rounded-lg text-xs font-medium${scheme ? " w-8 px-0" : " px-2.5"}" target="_blank" ` +
                       `rel="noopener" href="${escapeAttr(dl)}" title="${escapeAttr(t("download"))}" aria-label="${escapeAttr(t("download"))}">` +
                       `<i class="ph ph-download-simple text-base"></i>` +
                       (scheme ? "" : `<span class="hidden sm:inline">${escapeHtml(t("download"))}</span>`) +

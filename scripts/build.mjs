@@ -202,13 +202,14 @@ const fontFace = (family, weight, file) => {
 };
 
 // Inter ships as ONE variable file covering wght 100–900 (~48KB vs ~120KB of
-// static cuts). Arad (farsi) ships the three weights the UI resolves to —
-// 500/600 requests match 400/700 via the browser's nearest-weight rules.
+// static cuts). Arad (farsi) ships the four weights used across the UI so
+// medium (500), semibold (600) and bold (700) headings render faithfully.
 const fontCss = [
     fontFace("Inter", "100 900", "node_modules/@fontsource-variable/inter/files/inter-latin-wght-normal.woff2"),
     fontFace("Arad", 400, "assets/fonts/Arad-Regular.woff2"),
+    fontFace("Arad", 500, "assets/fonts/Arad-Medium.woff2"),
+    fontFace("Arad", 600, "assets/fonts/Arad-SemiBold.woff2"),
     fontFace("Arad", 700, "assets/fonts/Arad-Bold.woff2"),
-    fontFace("Arad", 800, "assets/fonts/Arad-ExtraBold.woff2"),
 ].join("\n");
 
 /* ------------- Phosphor icons → CSS mask data-URIs (used glyphs only) ----- */

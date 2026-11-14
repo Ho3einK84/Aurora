@@ -3,9 +3,13 @@
    grouping / bulk selection, list rendering and keyboard navigation.
    =========================================================================== */
 
-import { b64ToUtf8, escapeHtml, escapeAttr, generateWgConf, downloadTextFile, safeFileName } from "./format.js";
-import { locNum } from "./i18n.js";
+import {
+    b64ToUtf8, escapeHtml, escapeAttr, generateWgConf,
+    downloadTextFile, safeFileName, parseConfigMeta,
+} from "./format.js";
+import { locNum, locCountry } from "./i18n.js";
 import { $, $$, setHidden, copyText, toast, flashCopied } from "./ui.js";
+import { storeGet, storeSet } from "./store.js";
 
 // pongo2 (the panel's template engine) autoescapes {{ link }} even though
 // the surrounding <script type="text/plain"> is raw text the browser never
@@ -143,6 +147,7 @@ export function mountConfigs(deps) {
         name: configLabel(link) || `${t("config")} ${i + 1}`,
         badge: protocolBadge(link),
         proto: protocolOf(link),
+        meta: parseConfigMeta(link),
     }));
 
     let search = "";
@@ -151,9 +156,98 @@ export function mountConfigs(deps) {
     let grouped = false;
     const selected = new Set();
 
+    // Load persisted pinned config keys (matched against remark name or raw URI)
+    const PIN_KEY = `aurora_pinned:${deps.username || ""}`;
+    const pinned = new Set();
+    try {
+        const saved = JSON.parse(storeGet(PIN_KEY) || "[]");
+        if (Array.isArray(saved)) saved.forEach((k) => pinned.add(String(k)));
+    } catch (_) { /* ignore */ }
+
+    const pinIdOf = (r) => r.name || r.link;
+    const isPinned = (r) => pinned.has(pinIdOf(r)) || pinned.has(r.link);
+    const togglePin = (r) => {
+        const key = pinIdOf(r);
+        if (isPinned(r)) {
+            pinned.delete(key);
+            pinned.delete(r.link);
+        } else {
+            pinned.add(key);
+        }
+        storeSet(PIN_KEY, JSON.stringify([...pinned]));
+        renderList();
+    };
+
     const listEl = $("#configs-list");
     const filtersEl = $("#config-filters");
     const selectionBar = $("#selection-bar");
+
+    // Connection Details modal (#cfg-modal)
+    let activeModalRow = null;
+    const cfgModal = $("#cfg-modal");
+    if (cfgModal) {
+        const closeBtn = $("#cfg-modal-close");
+        const copyBtn = $("#cfg-modal-copy");
+        const qrBtn = $("#cfg-modal-qr");
+        if (closeBtn) closeBtn.addEventListener("click", () => cfgModal.close());
+        if (copyBtn) {
+            copyBtn.addEventListener("click", async (e) => {
+                if (!activeModalRow) return;
+                if (await copyText(activeModalRow.link)) flashCopied(e.currentTarget, t);
+            });
+        }
+        if (qrBtn) {
+            qrBtn.addEventListener("click", () => {
+                if (!activeModalRow) return;
+                cfgModal.close();
+                openQr(activeModalRow.name, activeModalRow.link);
+            });
+        }
+    }
+
+    function openCfgModal(r) {
+        if (!cfgModal) return;
+        activeModalRow = r;
+        $("#cfg-modal-title").textContent = r.name;
+        const m = r.meta || {};
+        const fields = [
+            [t("cfg_protocol"), m.protocol, "ph-shield-check", false],
+            [t("cfg_transport"), m.transport, "ph-arrows-left-right", false],
+            [t("cfg_security"), m.security ? (m.flow ? `${m.security} (${m.flow})` : m.security) : "", "ph-lock-key", false],
+            [t("vpn_server"), m.server, "ph-hard-drives", false],
+            [t("vpn_port"), m.port, "ph-plug", false],
+            [t("cfg_sni"), m.sni || m.host, "ph-globe", false],
+            [t("cfg_path"), m.path, "ph-folder-simple", false],
+            [t("cfg_id"), m.id || m.pbk, "ph-key", true],
+            [t("cfg_raw_uri"), r.link, "ph-link-simple", true],
+        ].filter(([, val]) => Boolean(val));
+
+        const fieldsEl = $("#cfg-modal-fields");
+        fieldsEl.innerHTML = fields.map(([label, val, icon, full]) =>
+            `<div class="flex items-center gap-2 rounded-xl bg-base-100/40 px-3 py-2${full ? " sm:col-span-2" : ""}">` +
+            `<i class="ph ${icon} shrink-0 text-base text-base-content/40"></i>` +
+            `<div class="min-w-0 flex-1">` +
+            `<p class="text-[10px] uppercase tracking-wide text-base-content/50">${escapeHtml(label)}</p>` +
+            `<p class="truncate font-mono text-[12px]" dir="ltr">${escapeHtml(val)}</p>` +
+            `</div>` +
+            `<button class="btn btn-circle btn-ghost btn-xs" data-cfg-copy="${escapeAttr(val)}" aria-label="${escapeAttr(t("copy"))}">` +
+            `<i class="ph ph-copy text-base"></i></button>` +
+            `</div>`
+        ).join("");
+
+        $$("[data-cfg-copy]", fieldsEl).forEach((btn) => {
+            btn.addEventListener("click", async () => {
+                const icon = btn.querySelector("i");
+                if (await copyText(btn.getAttribute("data-cfg-copy"))) {
+                    toast(t("copied"));
+                    icon.className = "ph ph-check text-base text-success";
+                    setTimeout(() => { icon.className = "ph ph-copy text-base"; }, 1500);
+                }
+            });
+        });
+
+        if (!cfgModal.open) cfgModal.showModal();
+    }
 
     function normSearch(str) {
         return String(str || "")
@@ -171,7 +265,13 @@ export function mountConfigs(deps) {
             .filter((r) => !q ||
                 normSearch(r.name).includes(q) ||
                 normSearch(r.proto).includes(q) ||
-                normSearch(r.link).includes(q));
+                normSearch(r.meta && r.meta.summary).includes(q) ||
+                normSearch(r.link).includes(q))
+            .sort((a, b) => {
+                const pa = isPinned(a) ? 0 : 1;
+                const pb = isPinned(b) ? 0 : 1;
+                return pa !== pb ? pa - pb : a.i - b.i;
+            });
     };
 
     function renderFilters() {
@@ -207,12 +307,14 @@ export function mountConfigs(deps) {
 
     function buildRow(r) {
         const el = document.createElement("div");
-        el.className = "group card glass lift cfg-row rounded-2xl border-0";
+        const pinActive = isPinned(r);
+        el.className = "group card glass lift cfg-row cursor-pointer rounded-2xl border-0";
         el.tabIndex = 0;
         el.dataset.link = r.link;
         const canShare = typeof navigator.share === "function";
         const isWg = r.proto === "WIREGUARD" || r.proto === "AMNEZIAWG" || r.proto === "AWG" ||
             /^(?:wireguard|amneziawg|awg):\/\//i.test(r.link) || /\.conf(?:[?#]|$)/i.test(r.link);
+        const subline = (r.meta && r.meta.summary) || r.link;
         el.innerHTML =
             `<div class="flex items-center gap-3 p-3">` +
             `<label class="cfg-check${selecting ? "" : " hidden"}">` +
@@ -221,16 +323,12 @@ export function mountConfigs(deps) {
             `<div class="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-gradient-to-br from-primary/20 to-secondary/20 text-xs font-bold text-primary">${escapeHtml(r.badge)}</div>` +
             `<div class="min-w-0 flex-1">` +
             `<p class="truncate text-sm font-semibold" dir="auto">${escapeHtml(r.name)}</p>` +
-            `<p class="truncate text-start font-mono text-[11px] text-base-content/40" dir="ltr">${escapeHtml(r.link)}</p>` +
+            `<p class="truncate text-start font-mono text-[11px] text-base-content/45" dir="ltr">${escapeHtml(subline)}</p>` +
             `</div>` +
-            // Action buttons live in their own inner flex group with a tight
-            // gap so they stop eating the row's `gap-3` width budget. The
-            // visible icon shrinks (smaller "chip"), but each `.cfg-action`
-            // keeps a full ~40px clickable box via a transparent hit-slop
-            // pad — this row is tapped constantly (Copy/QR), so tap accuracy
-            // is not sacrificed for visual compactness. ARIA labels and the
-            // `dir` attrs above are untouched.
             `<div class="cfg-actions">` +
+            `<button class="cfg-action${pinActive ? " text-primary opacity-100" : ""}" data-act="pin" ` +
+            `aria-label="${escapeAttr(t(pinActive ? "unpin" : "pin"))}" title="${escapeAttr(t(pinActive ? "unpin" : "pin"))}">` +
+            `<i class="ph ${pinActive ? "ph-push-pin-slash" : "ph-push-pin"}"></i></button>` +
             (canShare
                 ? `<button class="cfg-action" data-act="share" aria-label="${escapeAttr(t("share"))}">` +
                   `<i class="ph ph-share-network"></i></button>`
@@ -246,6 +344,10 @@ export function mountConfigs(deps) {
             `</div>` +
             `</div>`;
 
+        el.querySelector('[data-act="pin"]').addEventListener("click", (e) => {
+            e.stopPropagation();
+            togglePin(r);
+        });
         el.querySelector('[data-act="copy"]').addEventListener("click", async (e) => {
             e.stopPropagation();
             const btn = e.currentTarget;
@@ -298,11 +400,15 @@ export function mountConfigs(deps) {
             else selected.delete(r.link);
             updateSelectionBar();
         });
-        // In selection mode, tapping anywhere on the row toggles it.
+        // In selection mode, tapping anywhere on the row toggles it; otherwise opens details modal.
         el.addEventListener("click", (e) => {
-            if (!selecting || e.target.closest("button") || e.target.closest("input")) return;
-            cb.checked = !cb.checked;
-            cb.dispatchEvent(new Event("change"));
+            if (e.target.closest("button") || e.target.closest("input") || e.target.closest("label")) return;
+            if (selecting) {
+                cb.checked = !cb.checked;
+                cb.dispatchEvent(new Event("change"));
+            } else {
+                openCfgModal(r);
+            }
         });
         return el;
     }
@@ -319,11 +425,6 @@ export function mountConfigs(deps) {
             listEl.innerHTML = emptyState("no_match");
             return;
         }
-        // Build every row into ONE DocumentFragment and append it in a single
-        // call — one reflow per render instead of N per-row `appendChild`
-        // reflows. The benefit grows with the list size, which matters here
-        // because `renderList()` also fires on every debounced search
-        // keystroke and every filter pill toggle.
         const frag = document.createDocumentFragment();
         if (grouped) {
             const groups = new Map();
@@ -331,7 +432,8 @@ export function mountConfigs(deps) {
                 const c = countryOf(r.name);
                 const key = c ? c.code : "_other";
                 if (!groups.has(key)) {
-                    groups.set(key, { flag: c ? c.flag : "🏳️", name: c ? c.name : t("country_other"), other: !c, items: [] });
+                    const dispName = c ? locCountry(c.code, c.name, lang()) : t("country_other");
+                    groups.set(key, { flag: c ? c.flag : "🏳️", name: dispName, other: !c, items: [] });
                 }
                 groups.get(key).items.push(r);
             });

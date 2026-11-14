@@ -63,7 +63,15 @@ const AWG_DOWNLOADS = (port) => [
  */
 function sampleInfo(port) {
     return {
-        user: { username: "alice_wonder", status: "active" },
+        user: {
+            username: "alice_wonder",
+            ip_limit: 3,
+            lifetime_used_traffic: Math.floor(84.2 * GB),
+            on_hold_expire_duration: 30 * DAY,
+            next_plans: [
+                { data_limit: 50 * GB, expire_duration: 30 * DAY },
+            ],
+        },
         openvpn: { downloads: OV_DOWNLOADS(port) },
         l2tp: [
             {
@@ -304,12 +312,13 @@ function ctxFor(state, brand, profileTitle) {
     return base;
 }
 
-/** 30 days shaped like Rebecca's real payload (usages + node_usages). */
+/** 90 days + 24 hours shaped like Rebecca's real payload (usages + hourly_usages + node_usages). */
 function sampleUsage() {
     const usages = [];
+    const hourly_usages = [];
     const today = new Date();
     today.setHours(0, 0, 0, 0);
-    for (let i = 30; i >= 0; i--) {
+    for (let i = 90; i >= 0; i--) {
         const d = new Date(today);
         d.setDate(d.getDate() - i);
         const base = 0.3 + Math.abs(Math.sin(i * 0.7)) * 1.6;
@@ -318,9 +327,19 @@ function sampleUsage() {
             used_traffic: i % 9 === 0 ? 0 : Math.floor(base * GB),
         });
     }
+    const nowHour = new Date();
+    nowHour.setMinutes(0, 0, 0);
+    for (let h = 23; h >= 0; h--) {
+        const hd = new Date(nowHour.getTime() - h * 3600_000);
+        const hBase = 0.02 + Math.abs(Math.cos(h * 0.5)) * 0.18;
+        hourly_usages.push({
+            date: hd.toISOString(),
+            used_traffic: h % 7 === 0 ? 0 : Math.floor(hBase * GB),
+        });
+    }
     return {
         usages,
-        hourly_usages: [],
+        hourly_usages,
         node_usages: [
             { node_id: 10, node_name: "DE 🇩🇪 Frankfurt", uplink: 0, downlink: 7449106461 },
             { node_id: 12, node_name: "FI 🇫🇮 Helsinki", uplink: 0, downlink: 2099268800 },

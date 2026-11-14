@@ -7,7 +7,7 @@
    every 5 minutes while the tab is visible.
    =========================================================================== */
 
-import { num, hasValue, fmtBytes, escapeHtml, escapeAttr } from "./format.js";
+import { num, hasValue, fmtBytes, fmtBytesStr, escapeHtml, escapeAttr } from "./format.js";
 import { locNum, locPct, fmtDayMonth, fmtClock } from "./i18n.js";
 import { $, $$, setHidden } from "./ui.js";
 import { storeGet, storeSet } from "./store.js";
@@ -21,6 +21,13 @@ function pickUsageArray(data) {
     if (Array.isArray(data)) return data;
     if (data && typeof data === "object") return data.usages || data.history || data.data || null;
     return null;
+}
+
+/** Hourly rows out of Rebecca's `hourly_usages[]`; null when absent. */
+function pickHourlyUsage(data) {
+    if (!data || typeof data !== "object" || Array.isArray(data)) return null;
+    const arr = data.hourly_usages || data.hourly || null;
+    return Array.isArray(arr) && arr.length ? arr : null;
 }
 
 /** Per-server rows out of Rebecca's `node_usages[]`; null when absent. */
@@ -93,15 +100,22 @@ export function mountUsage(deps) {
     const cacheKey = `${CACHE_KEY}:${ctx.username || ""}`;
 
     let history = null;     // array of daily rows, or null = nothing to show
+    let hourly = null;      // array of hourly rows (last 24h), or null
     let nodes = null;       // per-server rows, or null
     let updatedAt = 0;      // epoch ms of the data shown
     let stale = false;      // true when showing a cached copy
-    let rangeDays = 30;     // 7/30/90 — the user-toggleable chart window
+    let rangeDays = 30;     // 1 (24H) / 7 / 30 / 90 — the user-toggleable chart window
 
     async function load() {
         if (!ctx.usageUrl) return;
         try {
-            const res = await fetch(ctx.usageUrl, {
+            // Request 90 days of history so the 90D range tab is populated (Rebecca defaults to 30 days).
+            const startIso = new Date(Date.now() - 90 * 86400 * 1000).toISOString();
+            const sep = ctx.usageUrl.includes("?") ? "&" : "?";
+            const fetchUrl = /[?&]start=/i.test(ctx.usageUrl)
+                ? ctx.usageUrl
+                : `${ctx.usageUrl}${sep}start=${encodeURIComponent(startIso)}`;
+            const res = await fetch(fetchUrl, {
                 cache: "no-store",
                 credentials: "same-origin",
                 headers: { Accept: "application/json" },
@@ -125,10 +139,11 @@ export function mountUsage(deps) {
             }
             if (arr) {
                 history = arr;
+                hourly = pickHourlyUsage(parsed);
                 nodes = pickNodeUsage(parsed);
                 updatedAt = Date.now();
                 stale = false;
-                storeSet(cacheKey, JSON.stringify({ ts: updatedAt, data: arr, nodes }));
+                storeSet(cacheKey, JSON.stringify({ ts: updatedAt, data: arr, hourly, nodes }));
                 return;
             }
             history = [];
@@ -138,6 +153,7 @@ export function mountUsage(deps) {
                 const cached = JSON.parse(storeGet(cacheKey));
                 if (cached && Array.isArray(cached.data)) {
                     history = cached.data;
+                    hourly = Array.isArray(cached.hourly) ? cached.hourly : null;
                     nodes = cached.nodes || null;
                     updatedAt = cached.ts || 0;
                     stale = true;
@@ -163,8 +179,11 @@ export function mountUsage(deps) {
     }
 
     function renderRangePills() {
-        // Sync the three range pills with the current `rangeDays`; one-time
-        // wiring for clicks lives in `wireRangePills` (called from `start`).
+        const has24h = Boolean(hourly && hourly.length > 0);
+        const btn24h = $("#usage-range-24h");
+        if (btn24h) setHidden(btn24h, !has24h);
+        if (rangeDays === 1 && !has24h) rangeDays = 30;
+
         $$("#usage-range .range-pill").forEach((btn) => {
             const days = num(btn.getAttribute("data-range"));
             const active = days === rangeDays;
@@ -184,19 +203,47 @@ export function mountUsage(deps) {
         });
     }
 
+    function renderSummary(rows, isHourly) {
+        const box = $("#usage-summary");
+        if (!box) return;
+        const totalBytes = rows.reduce((s, r) => s + usageValOf(r), 0);
+        if (totalBytes <= 0 || !rows.length) {
+            setHidden(box, true);
+            return;
+        }
+        const avgBytes = totalBytes / rows.length;
+        const peakBytes = Math.max(0, ...rows.map(usageValOf));
+        const parts = [
+            `<span>${escapeHtml(t("total"))}: <strong class="text-base-content/90">${escapeHtml(fmtBytesStr(totalBytes, lang()))}</strong></span>`,
+        ];
+        if (!isHourly && rows.length > 1) {
+            parts.push(
+                `<span>${escapeHtml(t("usage_avg_day"))}: <strong class="text-base-content/90">${escapeHtml(fmtBytesStr(avgBytes, lang()))}</strong></span>`
+            );
+        }
+        if (peakBytes > 0 && rows.length > 1) {
+            parts.push(
+                `<span>${escapeHtml(t("usage_peak_day"))}: <strong class="text-base-content/90">${escapeHtml(fmtBytesStr(peakBytes, lang()))}</strong></span>`
+            );
+        }
+        box.innerHTML = parts.join(`<span class="text-base-content/25">·</span>`);
+        setHidden(box, false);
+    }
+
     function renderChart() {
         const chart = $("#usage-chart");
         const period = $("#usage-period");
-        if (!history.length) {
+        const isHourly = rangeDays === 1 && hourly && hourly.length > 0;
+        const source = isHourly ? hourly : history;
+        if (!source || !source.length) {
             chart.innerHTML = `<p class="py-5 text-center text-sm text-base-content/50">${escapeHtml(t("usage_empty"))}</p>`;
             chart.setAttribute("aria-label", t("usage_empty"));
             period.textContent = "";
+            setHidden($("#usage-summary"), true);
             return;
         }
-        // Take the most recent N days so the bar widths stay consistent across
-        // ranges — the visual density (more bars for 90D, fewer for 7D) carries
-        // the "this is a wider window" signal.
-        const rows = history.slice().sort((a, b) => dateOf(a) - dateOf(b)).slice(-rangeDays);
+        const limitCount = isHourly ? 24 : rangeDays;
+        const rows = source.slice().sort((a, b) => dateOf(a) - dateOf(b)).slice(-limitCount);
         const max = Math.max(1, ...rows.map(usageValOf));
 
         const W = 300, H = 80, pad = 3;
@@ -210,23 +257,30 @@ export function mountUsage(deps) {
             const y = H - h;
             const d = dateOf(r);
             const f = fmtBytes(v, lang());
-            const when = isNaN(d) ? "" : ` ${t("usage_on")} ${fmtDayMonth(d, lang())}`;
+            const whenStr = isNaN(d)
+                ? ""
+                : isHourly
+                    ? ` ${t("usage_on")} ${fmtClock(d, lang())}`
+                    : ` ${t("usage_on")} ${fmtDayMonth(d, lang())}`;
             rects += `<rect x="${x.toFixed(2)}" y="${y.toFixed(2)}" width="${barW.toFixed(2)}" ` +
-                `height="${h.toFixed(2)}" rx="1.5"><title>${escapeHtml(`${locNum(f.value, lang())} ${f.unit}${when}`)}</title></rect>`;
+                `height="${h.toFixed(2)}" rx="1.5"><title>${escapeHtml(`${locNum(f.value, lang())} ${f.unit}${whenStr}`)}</title></rect>`;
         });
         chart.innerHTML =
             `<svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="none" class="usage-svg">${rects}</svg>`;
 
         const total = fmtBytes(rows.reduce((s, r) => s + usageValOf(r), 0), lang());
         chart.setAttribute("aria-label",
-            `${t("usage_history")} — ${locNum(rows.length, lang())} ${t("days")}, ${t("total")} ${locNum(total.value, lang())} ${total.unit}`);
+            `${t("usage_history")} — ${locNum(rows.length, lang())} ${t(isHourly ? "usage_range_24h" : "days")}, ${t("total")} ${locNum(total.value, lang())} ${total.unit}`);
 
         const first = dateOf(rows[0]);
         const last = dateOf(rows[rows.length - 1]);
         period.textContent = (!isNaN(first) && !isNaN(last))
-            ? `${fmtDayMonth(first, lang())} – ${fmtDayMonth(last, lang())}`
+            ? (isHourly
+                ? `${fmtClock(first, lang())} – ${fmtClock(last, lang())}`
+                : `${fmtDayMonth(first, lang())} – ${fmtDayMonth(last, lang())}`)
             : "";
 
+        renderSummary(rows, isHourly);
         wireChartTap(chart);
     }
 

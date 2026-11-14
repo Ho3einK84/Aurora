@@ -16,17 +16,14 @@ Glassmorphism · usage dashboard · EN/FA RTL · white-label · Tailwind v4 + Da
 
 ## ✨ Features
 
-- **Service card** — usage/time rings, animated stats, live quota-reset countdown. Handles unlimited, never-expire, `on_hold`, client-derived expired/limited states, and smart low-traffic / low-time renewal alerts.
-- **Support & renewal** — top-bar quick support button with intelligent pulsating attention glow (`alert-active`) when subscription expiration is near or traffic is running low.
-- **Usage dashboard** — 30-day chart, threshold alerts, per-server breakdown, depletion forecast, offline cache, 5-min auto-refresh. Lazy-loaded via IntersectionObserver.
-- **Configs** — search, protocol filters (VMess, VLESS, Trojan, Shadowsocks, Hysteria2, TUIC, SSH, WireGuard, AmneziaWG), group-by-country, bulk select + copy, `.txt`/`.json` export, direct `.conf` download for WireGuard and AmneziaWG, full keyboard support. Web Share API button on mobile.
-- **VPN & Remote Access files** (OpenVPN · WireGuard · AmneziaWG · SSTP · GRE · L2TP/IPsec · PPTP · IKEv2 · Cisco AnyConnect) — download/copy `.ovpn` profiles and `.conf` profiles (WireGuard & AmneziaWG) with direct download and quick connect, masked credential cards with MTU/TTL/DNS for SSTP and GRE; Windows `.pbk` (phonebook) generation with one-click connect for PPTP, L2TP, IKEv2, and SSTP (individual and all-in-one download); fed by the panel's `/info` endpoint; IKEv2 and AnyConnect support password and certificate auth. Lazy-loaded.
-- **Apps** — OS-grouped client catalogue with one-tap import (from `src/apps.json`), including OpenVPN Connect, OpenVPN GUI, NetMod, WireGuard, Hiddify, Happ, and more.
-- **Themes & i18n** — 4 themes, EN/FA/RU/ZH with full RTL, auto OS theme sync. Configurable default language and theme directly in HTML or via `install.sh` without rebuilding.
-- **White-label** — brand text from panel profile title with fallbacks, customizable via `brand.json` or interactive installer.
-- **PWA-ready & resilient** — self-contained, offline cache, error boundaries, ARIA support.
-
-One self-contained `index.html` — zero external requests at runtime.
+- **Live Service Card** — usage/time rings, animated stats, live quota-reset countdown, and 5-minute background `/info` sync. Handles unlimited, never-expire, `on_hold` (showing exact pre-activation duration & *"Starts on first connect"*), reserved/queued `next_plans` badge, device limit (`ip_limit`), lifetime traffic, client-derived expired/limited states, and smart low-traffic / low-time renewal alerts.
+- **Support & Renewal** — top-bar quick support button with intelligent pulsating attention glow (`alert-active`) when subscription expiration is near or traffic is running low (automatically suppressed if a reserved plan is already queued).
+- **Usage Dashboard 2.0** — `24H` (hourly), `7D`, `30D`, and true `90D` history charts (`?start=`), period summary pill (Total, Daily Avg, Peak), threshold alerts, per-server breakdown, depletion forecast, offline cache, and 5-min auto-refresh.
+- **Smart Configs 2.0** — search (remarks, protocols, transports, SNI, host), protocol filters (VMess, VLESS, Trojan, Shadowsocks, Hysteria2, TUIC, SSH, WireGuard, AmneziaWG, MTProto), pin/favorite configs, clean metadata summary subline (`Reality · TCP · server:port`), click-to-inspect **Connection Details Modal** with per-field copy, localized group-by-country (`Intl.DisplayNames`), bulk select + copy, `.txt`/`.json` export, direct `.conf` download for WireGuard and AmneziaWG (with full obfuscation params), and multi-format subscription popover (`Clash Meta`, `Sing-box`, `V2Ray JSON`, `OpenWrt PassWall`, `WireGuard`).
+- **VPN & Remote Access Files** (OpenVPN · WireGuard · AmneziaWG · SSTP · GRE · L2TP/IPsec · PPTP · IKEv2 · Cisco AnyConnect) — download/copy `.ovpn` and `.conf` profiles, masked credential cards with MTU/TTL/DNS, one-click Linux (`ip tunnel`) & MikroTik RouterOS (`/interface gre`) CLI commands for GRE, and Windows `.pbk` (phonebook) generation for PPTP, L2TP, IKEv2, and SSTP.
+- **Apps** — OS-grouped client catalogue with one-tap deep-link import (from `src/apps.json`), including OpenVPN Connect, OpenVPN GUI, NetMod, WireGuard, Hiddify, Happ, v2rayNG, Streisand, Karing, and more.
+- **Themes, i18n & White-Label** — 4 themes (`auroradark`, `amoleddark`, `auroralight`, `nord`), EN/FA/RU/ZH with full RTL, custom brand name, optional header logo (`logo`), and dismissible announcement banner (`announcement`) configurable via `install.sh` without rebuilding.
+- **PWA-ready & Resilient** — single self-contained `index.html`, zero external requests at runtime, offline cache, error boundaries, ARIA support.
 
 ---
 
@@ -69,9 +66,12 @@ Extract `hosting.zip` from the latest release to your web root, and set your pan
   ```html
   <meta name="aurora-default-theme" content="amoleddark" />
   <meta name="aurora-default-lang" content="fa" />
-  <script>window.AURORA_BRAND = {"name":"MyVPN","defaultTheme":"amoleddark","defaultLang":"fa"};</script>
+  <script>window.AURORA_BRAND = {"name":"MyVPN","supportUrl":"https://t.me/MySupport","defaultTheme":"amoleddark","defaultLang":"fa","logo":"","announcement":""};</script>
   ```
-  Or run `install.sh --lang fa --theme amoleddark --brand MyVPN`.
+  Or run:
+  ```bash
+  sudo bash install.sh --brand "MyVPN" --support "https://t.me/MySupport" --lang fa --theme amoleddark --restart
+  ```
 - **Apps**: Edit `window.AURORA_APPS` in `dist/index.html` or `src/apps.json`.
 
 ---

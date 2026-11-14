@@ -3,6 +3,7 @@ name: Build & Release
 on:
   push:
     branches: ["**"]
+    tags: ["v*"]
   pull_request:
   # Also build when a GitHub Release is published (covers releases created via the UI).
   release:

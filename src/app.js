@@ -7,10 +7,10 @@
    =========================================================================== */
 
 import { I18N, locNum, locPct, fmtDate, fmtRelative } from "./i18n.js";
-import { num, hasValue, clamp, fmtBytes, fmtBytesStr, escapeHtml } from "./format.js";
+import { num, hasValue, clamp, fmtBytes, fmtBytesStr, escapeHtml, escapeAttr } from "./format.js";
 import { storeGet, storeSet } from "./store.js";
 import {
-    $, $$, setHidden, copyText, flashCopied,
+    $, $$, setHidden, copyText, toast, flashCopied,
     animateCount, revealAll, hideSplash, showErrorBanner,
 } from "./ui.js";
 import { parseLinks, mountConfigs } from "./configs.js";
@@ -89,11 +89,15 @@ function readContext() {
         status: (d.status || "").trim().toLowerCase(),
         statusClass: (d.statusClass || "").trim().toLowerCase(),
         usedTraffic: num(d.used),
+        lifetimeUsed: num(d.lifetimeUsed),
         dataLimit: num(d.limit),
         limitRaw: d.limit,
         resetStrategy: (d.resetStrategy || "").trim().toLowerCase(),
         expire: num(d.expire),
         expireRaw: d.expire,
+        onHoldDuration: num(d.onHoldDuration),
+        ipLimit: num(d.ipLimit),
+        nextPlans: [],
         remainingDays: Math.max(0, num(d.remainingDays)),
         subUrl,
         usageUrl: (d.usageUrl || "").trim(),
@@ -204,6 +208,7 @@ function openLangMenu() {
     // popovers never overlap (mobile tap targets are tight, and the resulting
     // stacked glass is hard to dismiss on touch).
     if (!$("#theme-list").hidden) closeThemeMenu();
+    closeSubFormatMenu();
     setHidden($("#lang-list"), false);
     $("#lang-toggle").setAttribute("aria-expanded", "true");
 }
@@ -274,6 +279,7 @@ function openThemeMenu() {
     // Mirror of openLangMenu — close the language menu first so the two
     // popovers never stack. See openLangMenu for context.
     if (!$("#lang-list").hidden) closeLangMenu();
+    closeSubFormatMenu();
     setHidden($("#theme-list"), false);
     $("#theme-toggle").setAttribute("aria-expanded", "true");
 }
@@ -341,6 +347,45 @@ function renderBrand() {
     const splash = $("#splash-brand");
     if (splash) splash.textContent = CTX.brandName;
     document.title = CTX.username ? `${CTX.username} · ${CTX.brandName}` : CTX.brandName;
+
+    // Optional brand logo inside the header circle
+    const brand = window.AURORA_BRAND || {};
+    const metaLogo = (document.querySelector('meta[name="aurora-brand-logo"]') || {}).content || "";
+    const logoUrl = String(brand.logo || metaLogo || "").trim();
+    const logoEl = $("#brand-logo");
+    if (logoEl) {
+        if (logoUrl && /^(?:https?:\/\/|data:image\/|\/)/i.test(logoUrl)) {
+            if (logoEl.dataset.logoSrc !== logoUrl) {
+                logoEl.dataset.logoSrc = logoUrl;
+                logoEl.innerHTML = `<img src="${escapeAttr(logoUrl)}" alt="" class="h-full w-full rounded-full object-cover" />`;
+            }
+        } else if (logoEl.dataset.logoSrc) {
+            delete logoEl.dataset.logoSrc;
+            logoEl.innerHTML = "";
+        }
+    }
+}
+
+function renderAnnouncement() {
+    const banner = $("#announce-banner");
+    if (!banner) return;
+    const brand = window.AURORA_BRAND || {};
+    const metaAnnounce = (document.querySelector('meta[name="aurora-brand-announcement"]') || {}).content || "";
+    const text = String(brand.announcement || metaAnnounce || "").trim();
+    if (!text || storeGet("aurora_announce_dismissed") === text) {
+        setHidden(banner, true);
+        return;
+    }
+    $("#announce-banner-text").textContent = text;
+    setHidden(banner, false);
+    const closeBtn = $("#announce-banner-close");
+    if (closeBtn && !closeBtn.dataset.wired) {
+        closeBtn.dataset.wired = "1";
+        closeBtn.addEventListener("click", () => {
+            storeSet("aurora_announce_dismissed", text);
+            setHidden(banner, true);
+        });
+    }
 }
 
 let manifestUrl = null;
@@ -394,6 +439,7 @@ function renderCard() {
     const unlimited = !hasValue(CTX.limitRaw) || CTX.dataLimit <= 0;
     const neverExpire = !hasValue(CTX.expireRaw);
     const snap = cardAnimated;
+    const hasNextPlan = Array.isArray(CTX.nextPlans) && CTX.nextPlans.length > 0;
 
     $("#username").textContent = CTX.username || "—";
     const svc = $("#service-name");
@@ -403,7 +449,7 @@ function renderCard() {
     const remainTraffic = unlimited ? Infinity : Math.max(0, CTX.dataLimit - CTX.usedTraffic);
     const isLowTraffic = !unlimited && (remainTraffic <= Math.min(1073741824, CTX.dataLimit * 0.12) || (CTX.usedTraffic / CTX.dataLimit >= 0.9));
     const isLowTime = !neverExpire && CTX.remainingDays > 0 && CTX.remainingDays <= 3;
-    const isUrgent = (STATE !== "active" && STATE !== "on_hold") || isLowTraffic || isLowTime;
+    const isUrgent = ((STATE !== "active" && STATE !== "on_hold") || isLowTraffic || isLowTime) && !hasNextPlan;
 
     // Status badge + banner
     const badge = $("#status-badge");
@@ -423,7 +469,7 @@ function renderCard() {
     if (STATE !== "active" && I18N.en["banner_" + STATE]) {
         banner.className = `reveal shown alert mb-5 items-center justify-between gap-3 rounded-2xl glass border-0 ${BANNER_TONES[STATE] || ""}`;
         bannerText.textContent = t("banner_" + STATE);
-        if (CTX.supportUrl && STATE !== "on_hold") {
+        if (CTX.supportUrl && STATE !== "on_hold" && !hasNextPlan) {
             bannerAction.href = CTX.supportUrl;
             $("#status-banner-action-text").textContent = t("renew");
             setHidden(bannerAction, false);
@@ -431,7 +477,7 @@ function renderCard() {
             setHidden(bannerAction, true);
         }
         setHidden(banner, false);
-    } else if (isLowTraffic || isLowTime) {
+    } else if ((isLowTraffic || isLowTime) && !hasNextPlan) {
         banner.className = `reveal shown alert mb-5 items-center justify-between gap-3 rounded-2xl glass border-0 alert-warning`;
         const alertKey = isLowTraffic && isLowTime ? "banner_low_both" : isLowTraffic ? "banner_low_traffic" : "banner_low_time";
         bannerText.textContent = t(alertKey);
@@ -480,7 +526,7 @@ function renderCard() {
         dataFill.style.stroke = `color-mix(in oklch, var(--color-primary) ${100 - amt}%, ${mixWith} ${amt}%)`;
         setRing(dataFill, usedPct);
         $("#ring-data-pct").textContent = locPct(usedPct, lang);
-        $("#ring-data").classList.toggle("is-urgent", usedPct >= 90);
+        $("#ring-data").classList.toggle("is-urgent", usedPct >= 90 && !hasNextPlan);
     }
 
     // Count-up formatter matching the decimal precision of the final value.
@@ -511,7 +557,23 @@ function renderCard() {
     const timeFill = $("#ring-time-fill");
     const expireCell = $("#stat-expire");
     const expireRel = $("#stat-expire-rel");
-    if (neverExpire) {
+    if (STATE === "on_hold" && neverExpire) {
+        const holdDays = CTX.onHoldDuration > 0
+            ? Math.max(1, Math.round(CTX.onHoldDuration / 86400))
+            : Math.round(CTX.remainingDays);
+        timeFill.style.stroke = "var(--color-info)";
+        setRing(timeFill, 100);
+        $("#ring-time").classList.remove("is-urgent");
+        if (holdDays > 0) {
+            $("#ring-time-val").textContent = locNum(holdDays, lang);
+            expireCell.textContent = `${locNum(holdDays, lang)} ${t(holdDays === 1 ? "day" : "days")}`;
+        } else {
+            $("#ring-time-val").textContent = "—";
+            expireCell.textContent = t("status_on_hold");
+        }
+        expireCell.classList.remove("text-error");
+        expireRel.textContent = t("starts_on_connect");
+    } else if (neverExpire) {
         timeFill.style.stroke = "var(--color-accent)";
         setRing(timeFill, 100);
         $("#ring-time-val").textContent = "∞";
@@ -536,10 +598,10 @@ function renderCard() {
         const tone = days <= 3 ? "var(--color-error)" : days <= 7 ? "var(--color-warning)" : "var(--color-accent)";
         timeFill.style.stroke = tone;
         setRing(timeFill, Math.round(frac * 100));
-        $("#ring-time").classList.toggle("is-urgent", frac <= 0.1 && STATE === "active");
+        $("#ring-time").classList.toggle("is-urgent", frac <= 0.1 && STATE === "active" && !hasNextPlan);
         $("#ring-time-val").textContent = locNum(days, lang);
         expireCell.textContent = fmtDate(new Date(CTX.expire * 1000), lang);
-        expireCell.classList.toggle("text-error", days <= 3);
+        expireCell.classList.toggle("text-error", days <= 3 && !hasNextPlan);
         // Relative hint under the date: "in 3 days" / "expired 2 days ago".
         // `fmtRelative` handles both past and future from the current clock.
         expireRel.textContent = fmtRelative(new Date(CTX.expire * 1000), lang);
@@ -560,7 +622,34 @@ function renderCard() {
     }
 
     renderReset();
+    renderNextPlan();
     cardAnimated = true;
+}
+
+function renderNextPlan() {
+    const row = $("#next-plan-row");
+    if (!row) return;
+    if (!Array.isArray(CTX.nextPlans) || !CTX.nextPlans.length) {
+        setHidden(row, true);
+        return;
+    }
+    const np = CTX.nextPlans[0] || {};
+    const parts = [];
+    if (num(np.data_limit) > 0) {
+        parts.push(fmtBytesStr(num(np.data_limit), lang));
+    } else if (np.data_limit === 0 || np.data_limit === null) {
+        parts.push(t("unlimited"));
+    }
+    if (num(np.expire_duration) > 0) {
+        const d = Math.max(1, Math.round(num(np.expire_duration) / 86400));
+        parts.push(`${locNum(d, lang)} ${t(d === 1 ? "day" : "days")}`);
+    }
+    let label = parts.join(" · ");
+    if (CTX.nextPlans.length > 1) {
+        label += ` (+${locNum(CTX.nextPlans.length - 1, lang)})`;
+    }
+    $("#next-plan-label").textContent = label || "1";
+    setHidden(row, false);
 }
 
 /* -------------------------------------------------------- reset countdown */
@@ -765,14 +854,163 @@ async function loadAppsCatalogue() {
     return data;
 }
 
+/* --------------------------------------------------- sub format popover */
+
+const SUB_FORMATS = [
+    { id: "auto", labelKey: "fmt_auto", suffix: "" },
+    { id: "v2ray", label: "V2Ray (Base64)", suffix: "/v2ray" },
+    { id: "v2ray-json", label: "Xray / V2Ray JSON", suffix: "/v2ray-json" },
+    { id: "clash-meta", label: "Clash Meta (Mihomo)", suffix: "/clash-meta" },
+    { id: "sing-box", label: "Sing-box", suffix: "/sing-box" },
+    { id: "passwall", label: "OpenWrt PassWall", suffix: "/passwall" },
+];
+
+function renderSubFormatMenu() {
+    const list = $("#sub-format-list");
+    if (!list || !CTX) return;
+    const base = CTX.subUrl.replace(/\/+$/, "");
+    list.innerHTML = SUB_FORMATS.map((f) => {
+        const label = f.labelKey ? t(f.labelKey) : f.label;
+        const url = base + f.suffix;
+        return `<li class="flex flex-row items-center gap-1">` +
+            `<button data-fmt-copy="${escapeAttr(url)}" class="flex-1 justify-between rounded-xl px-2.5 py-2 text-xs font-medium">` +
+            `<span class="truncate">${escapeHtml(label)}</span>` +
+            `<i class="ph ph-copy text-sm opacity-60"></i>` +
+            `</button>` +
+            `<button data-fmt-qr="${escapeAttr(url)}" data-fmt-title="${escapeAttr(label)}" ` +
+            `class="btn btn-ghost btn-xs btn-square shrink-0 rounded-lg" aria-label="${escapeAttr(t("qrcode"))}">` +
+            `<i class="ph ph-qr-code text-sm text-primary"></i>` +
+            `</button>` +
+            `</li>`;
+    }).join("");
+
+    $$("[data-fmt-copy]", list).forEach((btn) => {
+        btn.addEventListener("click", async () => {
+            if (await copyText(btn.getAttribute("data-fmt-copy"))) {
+                toast(t("copied"));
+                closeSubFormatMenu();
+            }
+        });
+    });
+    $$("[data-fmt-qr]", list).forEach((btn) => {
+        btn.addEventListener("click", () => {
+            closeSubFormatMenu();
+            openQr(btn.getAttribute("data-fmt-title"), btn.getAttribute("data-fmt-qr"));
+        });
+    });
+}
+
+function closeSubFormatMenu() {
+    const list = $("#sub-format-list");
+    const btn = $("#sub-format-btn");
+    if (list) setHidden(list, true);
+    if (btn) btn.setAttribute("aria-expanded", "false");
+}
+
+function wireSubFormatMenu() {
+    const btn = $("#sub-format-btn");
+    const wrap = $("#sub-format-wrap");
+    const list = $("#sub-format-list");
+    if (!btn || !wrap || !list) return;
+    btn.addEventListener("click", (e) => {
+        e.stopPropagation();
+        if (list.hidden) {
+            closeLangMenu();
+            closeThemeMenu();
+            setHidden(list, false);
+            btn.setAttribute("aria-expanded", "true");
+        } else {
+            closeSubFormatMenu();
+        }
+    });
+    document.addEventListener("click", (e) => {
+        if (!wrap.contains(e.target)) closeSubFormatMenu();
+    });
+    document.addEventListener("keydown", (e) => {
+        if (e.key === "Escape") closeSubFormatMenu();
+    });
+}
+
+/* ----------------------------------------------------- live /info sync */
+
+let infoPromise = null;
+
+function applyUserInfo(u) {
+    if (!u || typeof u !== "object" || !CTX) return;
+    if (u.used_traffic != null) CTX.usedTraffic = num(u.used_traffic);
+    if (u.lifetime_used_traffic != null) CTX.lifetimeUsed = num(u.lifetime_used_traffic);
+    if (u.data_limit !== undefined) {
+        CTX.limitRaw = u.data_limit != null && u.data_limit > 0 ? String(u.data_limit) : "";
+        CTX.dataLimit = num(u.data_limit);
+    }
+    if (u.data_limit_reset_strategy) {
+        CTX.resetStrategy = String(u.data_limit_reset_strategy).trim().toLowerCase();
+    }
+    if (u.expire !== undefined) {
+        CTX.expireRaw = u.expire != null && u.expire > 0 ? String(u.expire) : "";
+        CTX.expire = num(u.expire);
+    }
+    if (u.status) CTX.status = String(u.status).trim().toLowerCase();
+    if (u.online_at != null) CTX.onlineAt = String(u.online_at).trim();
+    if (u.created_at != null) CTX.createdAt = String(u.created_at).trim();
+    if (u.on_hold_expire_duration != null) CTX.onHoldDuration = num(u.on_hold_expire_duration);
+    if (u.ip_limit != null) CTX.ipLimit = num(u.ip_limit);
+    if (u.service_name) CTX.serviceName = String(u.service_name).trim();
+    if (Array.isArray(u.next_plans)) CTX.nextPlans = u.next_plans;
+
+    STATE = deriveState(CTX);
+    renderOnlineBadge();
+    renderCard();
+    renderUserDetails();
+}
+
+function fetchSubInfo(force = false) {
+    if (!CTX || !CTX.subUrl) return Promise.resolve(null);
+    if (infoPromise && !force) return infoPromise;
+    const infoUrl = CTX.subUrl.replace(/\/+$/, "") + "/info";
+    infoPromise = (async () => {
+        try {
+            const res = await fetch(infoUrl, {
+                cache: "no-store",
+                credentials: "same-origin",
+                headers: { Accept: "application/json" },
+            });
+            if (!res.ok) return null;
+            const data = await res.json();
+            if (data && data.user) applyUserInfo(data.user);
+            return data;
+        } catch (_) {
+            return null;
+        }
+    })();
+    return infoPromise;
+}
+
+function startInfoAutoRefresh() {
+    let last = Date.now();
+    const REFRESH_MS = 5 * 60 * 1000;
+    const tick = () => {
+        if (document.visibilityState !== "visible") return;
+        if (Date.now() - last < REFRESH_MS) return;
+        last = Date.now();
+        fetchSubInfo(true);
+    };
+    setInterval(tick, 30 * 1000);
+    document.addEventListener("visibilitychange", () => {
+        if (document.visibilityState === "visible") tick();
+    });
+}
+
 /* ------------------------------------------------------------- re-render */
 
 function renderAllDynamic() {
     if (!CTX) return;
     renderBrand();
+    renderAnnouncement();
     renderOnlineBadge();
     renderCard();
     renderUserDetails();
+    renderSubFormatMenu();
     if (configsView) configsView.rerender();
     if (appsView) appsView.rerender();
     if (usageView) usageView.rerender();
@@ -810,25 +1048,28 @@ function parsePanelDate(raw) {
     return isNaN(d) ? null : d;
 }
 
-/** "Last online" / "Member since" row. Stays hidden when both are missing. */
+/** "Last online" / "Member since" / "Device limit" / "Lifetime used" grid. */
 function renderUserDetails() {
     const row = $("#user-details");
     const online = parsePanelDate(CTX.onlineAt);
     const member = parsePanelDate(CTX.createdAt);
-    if (!online && !member) {
+    const hasDeviceLimit = CTX.ipLimit > 0;
+    const hasLifetime = CTX.lifetimeUsed > 0 && CTX.lifetimeUsed > CTX.usedTraffic;
+
+    if (!online && !member && !hasDeviceLimit && !hasLifetime) {
         setHidden(row, true);
         return;
     }
     setHidden(row, false);
 
-    const liveCell = row.firstElementChild;
-    const memberCell = liveCell && liveCell.nextElementSibling;
+    const liveCell = $("#cell-last-online") || row.firstElementChild;
+    const memberCell = $("#cell-member-since") || (liveCell && liveCell.nextElementSibling);
+    const devCell = $("#cell-device-limit");
+    const lifeCell = $("#cell-lifetime-used");
     const lastEl = $("#last-online");
     const memberEl = $("#member-since");
 
     if (online) {
-        // Treat < 30s as "online now" so an actively-used account gets the
-        // brighter treatment even when online_at refreshes slowly.
         const fresh = Date.now() - online.getTime() < 30_000;
         lastEl.textContent = fresh
             ? t("online_just_now")
@@ -839,9 +1080,29 @@ function renderUserDetails() {
     if (member) {
         memberEl.textContent = fmtDate(member, lang);
     }
-    // Hide the half-row whose data is missing instead of leaving an empty cell.
-    if (!online) setHidden(liveCell, true); else setHidden(liveCell, false);
-    if (!member) setHidden(memberCell, true); else setHidden(memberCell, false);
+    if (liveCell) setHidden(liveCell, !online);
+    if (memberCell) setHidden(memberCell, !member);
+
+    if (devCell) {
+        if (hasDeviceLimit) {
+            const val = CTX.onlineCount > 0
+                ? `${locNum(CTX.onlineCount, lang)} / ${locNum(CTX.ipLimit, lang)} ${t("devices")}`
+                : `${locNum(CTX.ipLimit, lang)} ${t("devices")}`;
+            $("#device-limit-val").textContent = val;
+            setHidden(devCell, false);
+        } else {
+            setHidden(devCell, true);
+        }
+    }
+
+    if (lifeCell) {
+        if (hasLifetime) {
+            $("#lifetime-used-val").textContent = fmtBytesStr(CTX.lifetimeUsed, lang);
+            setHidden(lifeCell, false);
+        } else {
+            setHidden(lifeCell, true);
+        }
+    }
 }
 
 /* -------------------------------------------------------------- bootstrap */
@@ -858,11 +1119,17 @@ async function init() {
         wireLangMenu();
         renderLangMenu();
         wireThemeMenu();
+        wireSubFormatMenu();
         wireQrModal();
         wireCollapses();
         wireOffline();
         wireThemeWatcher();
         startRelativeTimeRefresh();
+
+        // Kick off non-blocking /info fetch to hydrate on_hold duration, ip_limit,
+        // next_plans, lifetime usage, and live traffic/expiry state.
+        fetchSubInfo(false);
+        startInfoAutoRefresh();
 
         // Header copy-sub + sub-QR act on the subscription URL.
         $("#copy-sub").addEventListener("click", async (e) => {
@@ -918,7 +1185,15 @@ async function init() {
         const mountVpnOnce = () => {
             if (vpnView) return;
             try {
-                vpnView = mountVpn({ ctx: CTX, ovpnLinks: CTX.ovpnLinks, wgLinks: CTX.wgLinks, awgLinks: CTX.awgLinks, t, lang: () => lang });
+                vpnView = mountVpn({
+                    ctx: CTX,
+                    ovpnLinks: CTX.ovpnLinks,
+                    wgLinks: CTX.wgLinks,
+                    awgLinks: CTX.awgLinks,
+                    fetchInfo: () => fetchSubInfo(false),
+                    t,
+                    lang: () => lang,
+                });
                 vpnView.start();
             } catch (err) { console.error("[aurora] vpn failed:", err); }
         };

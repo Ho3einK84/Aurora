@@ -169,8 +169,8 @@
         <!-- ============================ TOP BAR ============================ -->
         <header class="reveal relative z-50 mb-6 flex items-center justify-between gap-3">
             <div class="flex min-w-0 items-center gap-2.5">
-                <!-- Logo placeholder: an empty circle (per request). -->
-                <div class="h-11 w-11 shrink-0 rounded-full border-2 border-base-content/25"></div>
+                <!-- Logo placeholder: an empty circle (per request), or custom logo when configured. -->
+                <div id="brand-logo" class="h-11 w-11 shrink-0 overflow-hidden rounded-full border-2 border-base-content/25"></div>
                 <div class="min-w-0 leading-tight">
                     <div class="flex items-center gap-2">
                         <p id="brand-name" class="truncate text-xl font-extrabold tracking-tight gradient-text">Aurora</p>
@@ -218,6 +218,17 @@
                 </div>
             </div>
         </header>
+
+        <!-- ===================== ANNOUNCEMENT BANNER (optional brand notice) ===================== -->
+        <div id="announce-banner" hidden class="reveal alert mb-5 items-center justify-between gap-3 rounded-2xl glass border-0 text-info">
+            <div class="flex items-center gap-2.5 min-w-0">
+                <i class="ph ph-megaphone shrink-0 text-xl"></i>
+                <span id="announce-banner-text" class="text-sm font-medium" dir="auto"></span>
+            </div>
+            <button id="announce-banner-close" class="btn btn-circle btn-ghost btn-xs shrink-0" data-i18n-label="close">
+                <i class="ph ph-x text-sm"></i>
+            </button>
+        </div>
 
         <!-- ===================== STATUS BANNER (edge cases & alerts) ===================== -->
         <div id="status-banner" hidden class="reveal alert mb-5 items-center justify-between gap-3 rounded-2xl glass border-0">
@@ -301,21 +312,35 @@
                     </div>
                 </div>
 
-                <!-- User details: last online + member since -->
+                <!-- User details: last online + member since + optional device limit & lifetime usage -->
                 <div id="user-details" hidden
                     class="grid grid-cols-1 gap-2 sm:grid-cols-2 sm:gap-3">
-                    <div class="flex items-center gap-2.5 rounded-2xl bg-base-100/40 px-3.5 py-2.5">
+                    <div id="cell-last-online" class="flex items-center gap-2.5 rounded-2xl bg-base-100/40 px-3.5 py-2.5">
                         <i class="ph ph-pulse shrink-0 text-base text-success"></i>
                         <div class="min-w-0 flex-1">
                             <p class="text-[11px] uppercase tracking-wide text-base-content/50" data-i18n="last_online">Last online</p>
                             <p id="last-online" class="truncate text-sm font-semibold"></p>
                         </div>
                     </div>
-                    <div class="flex items-center gap-2.5 rounded-2xl bg-base-100/40 px-3.5 py-2.5">
+                    <div id="cell-member-since" class="flex items-center gap-2.5 rounded-2xl bg-base-100/40 px-3.5 py-2.5">
                         <i class="ph ph-calendar-blank shrink-0 text-base text-base-content/40"></i>
                         <div class="min-w-0 flex-1">
                             <p class="text-[11px] uppercase tracking-wide text-base-content/50" data-i18n="member_since">Member since</p>
                             <p id="member-since" class="truncate text-sm font-semibold"></p>
+                        </div>
+                    </div>
+                    <div id="cell-device-limit" hidden class="flex items-center gap-2.5 rounded-2xl bg-base-100/40 px-3.5 py-2.5">
+                        <i class="ph ph-devices shrink-0 text-base text-primary"></i>
+                        <div class="min-w-0 flex-1">
+                            <p class="text-[11px] uppercase tracking-wide text-base-content/50" data-i18n="device_limit">Device limit</p>
+                            <p id="device-limit-val" class="truncate text-sm font-semibold"></p>
+                        </div>
+                    </div>
+                    <div id="cell-lifetime-used" hidden class="flex items-center gap-2.5 rounded-2xl bg-base-100/40 px-3.5 py-2.5">
+                        <i class="ph ph-clock-counter-clockwise shrink-0 text-base text-secondary"></i>
+                        <div class="min-w-0 flex-1">
+                            <p class="text-[11px] uppercase tracking-wide text-base-content/50" data-i18n="lifetime_used">Lifetime used</p>
+                            <p id="lifetime-used-val" class="truncate text-sm font-semibold"></p>
                         </div>
                     </div>
                 </div>
@@ -332,6 +357,17 @@
                         <span data-i18n="resets_in">next in</span>
                         <span id="reset-countdown" class="font-semibold tabular-nums text-base-content/70"></span>
                     </span>
+                </div>
+
+                <!-- Reserved / Next plan row -->
+                <div id="next-plan-row" hidden
+                    class="flex flex-wrap items-center justify-between gap-x-3 gap-y-1 rounded-2xl bg-base-100/40 px-3.5 py-2.5">
+                    <span class="flex items-center gap-2 text-sm font-medium">
+                        <i class="ph ph-stack text-base text-success"></i>
+                        <span data-i18n="next_plan">Reserved plan</span>
+                        <span id="next-plan-label" class="badge badge-sm badge-success badge-soft"></span>
+                    </span>
+                    <span class="text-[11px] text-base-content/50" data-i18n="next_plan_ready">Activates automatically</span>
                 </div>
             </div>
         </section>
@@ -353,6 +389,7 @@
                     <div class="space-y-3 px-4 pb-4 sm:px-5 sm:pb-5">
                         <div id="usage-range" role="tablist" aria-label="Usage range"
                             class="no-scrollbar -mb-1 flex gap-1.5 overflow-x-auto">
+                            <button id="usage-range-24h" hidden role="tab" class="range-pill" data-range="1" aria-selected="false" data-i18n="usage_range_24h">24H</button>
                             <button role="tab" class="range-pill" data-range="7" aria-selected="false" data-i18n="usage_range_7d">7D</button>
                             <button role="tab" class="range-pill" data-range="30" aria-selected="true" data-i18n="usage_range_30d">30D</button>
                             <button role="tab" class="range-pill" data-range="90" aria-selected="false" data-i18n="usage_range_90d">90D</button>
@@ -360,6 +397,7 @@
                         <div id="usage-chart" class="usage-chart" role="img">
                             <div class="aurora-skeleton" style="height:5.5rem"></div>
                         </div>
+                        <div id="usage-summary" hidden class="flex flex-wrap items-center justify-between gap-2 rounded-xl bg-base-100/35 px-3 py-1.5 text-[11px] text-base-content/65"></div>
                         <p id="usage-forecast" hidden class="flex items-center gap-2 text-[12px] text-base-content/60">
                             <i class="ph ph-hourglass-medium text-base text-accent"></i>
                             <span id="usage-forecast-text"></span>
@@ -397,6 +435,16 @@
                                 <i class="ph ph-copy text-lg"></i>
                                 <span data-i18n-dyn="copy_all">Copy all</span>
                             </button>
+                            <div id="sub-format-wrap" class="relative">
+                                <button id="sub-format-btn" class="btn btn-square glass lift rounded-2xl border-0"
+                                    aria-haspopup="true" aria-expanded="false"
+                                    data-i18n-label="sub_formats" data-i18n-title="sub_formats">
+                                    <i class="ph ph-sliders-horizontal text-xl text-accent"></i>
+                                </button>
+                                <ul id="sub-format-list" hidden
+                                    class="menu glass pop-menu absolute end-0 z-[100] mt-2 w-56 gap-0.5 rounded-2xl p-2 shadow-2xl shadow-black/30 backdrop-blur-2xl bg-base-100/60">
+                                </ul>
+                            </div>
                             <button id="sub-qr" class="btn btn-square glass lift rounded-2xl border-0" data-i18n-label="sub_qr">
                                 <i class="ph ph-qr-code text-xl text-primary"></i>
                             </button>
@@ -531,6 +579,30 @@
                         <span data-i18n-dyn="copy">Copy</span>
                     </button>
                     <button id="qr-close" class="btn btn-ghost glass flex-1 rounded-2xl" data-i18n="close">Close</button>
+                </div>
+            </div>
+            <form method="dialog" class="modal-backdrop"><button>close</button></form>
+        </dialog>
+
+        <!-- ======================== CONFIG DETAILS MODAL ======================== -->
+        <dialog id="cfg-modal" class="modal modal-bottom sm:modal-middle">
+            <div class="modal-box glass max-w-md rounded-[1.5rem] border-0">
+                <div class="mb-3 flex items-center justify-between gap-2">
+                    <div class="min-w-0">
+                        <p class="text-[10px] uppercase tracking-wider text-base-content/50" data-i18n="cfg_details">Connection details</p>
+                        <h3 id="cfg-modal-title" class="truncate text-lg font-bold" dir="auto"></h3>
+                    </div>
+                    <button id="cfg-modal-qr" class="btn btn-circle btn-ghost btn-sm glass shrink-0" data-i18n-label="qrcode">
+                        <i class="ph ph-qr-code text-lg text-primary"></i>
+                    </button>
+                </div>
+                <div id="cfg-modal-fields" class="grid grid-cols-1 gap-2 sm:grid-cols-2"></div>
+                <div class="modal-action mt-4 justify-center gap-2">
+                    <button id="cfg-modal-copy" class="btn btn-primary flex-1 gap-1.5 rounded-2xl font-semibold">
+                        <i class="ph ph-copy text-base"></i>
+                        <span data-i18n-dyn="copy_link">Copy link</span>
+                    </button>
+                    <button id="cfg-modal-close" class="btn btn-ghost glass flex-1 rounded-2xl" data-i18n="close">Close</button>
                 </div>
             </div>
             <form method="dialog" class="modal-backdrop"><button>close</button></form>

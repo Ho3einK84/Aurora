@@ -87,16 +87,16 @@ export function escapeAttr(s) {
 }
 
 /**
- * Generate standard WireGuard .conf text from a wireguard:// URI or raw config text.
+ * Generate standard WireGuard / AmneziaWG .conf text from a wireguard:// or awg:// URI or raw config text.
  */
 export function generateWgConf(raw) {
     const s = String(raw || "").trim();
     if (!s) return null;
     if (/^\[Interface\]/i.test(s)) return s.endsWith("\n") ? s : s + "\n";
-    if (!/^wireguard:\/\//i.test(s)) return null;
+    if (!/^(?:wireguard|amneziawg|awg):\/\//i.test(s)) return null;
 
     try {
-        const u = new URL(s);
+        const u = new URL(s.replace(/^(?:amneziawg|awg):\/\//i, "wireguard://"));
         const p = u.searchParams;
         const getParam = (name) => {
             const val = p.get(name);
@@ -130,6 +130,16 @@ export function generateWgConf(raw) {
         const reserved = getParam("reserved").trim();
         if (reserved) lines.push(`Reserved = ${reserved}`);
 
+        // AmneziaWG obfuscation parameters when present
+        for (const [key, label] of [
+            ["jc", "Jc"], ["jmin", "Jmin"], ["jmax", "Jmax"],
+            ["s1", "S1"], ["s2", "S2"],
+            ["h1", "H1"], ["h2", "H2"], ["h3", "H3"], ["h4", "H4"],
+        ]) {
+            const val = getParam(key).trim();
+            if (val) lines.push(`${label} = ${val}`);
+        }
+
         lines.push("", "[Peer]");
         if (publicKey) lines.push(`PublicKey = ${publicKey.replace(/\s/g, "+")}`);
         const psk = getParam("presharedkey").trim() || getParam("psk").trim();
@@ -144,6 +154,165 @@ export function generateWgConf(raw) {
     } catch (_) {
         return null;
     }
+}
+
+/**
+ * Parse a proxy/tunnel URI into structured technical metadata for badges and the Config Inspector modal.
+ */
+export function parseConfigMeta(uri) {
+    const raw = String(uri || "").trim();
+    if (!raw) return null;
+    const schemeMatch = /^([a-z0-9+.-]+):\/\//i.exec(raw);
+    if (!schemeMatch) return null;
+    const scheme = schemeMatch[1].toLowerCase();
+
+    if (scheme === "vmess") {
+        try {
+            const payload = raw.replace(/^vmess:\/\//i, "").split("#")[0];
+            const j = JSON.parse(b64ToUtf8(payload));
+            if (j && typeof j === "object") {
+                const net = String(j.net || "tcp").toUpperCase();
+                const tls = String(j.tls || "").toLowerCase();
+                const security = tls === "tls" ? "TLS" : tls === "reality" ? "Reality" : "";
+                const server = String(j.add || "");
+                const port = j.port ? String(j.port) : "";
+                const sni = String(j.sni || j.host || "");
+                const path = String(j.path || "");
+                const chips = [security, net].filter(Boolean);
+                const hostPort = server ? (port ? `${server}:${port}` : server) : "";
+                return {
+                    protocol: "VMESS",
+                    server,
+                    port,
+                    id: String(j.id || ""),
+                    security: security || "None",
+                    transport: net,
+                    sni,
+                    host: String(j.host || ""),
+                    path,
+                    fp: String(j.fp || ""),
+                    alpn: String(j.alpn || ""),
+                    summary: [...chips, hostPort].filter(Boolean).join(" · "),
+                };
+            }
+        } catch (_) { /* fall through */ }
+    }
+
+    try {
+        // Normalize custom scheme to http:// for standard URL parsing
+        const normUrl = new URL("http://" + raw.slice(schemeMatch[0].length));
+        const p = normUrl.searchParams;
+        const getP = (k) => p.get(k) || p.get(k.toLowerCase()) || "";
+
+        let server = normUrl.hostname || "";
+        let port = normUrl.port || "";
+        let id = decodeURIComponent(normUrl.username || "");
+        const pass = decodeURIComponent(normUrl.password || "");
+
+        // Shadowsocks base64 userinfo or full host
+        if ((scheme === "ss" || scheme === "ssr") && !port && id && !server.includes(".")) {
+            try {
+                const decoded = b64ToUtf8(raw.replace(/^ss:\/\/|^ssr:\/\//i, "").split("#")[0].split("?")[0]);
+                const atIdx = decoded.lastIndexOf("@");
+                if (atIdx > 0) {
+                    id = decoded.slice(0, atIdx);
+                    const hp = decoded.slice(atIdx + 1);
+                    const colon = hp.lastIndexOf(":");
+                    if (colon > 0) {
+                        server = hp.slice(0, colon);
+                        port = hp.slice(colon + 1);
+                    }
+                }
+            } catch (_) { /* keep parsed */ }
+        } else if (scheme === "ss" && id && !pass && !id.includes(":")) {
+            try {
+                const decUser = b64ToUtf8(id);
+                if (decUser.includes(":")) id = decUser;
+            } catch (_) { /* keep raw */ }
+        } else if (pass) {
+            id = `${id}:${pass}`;
+        }
+
+        const rawType = (getP("type") || getP("net") || (
+            scheme === "hysteria2" || scheme === "hy2" || scheme === "tuic" ? "quic"
+            : scheme === "wireguard" || scheme === "awg" || scheme === "amneziawg" ? "udp"
+            : scheme === "ssh" ? "ssh"
+            : ""
+        )).toLowerCase();
+
+        const TRANSPORT_MAP = {
+            tcp: "TCP", ws: "WS", websocket: "WS", grpc: "gRPC", gun: "gRPC",
+            xhttp: "XHTTP", splithttp: "XHTTP", httpupgrade: "HTTPUpgrade",
+            h2: "H2", http: "HTTP", kcp: "mKCP", quic: "QUIC", udp: "UDP", ssh: "SSH",
+        };
+        const transport = TRANSPORT_MAP[rawType] || (rawType ? rawType.toUpperCase() : "");
+
+        const rawSec = (getP("security") || (
+            scheme === "trojan" || scheme === "hysteria2" || scheme === "hy2" || scheme === "tuic" ? "tls" : ""
+        )).toLowerCase();
+        const security = rawSec === "reality" ? "Reality"
+            : rawSec === "tls" || rawSec === "xtls" ? rawSec.toUpperCase()
+            : "";
+
+        const sni = getP("sni") || getP("peer") || "";
+        const host = getP("host") || getP("obfsParam") || "";
+        const path = getP("path") || getP("serviceName") || "";
+        const flow = getP("flow") || "";
+        const fp = getP("fp") || "";
+        const alpn = getP("alpn") || "";
+        const pbk = getP("pbk") || getP("publickey") || "";
+        const sid = getP("sid") || "";
+
+        // Telegram MTProto proxy special handling
+        if (scheme === "tg" || scheme === "mtproto") {
+            server = getP("server") || server;
+            port = getP("port") || port;
+            id = getP("secret") || id;
+        }
+
+        const chips = [security, transport].filter(Boolean);
+        const hostPort = server ? (port ? `${server}:${port}` : server) : "";
+        return {
+            protocol: scheme.toUpperCase(),
+            server,
+            port,
+            id,
+            security: security || "None",
+            transport: transport || "TCP",
+            sni,
+            host,
+            path,
+            flow,
+            fp,
+            alpn,
+            pbk,
+            sid,
+            summary: [...chips, hostPort].filter(Boolean).join(" · "),
+        };
+    } catch (_) {
+        return null;
+    }
+}
+
+/**
+ * Generate ready-to-paste Linux iproute2 and MikroTik RouterOS commands for a GRE tunnel.
+ */
+export function generateGreCli(item) {
+    if (!item || !item.server) return null;
+    const server = String(item.address || item.server).trim();
+    const clientIp = String(item.clientAddress || "10.10.10.2/30").trim();
+    const mtu = item.mtu ? String(item.mtu).trim() : "1476";
+    const ttl = item.ttl ? String(item.ttl).trim() : "64";
+    const linux = [
+        `sudo ip tunnel add gre-aurora mode gre remote ${server} ttl ${ttl}`,
+        `sudo ip addr add ${clientIp} dev gre-aurora`,
+        `sudo ip link set gre-aurora mtu ${mtu} up`,
+    ].join(" && ");
+    const mikrotik = [
+        `/interface gre add name="gre-aurora" remote-address=${server} mtu=${mtu} !keepalive`,
+        `/ip address add address=${clientIp} interface="gre-aurora"`,
+    ].join(" ; ");
+    return { linux, mikrotik };
 }
 
 /** Trigger browser file download from an in-memory string. */

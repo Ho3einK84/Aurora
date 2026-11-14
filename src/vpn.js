@@ -24,7 +24,10 @@
    credential features tailored to each protocol.
    =========================================================================== */
 
-import { escapeHtml, escapeAttr, generateWgConf, downloadTextFile, safeFileName, generatePbkEntry, generatePbkFile } from "./format.js";
+import {
+    escapeHtml, escapeAttr, generateWgConf, downloadTextFile,
+    safeFileName, generatePbkEntry, generatePbkFile, generateGreCli,
+} from "./format.js";
 import { $, $$, setHidden, copyText, toast } from "./ui.js";
 import { storeGet, storeSet } from "./store.js";
 
@@ -302,13 +305,19 @@ export function mountVpn(deps) {
         if (!ctx.subUrl) return;
         const infoUrl = ctx.subUrl.replace(/\/+$/, "") + "/info";
         try {
-            const res = await fetch(infoUrl, {
-                cache: "no-store",
-                credentials: "same-origin",
-                headers: { Accept: "application/json" },
-            });
-            if (!res.ok) throw new Error("info HTTP " + res.status);
-            const data = await res.json();
+            let data = null;
+            if (typeof deps.fetchInfo === "function") {
+                data = await deps.fetchInfo();
+            } else {
+                const res = await fetch(infoUrl, {
+                    cache: "no-store",
+                    credentials: "same-origin",
+                    headers: { Accept: "application/json" },
+                });
+                if (!res.ok) throw new Error("info HTTP " + res.status);
+                data = await res.json();
+            }
+            if (!data) throw new Error("empty info");
             if (applyInfo(data)) {
                 storeSet(cacheKey, JSON.stringify({
                     openvpn: { downloads: ovpn.map((o) => o.url) },
@@ -486,7 +495,7 @@ export function mountVpn(deps) {
                 `<i class="ph ph-download-simple text-base"></i>` +
                 `<span class="hidden sm:inline">${escapeHtml(t("download_conf"))}</span></a>`
             );
-        } else if (profile.body) {
+        } else if (profile.body || profile.link) {
             buttons.push(
                 `<button class="btn btn-sm btn-primary gap-1.5 rounded-xl font-semibold" data-dl-awg="${i}" ` +
                 `aria-label="${escapeAttr(t("download_conf"))}"><i class="ph ph-download-simple text-base"></i>` +
@@ -546,11 +555,20 @@ export function mountVpn(deps) {
         const isCert = item.authMode === "certificate";
 
         if (tab === "gre") {
+            const cli = generateGreCli(item);
             return `<div class="card glass rounded-2xl border-0">` +
                 `<div class="space-y-2 p-3">` +
-                `<div class="flex items-center gap-3">` +
+                `<div class="flex flex-wrap items-center gap-2">` +
                 `<div class="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-gradient-to-br from-primary/20 to-secondary/20 text-[10px] font-bold text-primary">${badge}</div>` +
                 `<p class="min-w-0 flex-1 truncate text-sm font-semibold" dir="auto">${escapeHtml(item.remark || badge)}</p>` +
+                (cli
+                    ? `<button class="btn btn-xs btn-ghost glass gap-1 rounded-xl font-semibold" data-copy="${escapeAttr(cli.linux)}" ` +
+                      `aria-label="${escapeAttr(t("copy_linux_cmd"))}"><i class="ph ph-terminal-window text-sm"></i>` +
+                      `<span>${escapeHtml(t("copy_linux_cmd"))}</span></button>` +
+                      `<button class="btn btn-xs btn-ghost glass gap-1 rounded-xl font-semibold" data-copy="${escapeAttr(cli.mikrotik)}" ` +
+                      `aria-label="${escapeAttr(t("copy_mikrotik_cmd"))}"><i class="ph ph-terminal text-sm"></i>` +
+                      `<span>${escapeHtml(t("copy_mikrotik_cmd"))}</span></button>`
+                    : "") +
                 `</div>` +
                 `<div class="grid grid-cols-1 gap-2 sm:grid-cols-2">` +
                 fieldRow("vpn_server", item.server, { icon: "ph-hard-drives", key: keyOf("server") }) +
@@ -662,7 +680,7 @@ export function mountVpn(deps) {
                 const idx = parseInt(btn.getAttribute("data-dl-awg"), 10);
                 const profile = awg[idx];
                 if (!profile) return;
-                const conf = profile.body;
+                const conf = profile.body || generateWgConf(profile.link);
                 if (conf) {
                     downloadTextFile(conf, safeFileName(profile.name, "amneziawg", ".conf"));
                     toast(t("export_done"));

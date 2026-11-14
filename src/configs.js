@@ -22,16 +22,25 @@ export function decodeHtmlEntities(s) {
     return String(s).replace(/&amp;|&lt;|&gt;|&quot;|&#39;/g, (e) => HTML_ENTITIES[e]);
 }
 
-/** Parse the newline-separated links block, dropping script-bearing schemes. */
+/** Parse the newline-separated links block, dropping script-bearing schemes and duplicate URIs. */
 export function parseLinks(rawText) {
-    return String(rawText || "")
+    const seen = new Set();
+    const result = [];
+    String(rawText || "")
         .split(/\r?\n/)
         .map((s) => decodeHtmlEntities(s.trim()))
         .filter((s) => {
             if (!s || !/^[a-z][a-z0-9+.-]*:/i.test(s)) return false;
             const scheme = s.slice(0, s.indexOf(":")).toLowerCase();
             return scheme !== "javascript" && scheme !== "data" && scheme !== "vbscript";
+        })
+        .forEach((s) => {
+            if (!seen.has(s)) {
+                seen.add(s);
+                result.push(s);
+            }
         });
+    return result;
 }
 
 const PROTO_BADGES = {
@@ -160,8 +169,16 @@ export function countryOf(label) {
  * Returns { rerender } for language switches.
  */
 export function mountConfigs(deps) {
-    const { links, t, lang, openQr } = deps;
-    const rows = links.map((link, i) => ({
+    const { t, lang, openQr } = deps;
+    const seen = new Set();
+    const uniqueLinks = [];
+    (deps.links || []).forEach((link) => {
+        if (link && !seen.has(link)) {
+            seen.add(link);
+            uniqueLinks.push(link);
+        }
+    });
+    const rows = uniqueLinks.map((link, i) => ({
         link,
         i,
         name: configLabel(link) || `${t("config")} ${i + 1}`,

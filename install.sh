@@ -5,7 +5,7 @@
 # ==============================================================================
 set -euo pipefail
 
-readonly SCRIPT_VERSION="2.0.0"
+readonly SCRIPT_VERSION="2.1.0"
 readonly DEFAULT_TARGET_DIR="/var/lib/rebecca/templates/subscription"
 readonly DEFAULT_TARGET_FILE="${DEFAULT_TARGET_DIR}/index.html"
 readonly RELEASE_URL="https://github.com/Ho3einK84/Aurora/releases/latest/download/index.html"
@@ -67,6 +67,7 @@ CUR_LANG="en"
 CUR_THEME="auroradark"
 CUR_LOGO=""
 CUR_ANNOUNCE=""
+CUR_SERVER_BREAKDOWN="1"
 IS_INSTALLED=0
 
 detect_current_config() {
@@ -78,6 +79,7 @@ detect_current_config() {
   CUR_THEME="auroradark"
   CUR_LOGO=""
   CUR_ANNOUNCE=""
+  CUR_SERVER_BREAKDOWN="1"
 
   if [[ ! -f "$target_file" ]]; then
     return 0
@@ -106,19 +108,30 @@ print("LANG=" + clean(data.get("defaultLang") or data.get("lang") or "en"))
 print("THEME=" + clean(data.get("defaultTheme") or data.get("theme") or "auroradark"))
 print("LOGO=" + clean(data.get("logo") or ""))
 print("ANNOUNCE=" + clean(data.get("announcement") or ""))
+sb = data.get("serverBreakdown")
+if sb is None:
+    sb = data.get("showServerUsage")
+if sb is None:
+    m_sb = re.search(r'<meta\s+name="aurora-server-breakdown"\s+content="([^"]*)"', text)
+    if m_sb and m_sb.group(1).lower() in ("false", "0", "no", "off", "disabled"):
+        sb = False
+    else:
+        sb = True
+print("SERVER_BREAKDOWN=" + ("1" if sb else "0"))
 PYEOF
 )"
 
   if [[ -n "$parsed" ]]; then
     while IFS='=' read -r k v; do
       case "$k" in
-        INSTALLED) IS_INSTALLED="$v" ;;
-        BRAND)     CUR_BRAND="${v:-Aurora}" ;;
-        SUPPORT)   CUR_SUPPORT="$v" ;;
-        LANG)      CUR_LANG="${v:-en}" ;;
-        THEME)     CUR_THEME="${v:-auroradark}" ;;
-        LOGO)      CUR_LOGO="$v" ;;
-        ANNOUNCE)  CUR_ANNOUNCE="$v" ;;
+        INSTALLED)        IS_INSTALLED="$v" ;;
+        BRAND)            CUR_BRAND="${v:-Aurora}" ;;
+        SUPPORT)          CUR_SUPPORT="$v" ;;
+        LANG)             CUR_LANG="${v:-en}" ;;
+        THEME)            CUR_THEME="${v:-auroradark}" ;;
+        LOGO)             CUR_LOGO="$v" ;;
+        ANNOUNCE)         CUR_ANNOUNCE="$v" ;;
+        SERVER_BREAKDOWN) CUR_SERVER_BREAKDOWN="${v:-1}" ;;
       esac
     done <<< "$parsed"
   fi
@@ -137,13 +150,18 @@ print_banner() {
     fi
   fi
 
+  local sb_status="${C_GREEN}enabled${C_RESET}"
+  if [[ "$CUR_SERVER_BREAKDOWN" == "0" ]]; then
+    sb_status="${C_YELLOW}disabled${C_RESET}"
+  fi
+
   log_blank
   hr
-  log_line "${C_MAGENTA}${C_BOLD}   🌌 Aurora v4.1 — Subscription Template for Rebecca${C_RESET}"
+  log_line "${C_MAGENTA}${C_BOLD}   🌌 Aurora v4.1.2 — Subscription Template for Rebecca${C_RESET}"
   log_line "${C_DIM}   Installer v${SCRIPT_VERSION} · Single-File · Zero External Requests${C_RESET}"
   hr
   if [[ $IS_INSTALLED -eq 1 ]]; then
-    log_line "   ${C_DIM}Status:${C_RESET} ${C_GREEN}Installed${C_RESET} (${C_WHITE}${CUR_BRAND}${C_RESET} · ${CUR_LANG} · ${CUR_THEME})   ${C_DIM}Rebecca:${C_RESET} ${svc_state}"
+    log_line "   ${C_DIM}Status:${C_RESET} ${C_GREEN}Installed${C_RESET} (${C_WHITE}${CUR_BRAND}${C_RESET} · ${CUR_LANG} · ${CUR_THEME} · nodes: ${sb_status})   ${C_DIM}Rebecca:${C_RESET} ${svc_state}"
   else
     log_line "   ${C_DIM}Status:${C_RESET} ${C_YELLOW}Not installed${C_RESET}   ${C_DIM}Rebecca:${C_RESET} ${svc_state}"
   fi
@@ -223,6 +241,7 @@ patch_branding() {
   local default_theme=${5:-}
   local logo_url=${6:-}
   local announce_text=${7:-}
+  local server_breakdown=${8:-}
 
   if [[ ! -f "$target_file" ]]; then
     err "Template file not found: $target_file"
@@ -235,6 +254,7 @@ patch_branding() {
   DEFAULT_THEME="$default_theme" \
   LOGO_URL="$logo_url" \
   ANNOUNCE_TEXT="$announce_text" \
+  SERVER_BREAKDOWN="$server_breakdown" \
   python3 - <<'PYEOF'
 import os, re, json, html
 
@@ -245,6 +265,7 @@ default_lang = os.environ.get("DEFAULT_LANG", "").strip().lower()
 default_theme = os.environ.get("DEFAULT_THEME", "").strip().lower()
 logo_url = os.environ.get("LOGO_URL", "").strip()
 announce_text = os.environ.get("ANNOUNCE_TEXT", "").strip()
+server_breakdown = os.environ.get("SERVER_BREAKDOWN", "").strip().lower()
 
 with open(target, "r", encoding="utf-8") as f:
     content = f.read()
@@ -279,6 +300,11 @@ if announce_text == "-" or announce_text.lower() == "none":
 elif announce_text:
     brand_data["announcement"] = announce_text
 
+if server_breakdown in ("0", "false", "no", "off", "disable", "disabled"):
+    brand_data["serverBreakdown"] = False
+elif server_breakdown in ("1", "true", "yes", "on", "enable", "enabled"):
+    brand_data["serverBreakdown"] = True
+
 brand_json = json.dumps(brand_data, ensure_ascii=False).replace("</", "<\\/")
 content = re.sub(
     r"window\.AURORA_BRAND\s*=\s*\{.*?\};",
@@ -302,6 +328,18 @@ if default_lang in ("en", "fa", "ru", "zh"):
     content = re.sub(r'(<meta\s+name="aurora-default-lang"\s+content=")[^"]*(")', rf"\g<1>{default_lang}\g<2>", content)
     content = re.sub(r'(<html\b[^>]*\s+lang=")[^"]*(")', rf"\g<1>{default_lang}\g<2>", content)
     content = re.sub(r'(<html\b[^>]*\s+dir=")[^"]*(")', rf"\g<1>{direction}\g<2>", content)
+
+sb_state = brand_data.get("serverBreakdown")
+if sb_state is not None:
+    sb_val = "false" if sb_state is False else "true"
+    if re.search(r'<meta\s+name="aurora-server-breakdown"', content):
+        content = re.sub(r'(<meta\s+name="aurora-server-breakdown"\s+content=")[^"]*(")', rf"\g<1>{sb_val}\g<2>", content)
+    else:
+        content = re.sub(
+            r'(<meta\s+name="aurora-default-lang"[^>]*>)',
+            rf'\g<1>\n    <meta name="aurora-server-breakdown" content="{sb_val}" />',
+            content
+        )
 
 with open(target, "w", encoding="utf-8") as f:
     f.write(content)
@@ -344,6 +382,7 @@ prompt_branding_wizard() {
   local announce_text=""
   local lang_input=""
   local theme_input=""
+  local sb_input=""
 
   log_blank
   info "Customize Aurora (press Enter to keep current value, or '-' to clear optional fields):"
@@ -374,7 +413,18 @@ prompt_branding_wizard() {
     4|nord*|NORD*) default_theme="nord" ;;
   esac
 
-  patch_branding "$target_file" "$brand_name" "$support_url" "$default_lang" "$default_theme" "$logo_url" "$announce_text"
+  log_blank
+  log_line "  ${C_BOLD}Server Breakdown (Usage by Server / تفکیک سرور):${C_RESET} 1) Enabled [فعال]  2) Disabled [غیرفعال]"
+  local sb_def="1"
+  [[ "$CUR_SERVER_BREAKDOWN" == "0" ]] && sb_def="2"
+  read_input "Server Breakdown (1=enable, 2=disable)" sb_input "$sb_def"
+  local server_breakdown="1"
+  case "$sb_input" in
+    2|disable*|off|false|0) server_breakdown="0" ;;
+    *) server_breakdown="1" ;;
+  esac
+
+  patch_branding "$target_file" "$brand_name" "$support_url" "$default_lang" "$default_theme" "$logo_url" "$announce_text" "$server_breakdown"
 }
 
 quick_install_or_update() {
@@ -387,12 +437,13 @@ quick_install_or_update() {
   local saved_theme="$CUR_THEME"
   local saved_logo="$CUR_LOGO"
   local saved_announce="$CUR_ANNOUNCE"
+  local saved_sb="$CUR_SERVER_BREAKDOWN"
 
   download_template "$target_file"
 
   if [[ $prev_installed -eq 1 ]]; then
-    patch_branding "$target_file" "$saved_brand" "$saved_support" "$saved_lang" "$saved_theme" "$saved_logo" "$saved_announce"
-    info "Preserved existing branding (${saved_brand}, ${saved_lang}, ${saved_theme})."
+    patch_branding "$target_file" "$saved_brand" "$saved_support" "$saved_lang" "$saved_theme" "$saved_logo" "$saved_announce" "$saved_sb"
+    info "Preserved existing branding (${saved_brand}, ${saved_lang}, ${saved_theme}, nodes: $([[ "$saved_sb" == "0" ]] && echo disabled || echo enabled))."
   fi
   restart_rebecca
   ok "Aurora is up to date and live!"
@@ -409,10 +460,11 @@ interactive_install() {
   local saved_theme="$CUR_THEME"
   local saved_logo="$CUR_LOGO"
   local saved_announce="$CUR_ANNOUNCE"
+  local saved_sb="$CUR_SERVER_BREAKDOWN"
 
   download_template "$target_file"
   if [[ $prev_installed -eq 1 ]]; then
-    patch_branding "$target_file" "$saved_brand" "$saved_support" "$saved_lang" "$saved_theme" "$saved_logo" "$saved_announce"
+    patch_branding "$target_file" "$saved_brand" "$saved_support" "$saved_lang" "$saved_theme" "$saved_logo" "$saved_announce" "$saved_sb"
   fi
 
   prompt_branding_wizard "$target_file"
@@ -431,6 +483,7 @@ main() {
   local cli_theme=""
   local cli_logo=""
   local cli_announce=""
+  local cli_server_breakdown=""
   local cli_target="$DEFAULT_TARGET_FILE"
   local cli_restart=0
   local cli_restore=0
@@ -444,6 +497,9 @@ main() {
       --theme|-m)     cli_theme="$2"; shift 2 ;;
       --logo)         cli_logo="$2"; shift 2 ;;
       --announce)     cli_announce="$2"; shift 2 ;;
+      --server-breakdown) cli_server_breakdown="$2"; shift 2 ;;
+      --disable-server-breakdown|--no-server-breakdown) cli_server_breakdown="0"; shift ;;
+      --enable-server-breakdown) cli_server_breakdown="1"; shift ;;
       --target|-t)    cli_target="$2"; shift 2 ;;
       --restart|-r)   cli_restart=1; shift ;;
       --restore)      cli_restore=1; shift ;;
@@ -459,6 +515,9 @@ main() {
         log_line "  -m, --theme <theme>       Set default theme (auroradark, amoleddark, auroralight, nord)"
         log_line "      --logo <url>          Set header logo image URL ('-' to clear)"
         log_line "      --announce <text>     Set announcement banner text ('-' to clear)"
+        log_line "      --server-breakdown <0|1>  Enable (1) or disable (0) usage by server breakdown"
+        log_line "      --no-server-breakdown     Disable usage by server breakdown (تفکیک سرور)"
+        log_line "      --enable-server-breakdown Enable usage by server breakdown (default)"
         log_line "  -t, --target <path>       Target index.html path (default: ${DEFAULT_TARGET_FILE})"
         log_line "  -r, --restart             Restart Rebecca service after applying"
         log_line "      --restore             Restore original template backup"
@@ -474,7 +533,7 @@ main() {
     exit 0
   fi
 
-  if [[ $auto -eq 1 || -n "$cli_brand" || -n "$cli_support" || -n "$cli_lang" || -n "$cli_theme" || -n "$cli_logo" || -n "$cli_announce" ]]; then
+  if [[ $auto -eq 1 || -n "$cli_brand" || -n "$cli_support" || -n "$cli_lang" || -n "$cli_theme" || -n "$cli_logo" || -n "$cli_announce" || -n "$cli_server_breakdown" ]]; then
     print_banner "$cli_target"
     detect_current_config "$cli_target"
     local prev_installed=$IS_INSTALLED
@@ -484,10 +543,11 @@ main() {
     local b_theme="${cli_theme:-$CUR_THEME}"
     local b_logo="${cli_logo:-$CUR_LOGO}"
     local b_announce="${cli_announce:-$CUR_ANNOUNCE}"
+    local b_sb="${cli_server_breakdown:-$CUR_SERVER_BREAKDOWN}"
 
     download_template "$cli_target"
-    if [[ $prev_installed -eq 1 || -n "$cli_brand" || -n "$cli_support" || -n "$cli_lang" || -n "$cli_theme" || -n "$cli_logo" || -n "$cli_announce" ]]; then
-      patch_branding "$cli_target" "$b_name" "$b_support" "$b_lang" "$b_theme" "$b_logo" "$b_announce"
+    if [[ $prev_installed -eq 1 || -n "$cli_brand" || -n "$cli_support" || -n "$cli_lang" || -n "$cli_theme" || -n "$cli_logo" || -n "$cli_announce" || -n "$cli_server_breakdown" ]]; then
+      patch_branding "$cli_target" "$b_name" "$b_support" "$b_lang" "$b_theme" "$b_logo" "$b_announce" "$b_sb"
     fi
     if [[ $cli_restart -eq 1 ]]; then
       restart_rebecca
@@ -498,7 +558,7 @@ main() {
 
   print_banner "$cli_target"
   log_line "  ${C_CYAN}1)${C_RESET} Quick Install / Update ${C_DIM}(keeps existing branding)${C_RESET}"
-  log_line "  ${C_CYAN}2)${C_RESET} Install + Customize ${C_DIM}(brand, language, theme, logo, banner)${C_RESET}"
+  log_line "  ${C_CYAN}2)${C_RESET} Install + Customize ${C_DIM}(brand, language, theme, logo, banner, breakdown)${C_RESET}"
   log_line "  ${C_CYAN}3)${C_RESET} Customize Existing Template ${C_DIM}(no download)${C_RESET}"
   log_line "  ${C_CYAN}4)${C_RESET} Restore Original Backup"
   log_line "  ${C_CYAN}0)${C_RESET} Exit"

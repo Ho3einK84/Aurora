@@ -28,6 +28,7 @@ import {
     escapeHtml, escapeAttr, generateWgConf, downloadTextFile,
     safeFileName, generatePbkEntry, generatePbkFile, generateGreCli,
 } from "./format.js";
+import { configLabel } from "./configs.js";
 import { $, $$, setHidden, copyText, toast } from "./ui.js";
 import { storeGet, storeSet } from "./store.js";
 
@@ -152,7 +153,7 @@ function normAwg(row) {
         downloadUrl: clean(row.download_url),
         link: clean(row.link),
         body: clean(row.body),
-        name: clean(row.remark) || clean(row.filename) || clean(row.host_name) || "AmneziaWG",
+        name: clean(row.remark) || clean(row.filename) || clean(row.host_name) || (row.link ? configLabel(row.link) : "") || "AmneziaWG",
         server: clean(row.server),
         address: clean(row.address),
         port: row.port || "",
@@ -169,7 +170,7 @@ function normWg(row) {
         downloadUrl: clean(row.download_url),
         link: clean(row.link),
         body: clean(row.body),
-        name: clean(row.remark) || clean(row.filename) || clean(row.host_name) || "WireGuard",
+        name: clean(row.remark) || clean(row.filename) || clean(row.host_name) || (row.link ? configLabel(row.link) : "") || "WireGuard",
         server: clean(row.server),
         address: clean(row.address),
         port: row.port || "",
@@ -178,6 +179,39 @@ function normWg(row) {
         serverPublicKey: clean(row.server_public_key),
     };
     return item.downloadUrl || item.link || item.body || item.server ? item : null;
+}
+
+function mergeProfiles(list) {
+    const map = new Map();
+    for (const item of list) {
+        if (!item) continue;
+        const key = (item.name || "").trim().toLowerCase() || item.link || item.downloadUrl;
+        if (!map.has(key)) {
+            map.set(key, { ...item });
+        } else {
+            const cur = map.get(key);
+            if (!cur.downloadUrl && item.downloadUrl) cur.downloadUrl = item.downloadUrl;
+            if (!cur.link && item.link) cur.link = item.link;
+            if (!cur.body && item.body) cur.body = item.body;
+            if (!cur.server && item.server) cur.server = item.server;
+            if (!cur.address && item.address) cur.address = item.address;
+            if (!cur.port && item.port) cur.port = item.port;
+            if (!cur.clientAddress && item.clientAddress) cur.clientAddress = item.clientAddress;
+            if (!cur.clientPublicKey && item.clientPublicKey) cur.clientPublicKey = item.clientPublicKey;
+            if (!cur.serverPublicKey && item.serverPublicKey) cur.serverPublicKey = item.serverPublicKey;
+        }
+    }
+    return Array.from(map.values());
+}
+
+function mergeOvpn(list) {
+    const seen = new Set();
+    return list.filter((item) => {
+        if (!item || !item.url) return false;
+        if (seen.has(item.url)) return false;
+        seen.add(item.url);
+        return true;
+    });
 }
 
 /* ---------------------------------------------------------------- module */
@@ -194,21 +228,21 @@ export function mountVpn(deps) {
     const { ctx, t } = deps;
     const cacheKey = `${CACHE_KEY}:${ctx.username || ""}`;
 
-    let ovpn = (deps.ovpnLinks || []).map(normOvpn).filter(Boolean);
-    let wg = (deps.wgLinks || []).map((link) => {
-        if (/^wireguard:\/\//i.test(link)) return normWg({ link });
+    let ovpn = mergeOvpn((deps.ovpnLinks || []).map(normOvpn).filter(Boolean));
+    let wg = mergeProfiles((deps.wgLinks || []).map((link) => {
+        if (/^wireguard:\/\//i.test(link)) return normWg({ link, remark: configLabel(link) });
         return normWg({
             download_url: link,
             remark: ovpnLabel(link).replace(/\.conf$/i, ""),
         });
-    }).filter(Boolean);
-    let awg = (deps.awgLinks || []).map((link) => {
-        if (/^(?:amneziawg|awg):\/\//i.test(link)) return normAwg({ link });
+    }).filter(Boolean));
+    let awg = mergeProfiles((deps.awgLinks || []).map((link) => {
+        if (/^(?:amneziawg|awg):\/\//i.test(link)) return normAwg({ link, remark: configLabel(link) });
         return normAwg({
             download_url: link,
             remark: ovpnLabel(link).replace(/\.conf$/i, ""),
         });
-    }).filter(Boolean);
+    }).filter(Boolean));
     let sstp = [];
     let gre = [];
     let l2tp = [];
@@ -234,14 +268,14 @@ export function mountVpn(deps) {
         const ovSource = data.openvpn || data.ov;
         const dl = ovSource && Array.isArray(ovSource.downloads) ? ovSource.downloads : null;
         if (dl && dl.length) {
-            ovpn = dl.map(normOvpn).filter(Boolean);
+            ovpn = mergeOvpn(dl.map(normOvpn).filter(Boolean));
             touched = true;
         }
         // WireGuard: prefer structured profiles; fall back to downloads/links arrays.
         const wgSource = data.wireguard;
         if (wgSource && typeof wgSource === "object") {
             if (Array.isArray(wgSource.profiles) && wgSource.profiles.length) {
-                wg = wgSource.profiles.map(normWg).filter(Boolean);
+                wg = mergeProfiles(wgSource.profiles.map(normWg).filter(Boolean));
                 touched = true;
             } else if (!wg.length) {
                 // Fallback: synthesise minimal entries from downloads/links.
@@ -253,24 +287,24 @@ export function mountVpn(deps) {
                     const item = normWg({
                         download_url: wgDl[i],
                         link: wgLinks[i],
-                        remark: wgDl[i] ? ovpnLabel(wgDl[i]).replace(/\.ovpn$/i, "").replace(/\.conf$/i, "") : "",
+                        remark: wgDl[i] ? ovpnLabel(wgDl[i]).replace(/\.ovpn$/i, "").replace(/\.conf$/i, "") : (wgLinks[i] ? configLabel(wgLinks[i]) : ""),
                     });
                     if (item) fallback.push(item);
                 }
-                if (fallback.length) { wg = fallback; touched = true; }
+                if (fallback.length) { wg = mergeProfiles(fallback); touched = true; }
             }
         }
         // AmneziaWG: prefer structured profiles; fall back to downloads array.
         const awgSource = data.amneziawg;
         if (awgSource && typeof awgSource === "object") {
             if (Array.isArray(awgSource.profiles) && awgSource.profiles.length) {
-                awg = awgSource.profiles.map(normAwg).filter(Boolean);
+                awg = mergeProfiles(awgSource.profiles.map(normAwg).filter(Boolean));
                 touched = true;
             } else if (Array.isArray(awgSource.downloads) && awgSource.downloads.length) {
-                awg = awgSource.downloads.map((url) => normAwg({
+                awg = mergeProfiles(awgSource.downloads.map((url) => normAwg({
                     download_url: url,
                     remark: ovpnLabel(url).replace(/\.conf$/i, ""),
-                })).filter(Boolean);
+                })).filter(Boolean));
                 touched = true;
             }
         }

@@ -418,11 +418,26 @@ export function mountUsage(deps) {
         setHidden(el, false);
     }
 
+    function isServerBreakdownEnabled() {
+        const brand = window.AURORA_BRAND || {};
+        if (typeof brand.serverBreakdown === "boolean") return brand.serverBreakdown;
+        if (typeof brand.showServerUsage === "boolean") return brand.showServerUsage;
+        if (typeof brand.showNodes === "boolean") return brand.showNodes;
+        const meta = document.querySelector('meta[name="aurora-server-breakdown"]');
+        if (meta && meta.content) {
+            const val = meta.content.trim().toLowerCase();
+            if (val === "false" || val === "0" || val === "no" || val === "off" || val === "disabled") return false;
+        }
+        return true;
+    }
+
     /** Horizontal per-server bars (top 6 by traffic) with share of total. */
     function renderNodes() {
         const box = $("#usage-nodes");
-        if (!nodes || !nodes.length) {
+        if (!box) return;
+        if (!isServerBreakdownEnabled() || !nodes || !nodes.length) {
             setHidden(box, true);
+            box.innerHTML = "";
             return;
         }
         const rows = nodes.slice().sort((a, b) => b.value - a.value).slice(0, 6);

@@ -12,7 +12,7 @@ Glassmorphism · usage dashboard · EN/FA RTL · white-label · Tailwind v4 + Da
 | :---: | :---: |
 | ![Aurora Dark subscription page](assets/screenshots/preview-v4.1.1.png) | ![Aurora Light subscription page](assets/screenshots/preview-light-v4.1.1.png) |
 
-*Aurora v4.1.1 (`auroradark` & `auroralight`) — refined boreal glass surfaces, dual usage/time rings, flat SVG chart bars, calm hierarchy, and crisp LTR/RTL typography.*
+*Aurora v4.1.2 (`auroradark` & `auroralight`) — refined boreal glass surfaces, dual usage/time rings, flat SVG chart bars, calm hierarchy, and crisp LTR/RTL typography.*
 
 ---
 
@@ -70,11 +70,12 @@ Extract `hosting.zip` from the latest release to your web root, and set your pan
   ```html
   <meta name="aurora-default-theme" content="amoleddark" />
   <meta name="aurora-default-lang" content="fa" />
-  <script>window.AURORA_BRAND = {"name":"MyVPN","supportUrl":"https://t.me/MySupport","defaultTheme":"amoleddark","defaultLang":"fa","logo":"","announcement":""};</script>
+  <meta name="aurora-server-breakdown" content="true" />
+  <script>window.AURORA_BRAND = {"name":"MyVPN","supportUrl":"https://t.me/MySupport","defaultTheme":"amoleddark","defaultLang":"fa","logo":"","announcement":"","serverBreakdown":true};</script>
   ```
   Or run:
   ```bash
-  sudo bash install.sh --brand "MyVPN" --support "https://t.me/MySupport" --lang fa --theme amoleddark --restart
+  sudo bash install.sh --brand "MyVPN" --support "https://t.me/MySupport" --lang fa --theme amoleddark --server-breakdown 1 --restart
   ```
 - **Apps**: Edit `window.AURORA_APPS` in `dist/index.html` or `src/apps.json`.
 

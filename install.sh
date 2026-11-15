@@ -157,7 +157,7 @@ print_banner() {
 
   log_blank
   hr
-  log_line "${C_MAGENTA}${C_BOLD}   🌌 Aurora v4.1.2 — Subscription Template for Rebecca${C_RESET}"
+  log_line "${C_MAGENTA}${C_BOLD}   🌌 Aurora v4.1.3 — Subscription Template for Rebecca${C_RESET}"
   log_line "${C_DIM}   Installer v${SCRIPT_VERSION} · Single-File · Zero External Requests${C_RESET}"
   hr
   if [[ $IS_INSTALLED -eq 1 ]]; then
@@ -491,16 +491,16 @@ main() {
   while [[ $# -gt 0 ]]; do
     case "$1" in
       --auto|-a)      auto=1; shift ;;
-      --brand|-b)     cli_brand="$2"; shift 2 ;;
-      --support|-s)   cli_support="$2"; shift 2 ;;
-      --lang|-l)      cli_lang="$2"; shift 2 ;;
-      --theme|-m)     cli_theme="$2"; shift 2 ;;
-      --logo)         cli_logo="$2"; shift 2 ;;
-      --announce)     cli_announce="$2"; shift 2 ;;
-      --server-breakdown) cli_server_breakdown="$2"; shift 2 ;;
+      --brand|-b)     [[ $# -ge 2 ]] || err "Option $1 requires an argument."; cli_brand="$2"; shift 2 ;;
+      --support|-s)   [[ $# -ge 2 ]] || err "Option $1 requires an argument."; cli_support="$2"; shift 2 ;;
+      --lang|-l)      [[ $# -ge 2 ]] || err "Option $1 requires an argument."; cli_lang="$2"; shift 2 ;;
+      --theme|-m)     [[ $# -ge 2 ]] || err "Option $1 requires an argument."; cli_theme="$2"; shift 2 ;;
+      --logo)         [[ $# -ge 2 ]] || err "Option $1 requires an argument."; cli_logo="$2"; shift 2 ;;
+      --announce)     [[ $# -ge 2 ]] || err "Option $1 requires an argument."; cli_announce="$2"; shift 2 ;;
+      --server-breakdown) [[ $# -ge 2 ]] || err "Option $1 requires an argument."; cli_server_breakdown="$2"; shift 2 ;;
       --disable-server-breakdown|--no-server-breakdown) cli_server_breakdown="0"; shift ;;
       --enable-server-breakdown) cli_server_breakdown="1"; shift ;;
-      --target|-t)    cli_target="$2"; shift 2 ;;
+      --target|-t)    [[ $# -ge 2 ]] || err "Option $1 requires an argument."; cli_target="$2"; shift 2 ;;
       --restart|-r)   cli_restart=1; shift ;;
       --restore)      cli_restore=1; shift ;;
       --help|-h)

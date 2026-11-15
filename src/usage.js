@@ -152,7 +152,7 @@ export function mountUsage(deps) {
                 nodes = pickNodeUsage(parsed);
                 updatedAt = Date.now();
                 stale = false;
-                storeSet(cacheKey, JSON.stringify({ ts: updatedAt, data: arr, hourly, nodes }));
+                storeSet(cacheKey, JSON.stringify({ ts: updatedAt, data: arr, hourly, nodes }), { noCookie: true });
                 return;
             }
             history = [];
@@ -256,7 +256,11 @@ export function mountUsage(deps) {
             return;
         }
         const limitCount = isHourly ? 24 : rangeDays;
-        const rows = source.slice().sort((a, b) => dateOf(a) - dateOf(b)).slice(-limitCount);
+        const rows = source.slice().sort((a, b) => {
+            const ta = dateOf(a).getTime();
+            const tb = dateOf(b).getTime();
+            return (isNaN(ta) ? 0 : ta) - (isNaN(tb) ? 0 : tb);
+        }).slice(-limitCount);
         const vals = rows.map(usageValOf);
         const peakVal = Math.max(0, ...vals);
         const max = Math.max(1, peakVal);
@@ -369,15 +373,24 @@ export function mountUsage(deps) {
             setHidden(box, true);
             return;
         }
-        const recent = history.slice().sort((a, b) => dateOf(a) - dateOf(b)).slice(-7);
+        const recent = history.slice().sort((a, b) => {
+            const ta = dateOf(a).getTime();
+            const tb = dateOf(b).getTime();
+            return (isNaN(ta) ? 0 : ta) - (isNaN(tb) ? 0 : tb);
+        }).slice(-7);
         const avg = recent.reduce((s, r) => s + usageValOf(r), 0) / (recent.length || 1);
         if (avg <= 0) {
             setHidden(box, true);
             return;
         }
         const daysLeft = remaining / avg;
-        const depleteAt = new Date(Date.now() + daysLeft * 86400000);
+        const cappedDays = Math.min(daysLeft, 36500);
+        const depleteAt = new Date(Date.now() + cappedDays * 86400000);
         const expiresFirst = hasValue(ctx.expireRaw) && ctx.expire * 1000 <= depleteAt.getTime();
+        if (!expiresFirst && (daysLeft > 3650 || isNaN(depleteAt.getTime()))) {
+            setHidden(box, true);
+            return;
+        }
         const days = Math.max(0, Math.ceil(daysLeft));
         $("#usage-forecast-text").innerHTML = expiresFirst
             ? escapeHtml(t("forecast_expire_first"))

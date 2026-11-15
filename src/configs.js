@@ -8,7 +8,7 @@ import {
     downloadTextFile, safeFileName, parseConfigMeta,
 } from "./format.js";
 import { locNum, locCountry } from "./i18n.js";
-import { $, $$, setHidden, copyText, toast, flashCopied } from "./ui.js";
+import { $, $$, setHidden, copyText, toast, flashCopied, flashCopyIcon } from "./ui.js";
 import { storeGet, storeSet } from "./store.js";
 
 // pongo2 (the panel's template engine) autoescapes {{ link }} even though
@@ -91,7 +91,7 @@ export function protocolOf(uri) {
 export function configLabel(uri) {
     if (/^vmess:\/\//i.test(uri)) {
         try {
-            const payload = uri.replace(/^vmess:\/\//i, "").split("#")[0];
+            const payload = uri.replace(/^vmess:\/\//i, "").split("#")[0].split("?")[0];
             const json = JSON.parse(b64ToUtf8(payload));
             if (json && (json.ps || json.remark)) return String(json.ps || json.remark);
         } catch (_) { /* fall through to the fragment */ }
@@ -171,14 +171,14 @@ export function countryOf(label) {
 export function mountConfigs(deps) {
     const { t, lang, openQr } = deps;
     const seen = new Set();
-    const uniqueLinks = [];
+    const links = [];
     (deps.links || []).forEach((link) => {
         if (link && !seen.has(link)) {
             seen.add(link);
-            uniqueLinks.push(link);
+            links.push(link);
         }
     });
-    const rows = uniqueLinks.map((link, i) => ({
+    const rows = links.map((link, i) => ({
         link,
         i,
         name: configLabel(link) || `${t("config")} ${i + 1}`,
@@ -215,7 +215,7 @@ export function mountConfigs(deps) {
     const togglePin = (r) => {
         if (isPinned(r)) pinned.delete(r.link);
         else pinned.add(r.link);
-        storeSet(PIN_KEY, JSON.stringify([...pinned]));
+        storeSet(PIN_KEY, JSON.stringify([...pinned]), { noCookie: true });
         syncModalPinBtn();
         renderList();
     };
@@ -263,7 +263,7 @@ export function mountConfigs(deps) {
         const fields = [
             [t("cfg_protocol"), m.protocol, "ph-shield-check", false],
             [t("cfg_transport"), m.transport, "ph-arrows-left-right", false],
-            [t("cfg_security"), m.security ? (m.flow ? `${m.security} (${m.flow})` : m.security) : "", "ph-lock-key", false],
+            [t("cfg_security"), m.security ? (m.flow ? `${m.security} (${m.flow})` : m.security) : "", "ph-lock-key", Boolean(m.flow)],
             [t("vpn_port"), m.port, "ph-plug", false],
             [t("vpn_server"), m.server, "ph-hard-drives", true],
             [t("cfg_sni"), m.sni || m.host, "ph-globe", true],
@@ -292,11 +292,9 @@ export function mountConfigs(deps) {
 
         $$("[data-cfg-copy]", fieldsEl).forEach((btn) => {
             btn.addEventListener("click", async () => {
-                const icon = btn.querySelector("i");
                 if (await copyText(btn.getAttribute("data-cfg-copy"))) {
                     toast(t("copied"));
-                    icon.className = "ph ph-check text-base text-success";
-                    setTimeout(() => { icon.className = "ph ph-copy text-base"; }, 1500);
+                    flashCopyIcon(btn);
                 }
             });
         });
@@ -409,11 +407,7 @@ export function mountConfigs(deps) {
         el.querySelector('[data-act="copy"]').addEventListener("click", async (e) => {
             e.stopPropagation();
             const btn = e.currentTarget;
-            const icon = btn.querySelector("i");
-            if (await copyText(r.link)) {
-                icon.className = "ph ph-check text-lg text-success";
-                setTimeout(() => { icon.className = "ph ph-copy text-lg"; }, 1600);
-            }
+            if (await copyText(r.link)) flashCopyIcon(btn);
         });
         const shareBtn = el.querySelector('[data-act="share"]');
         if (shareBtn) {
@@ -502,7 +496,7 @@ export function mountConfigs(deps) {
                     head.className = "flex items-center gap-2 px-1 pt-1 text-xs font-medium text-base-content/60";
                     head.innerHTML =
                         `<span>${escapeHtml(g.flag)}</span><span dir="auto">${escapeHtml(g.name)}</span>` +
-                        `<span class="font-mono text-[11px] tabular-nums text-base-content/45">${locNum(g.items.length, lang())}</span>`;
+                        `<span class="text-[11px] tabular-nums text-base-content/45">${locNum(g.items.length, lang())}</span>`;
                     frag.appendChild(head);
                     g.items.forEach((r) => frag.appendChild(buildRow(r)));
                 });

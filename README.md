@@ -12,7 +12,7 @@ Glassmorphism · usage dashboard · EN/FA RTL · white-label · Tailwind v4 + Da
 | :---: | :---: |
 | ![Aurora Dark subscription page](assets/screenshots/preview-v4.1.1.png) | ![Aurora Light subscription page](assets/screenshots/preview-light-v4.1.1.png) |
 
-*Aurora v4.1.2 (`auroradark` & `auroralight`) — refined boreal glass surfaces, dual usage/time rings, flat SVG chart bars, calm hierarchy, and crisp LTR/RTL typography.*
+*Aurora v4.1.3 (`auroradark` & `auroralight`) — refined boreal glass surfaces, dual usage/time rings, flat SVG chart bars, calm hierarchy, and crisp LTR/RTL typography.*
 
 ---
 

@@ -20,7 +20,7 @@ export const I18N = {
         status_active: "Active", status_limited: "Data limit reached",
         status_expired: "Expired", status_disabled: "Disabled",
         status_on_hold: "On hold", status_unknown: "Unknown",
-        banner_limited: "Your data limit has been reached. Configs may stop working.",
+        banner_limited: "Your data limit has been reached and configs are disabled. Please renew to continue.",
         banner_expired: "Your subscription has expired. Please renew to continue.",
         banner_disabled: "This account is currently disabled.",
         banner_on_hold: "This subscription is on hold and hasn't started yet.",
@@ -140,7 +140,7 @@ export const I18N = {
         status_active: "فعال", status_limited: "اتمام حجم",
         status_expired: "منقضی‌شده", status_disabled: "غیرفعال",
         status_on_hold: "در انتظار", status_unknown: "نامشخص",
-        banner_limited: "حجم مصرفی شما به پایان رسیده است. ممکن است کانفیگ‌ها قطع شوند.",
+        banner_limited: "حجم مصرفی شما به پایان رسیده و کانفیگ‌ها غیرفعال شده‌اند. لطفاً برای ادامه تمدید کنید.",
         banner_expired: "اشتراک شما منقضی شده است. لطفاً برای ادامه تمدید کنید.",
         banner_disabled: "این حساب در حال حاضر غیرفعال است.",
         banner_on_hold: "این اشتراک در حالت انتظار است و هنوز شروع نشده.",
@@ -193,7 +193,7 @@ export const I18N = {
         vpn_server: "سرور", vpn_username: "نام کاربری", vpn_password: "رمز عبور",
         vpn_psk: "کلید مشترک IPsec",
         ovpn_download: "دانلود",
-        download_pbk: "دانلود pbk.",
+        download_pbk: "دانلود فایل \u200E.pbk",
         download_all_pbk: "همه سرورها (.pbk)",
         show_secret: "نمایش", hide_secret: "پنهان",
         ovpn_note: "پروفایل را دانلود و در اپلیکیشن OpenVPN (مثل OpenVPN Connect) وارد کنید، سپس با یک لمس متصل شوید.",
@@ -260,7 +260,7 @@ export const I18N = {
         status_active: "Активна", status_limited: "Лимит трафика",
         status_expired: "Истекла", status_disabled: "Отключена",
         status_on_hold: "Ожидание", status_unknown: "Неизвестно",
-        banner_limited: "Лимит трафика исчерпан. Конфигурации могут перестать работать.",
+        banner_limited: "Лимит трафика исчерпан, конфигурации отключены. Пожалуйста, продлите подписку.",
         banner_expired: "Срок подписки истёк. Пожалуйста, продлите её.",
         banner_disabled: "Этот аккаунт сейчас отключён.",
         banner_on_hold: "Подписка в режиме ожидания и ещё не активна.",
@@ -380,7 +380,7 @@ export const I18N = {
         status_active: "活跃", status_limited: "流量已用尽",
         status_expired: "已过期", status_disabled: "已停用",
         status_on_hold: "待启用", status_unknown: "未知",
-        banner_limited: "您的流量已用完。配置可能会停止工作。",
+        banner_limited: "您的流量已用完，配置已停用。请续费以继续使用。",
         banner_expired: "您的订阅已过期。请续费以继续使用。",
         banner_disabled: "此账户当前已停用。",
         banner_on_hold: "此订阅处于待启用状态,尚未开始。",
@@ -491,14 +491,16 @@ const regionNamesCache = {};
 
 /** Localize an ISO-3166 alpha-2 country code using Intl.DisplayNames when supported. */
 export function locCountry(code, fallbackName, lang) {
-    if (!code || lang === "en") return fallbackName || code;
+    if (!code) return fallbackName || "";
+    const upper = String(code).toUpperCase();
+    if (lang === "en" && fallbackName && fallbackName.toUpperCase() !== upper) return fallbackName;
     try {
         if (!regionNamesCache[lang]) {
-            regionNamesCache[lang] = new Intl.DisplayNames([lang], { type: "region" });
+            regionNamesCache[lang] = new Intl.DisplayNames([lang || "en"], { type: "region" });
         }
-        return regionNamesCache[lang].of(code.toUpperCase()) || fallbackName || code;
+        return regionNamesCache[lang].of(upper) || fallbackName || upper;
     } catch (_) {
-        return fallbackName || code;
+        return fallbackName || upper;
     }
 }
 
@@ -519,16 +521,19 @@ export function locPct(value, lang) {
     return locNum(value, lang) + (lang === "fa" ? "٪" : "%");
 }
 
+const DATE_LOCALES = { fa: "fa-IR", ru: "ru-RU", zh: "zh-CN", en: "en-GB" };
+
 /**
  * Format a Date per language. fa-IR defaults to the Persian (Jalali) calendar
  * in every modern engine; the ISO fallback covers exotic embedded webviews.
  */
 export function fmtDate(date, lang, opts) {
-    const locale = lang === "fa" ? "fa-IR" : "en-GB";
+    if (!date || isNaN(date.getTime())) return "—";
+    const locale = DATE_LOCALES[lang] || "en-GB";
     try {
         return new Intl.DateTimeFormat(locale, opts || { year: "numeric", month: "short", day: "numeric" }).format(date);
     } catch (_) {
-        return date.toISOString().slice(0, 10);
+        try { return date.toISOString().slice(0, 10); } catch (__) { return "—"; }
     }
 }
 
@@ -554,32 +559,36 @@ export function fmtClock(date, lang) {
 const RT_UNITS = [
     {
         ms: 60_000,
-        en: ["min", "min"], fa: "دقیقه", ru: ["мин", "мин"], zh: "分钟",
+        en: ["min", "min"], fa: "دقیقه", ru: ["мин", "мин", "мин"], zh: "分钟",
     },
     {
         ms: 3_600_000,
-        en: ["hr", "hr"], fa: "ساعت", ru: ["ч", "ч"], zh: "小时",
+        en: ["hr", "hr"], fa: "ساعت", ru: ["ч", "ч", "ч"], zh: "小时",
     },
     {
         ms: 86_400_000,
-        en: ["day", "days"], fa: "روز",
-        // Russian: один день / два-четыре дня / пять+ дней. Use the genitive
-        // plural form ("дн.") for everything except exactly 1; the singular
-        // form is the "дн" itself which we never reach thanks to the rule
-        // below (we say "1 день" via the singular tuple).
-        ru: ["день", "дн."], zh: "天",
+        en: ["day", "days"], fa: "روز", ru: ["день", "дня", "дней"], zh: "天",
     },
     {
         ms: 2_592_000_000,
-        en: ["mo", "mos"], fa: "ماه", ru: ["мес.", "мес."], zh: "个月",
+        en: ["mo", "mos"], fa: "ماه", ru: ["мес.", "мес.", "мес."], zh: "个月",
     },
     {
-        ms: Infinity,
-        en: ["yr", "yrs"], fa: "سال", ru: ["год", "лет"], zh: "年",
+        ms: 31_536_000_000,
+        en: ["yr", "yrs"], fa: "سال", ru: ["год", "года", "лет"], zh: "年",
     },
 ];
 
+function pickRuPlural(n, forms) {
+    const mod10 = n % 10;
+    const mod100 = n % 100;
+    if (mod10 === 1 && mod100 !== 11) return forms[0];
+    if (mod10 >= 2 && mod10 <= 4 && (mod100 < 10 || mod100 >= 20)) return forms[1];
+    return forms[2];
+}
+
 export function fmtRelative(date, lang, opts) {
+    if (!date || isNaN(date.getTime())) return "";
     const now = (opts && opts.now) || Date.now();
     const diff = date.getTime() - now;
     const past = diff < 0;
@@ -591,16 +600,20 @@ export function fmtRelative(date, lang, opts) {
     }
 
     // Walk through the unit table and pick the largest unit that fits.
-    let unit = RT_UNITS[0];
+    let unit = RT_UNITS[RT_UNITS.length - 1];
     for (let i = 0; i < RT_UNITS.length - 1; i++) {
         if (abs < RT_UNITS[i + 1].ms) { unit = RT_UNITS[i]; break; }
-        if (i === RT_UNITS.length - 2) unit = RT_UNITS[i];
     }
     const value = Math.max(1, Math.floor(abs / unit.ms));
     let word;
     const candidate = unit[lang] != null ? unit[lang] : unit.en;
-    if (Array.isArray(candidate)) word = candidate[value === 1 ? 0 : 1];
-    else word = candidate;
+    if (Array.isArray(candidate)) {
+        word = lang === "ru" && candidate.length >= 3
+            ? pickRuPlural(value, candidate)
+            : candidate[value === 1 ? 0 : 1];
+    } else {
+        word = candidate;
+    }
     const localized = locNum(value, lang) + " " + word;
 
     if (lang === "fa") {

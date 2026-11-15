@@ -29,7 +29,7 @@ import {
     safeFileName, generatePbkEntry, generatePbkFile, generateGreCli,
 } from "./format.js";
 import { configLabel } from "./configs.js";
-import { $, $$, setHidden, copyText, toast } from "./ui.js";
+import { $, $$, setHidden, copyText, toast, flashCopyIcon } from "./ui.js";
 import { storeGet, storeSet } from "./store.js";
 
 const CACHE_KEY = "aurora_vpn";
@@ -88,6 +88,7 @@ export function ovpnLabel(url) {
 }
 
 const clean = (v) => (typeof v === "string" ? v.trim() : "");
+const isSafeDownloadUrl = (u) => /^(?:https?:\/\/|\/)/i.test(clean(u));
 
 function normOvpn(url) {
     url = clean(url);
@@ -182,14 +183,21 @@ function normWg(row) {
 }
 
 function mergeProfiles(list) {
-    const map = new Map();
+    const out = [];
     for (const item of list) {
         if (!item) continue;
         const key = (item.name || "").trim().toLowerCase() || item.link || item.downloadUrl;
-        if (!map.has(key)) {
-            map.set(key, { ...item });
+        const cur = out.find((c) => {
+            const cKey = (c.name || "").trim().toLowerCase() || c.link || c.downloadUrl;
+            if (cKey !== key) return false;
+            if (c.link && item.link && c.link !== item.link) return false;
+            if (c.downloadUrl && item.downloadUrl && c.downloadUrl !== item.downloadUrl) return false;
+            if (c.server && item.server && c.server !== item.server) return false;
+            return true;
+        });
+        if (!cur) {
+            out.push({ ...item });
         } else {
-            const cur = map.get(key);
             if (!cur.downloadUrl && item.downloadUrl) cur.downloadUrl = item.downloadUrl;
             if (!cur.link && item.link) cur.link = item.link;
             if (!cur.body && item.body) cur.body = item.body;
@@ -201,7 +209,7 @@ function mergeProfiles(list) {
             if (!cur.serverPublicKey && item.serverPublicKey) cur.serverPublicKey = item.serverPublicKey;
         }
     }
-    return Array.from(map.values());
+    return out;
 }
 
 function mergeOvpn(list) {
@@ -294,18 +302,26 @@ export function mountVpn(deps) {
                 if (fallback.length) { wg = mergeProfiles(fallback); touched = true; }
             }
         }
-        // AmneziaWG: prefer structured profiles; fall back to downloads array.
+        // AmneziaWG: prefer structured profiles; fall back to downloads/links arrays.
         const awgSource = data.amneziawg;
         if (awgSource && typeof awgSource === "object") {
             if (Array.isArray(awgSource.profiles) && awgSource.profiles.length) {
                 awg = mergeProfiles(awgSource.profiles.map(normAwg).filter(Boolean));
                 touched = true;
-            } else if (Array.isArray(awgSource.downloads) && awgSource.downloads.length) {
-                awg = mergeProfiles(awgSource.downloads.map((url) => normAwg({
-                    download_url: url,
-                    remark: ovpnLabel(url).replace(/\.conf$/i, ""),
-                })).filter(Boolean));
-                touched = true;
+            } else if (!awg.length) {
+                const awgDl = Array.isArray(awgSource.downloads) ? awgSource.downloads : [];
+                const awgLinks = Array.isArray(awgSource.links) ? awgSource.links : [];
+                const fallback = [];
+                const max = Math.max(awgDl.length, awgLinks.length);
+                for (let i = 0; i < max; i++) {
+                    const item = normAwg({
+                        download_url: awgDl[i],
+                        link: awgLinks[i],
+                        remark: awgDl[i] ? ovpnLabel(awgDl[i]).replace(/\.conf$/i, "") : (awgLinks[i] ? configLabel(awgLinks[i]) : ""),
+                    });
+                    if (item) fallback.push(item);
+                }
+                if (fallback.length) { awg = mergeProfiles(fallback); touched = true; }
             }
         }
         if (Array.isArray(data.sstp)) {
@@ -363,7 +379,7 @@ export function mountVpn(deps) {
                     pptp: data.pptp || [],
                     ikev2: data.ikev2 || [],
                     anyconnect: data.anyconnect || [],
-                }));
+                }), { noCookie: true });
             }
         } catch (_) {
             // Older panels (or offline) — fall back to the last cached payload;
@@ -435,6 +451,7 @@ export function mountVpn(deps) {
     }
 
     function ovpnRow(profile) {
+        const safeUrl = isSafeDownloadUrl(profile.url);
         return `<div class="group card glass row-hover rounded-xl">` +
             `<div class="flex items-center gap-2.5 p-2.5 sm:gap-3 sm:p-3">` +
             `<div class="grid h-9 w-9 shrink-0 place-items-center rounded-lg border border-primary/20 bg-primary/10 text-[10px] font-semibold text-primary">OVPN</div>` +
@@ -444,8 +461,10 @@ export function mountVpn(deps) {
             `</div>` +
             `<button class="btn btn-circle btn-ghost btn-sm" data-copy="${escapeAttr(profile.url)}" aria-label="${escapeAttr(t("copy"))}">` +
             `<i class="ph ph-copy text-lg"></i></button>` +
-            `<a class="btn btn-sm btn-primary h-8 min-h-0 gap-1.5 rounded-lg px-3 text-xs font-medium" href="${escapeAttr(profile.url)}" download>` +
-            `<i class="ph ph-download-simple text-base"></i><span class="hidden sm:inline">${escapeHtml(t("ovpn_download"))}</span></a>` +
+            (safeUrl
+                ? `<a class="btn btn-sm btn-primary h-8 min-h-0 gap-1.5 rounded-lg px-3 text-xs font-medium" href="${escapeAttr(profile.url)}" download>` +
+                  `<i class="ph ph-download-simple text-base"></i><span class="hidden sm:inline">${escapeHtml(t("ovpn_download"))}</span></a>`
+                : "") +
             `</div></div>`;
     }
 
@@ -463,7 +482,7 @@ export function mountVpn(deps) {
                 `aria-label="${escapeAttr(t("copy_config"))}"><i class="ph ph-file-text text-lg"></i></button>`
             );
         }
-        if (profile.downloadUrl) {
+        if (profile.downloadUrl && isSafeDownloadUrl(profile.downloadUrl)) {
             buttons.push(
                 `<a class="btn btn-sm btn-primary h-8 min-h-0 gap-1.5 rounded-lg px-3 text-xs font-medium" ` +
                 `href="${escapeAttr(profile.downloadUrl)}" download>` +
@@ -522,7 +541,7 @@ export function mountVpn(deps) {
                 `aria-label="${escapeAttr(t("copy_config"))}"><i class="ph ph-file-text text-lg"></i></button>`
             );
         }
-        if (profile.downloadUrl) {
+        if (profile.downloadUrl && isSafeDownloadUrl(profile.downloadUrl)) {
             buttons.push(
                 `<a class="btn btn-sm btn-primary h-8 min-h-0 gap-1.5 rounded-lg px-3 text-xs font-medium" ` +
                 `href="${escapeAttr(profile.downloadUrl)}" download>` +
@@ -673,7 +692,7 @@ export function mountVpn(deps) {
             : activeTab === "ikev2" ? ikev2
             : activeTab === "sstp" ? sstp
             : [];
-        const allPbkHeader = tabPbkItems.length > 1
+        const allPbkHeader = tabPbkItems.filter((item) => item && item.server).length > 1
             ? `<div class="flex items-center justify-end pb-1">` +
               `<button class="btn btn-xs btn-ghost glass gap-1 rounded-xl font-semibold text-primary" data-dl-all-pbk="${escapeAttr(activeTab)}">` +
               `<i class="ph ph-windows-logo text-sm"></i>` +
@@ -686,12 +705,9 @@ export function mountVpn(deps) {
 
         $$("[data-copy]", listEl).forEach((btn) => {
             btn.addEventListener("click", async () => {
-                const icon = btn.querySelector("i");
-                const prev = icon.className;
                 if (await copyText(btn.getAttribute("data-copy"))) {
                     toast(t("copied"));
-                    icon.className = "ph ph-check text-lg text-success";
-                    setTimeout(() => { icon.className = prev; }, 1600);
+                    flashCopyIcon(btn);
                 }
             });
         });

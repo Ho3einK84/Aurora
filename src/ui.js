@@ -49,17 +49,34 @@ export async function copyText(text) {
 /* -------- toast -------- */
 
 let toastTimer = null;
+let toastHome = null;
+let toastDialogListener = false;
 
 export function toast(message) {
     const el = $("#toast");
     if (!el) return;
+    if (!toastHome) toastHome = el.parentElement;
+    if (!toastDialogListener) {
+        toastDialogListener = true;
+        document.addEventListener("close", (e) => {
+            if (e.target && e.target.tagName === "DIALOG" && toastHome && el.parentElement === e.target) {
+                toastHome.appendChild(el);
+            }
+        }, true);
+    }
+    const openDialog = document.querySelector("dialog[open]");
+    const host = openDialog || toastHome;
+    if (host && el.parentElement !== host) host.appendChild(el);
     el.textContent = message;
     el.hidden = false;
     el.classList.remove("toast-in");
     void el.offsetWidth; // restart the enter animation
     el.classList.add("toast-in");
     clearTimeout(toastTimer);
-    toastTimer = setTimeout(() => { el.hidden = true; }, 1800);
+    toastTimer = setTimeout(() => {
+        el.hidden = true;
+        if (toastHome && el.parentElement !== toastHome) toastHome.appendChild(el);
+    }, 1800);
 }
 
 /**
@@ -82,10 +99,35 @@ export function flashCopied(btn, t) {
 
     const restore = () => {
         if (icon) icon.className = prevIcon;
-        if (label) label.textContent = prevText;
+        if (label) {
+            const key = label.getAttribute("data-i18n-dyn");
+            label.textContent = key && typeof t === "function" ? t(key) : prevText;
+        }
         copiedTimers.delete(btn);
     };
     copiedTimers.set(btn, { timer: setTimeout(restore, 1600), restore });
+}
+
+/** Swap an icon-only copy button to a green check momentarily without double-click corruption. */
+const copyIconTimers = new WeakMap();
+
+export function flashCopyIcon(btn) {
+    if (!btn) return;
+    const icon = btn.querySelector("i");
+    if (!icon) return;
+    const prev = copyIconTimers.get(btn);
+    if (prev) { clearTimeout(prev.timer); prev.restore(); }
+
+    const origClass = icon.className;
+    const sizeMatch = origClass.match(/\btext-(?:xs|sm|base|lg|xl)\b/);
+    const sizeCls = sizeMatch ? sizeMatch[0] : "text-lg";
+    icon.className = `ph ph-check ${sizeCls} text-success`;
+
+    const restore = () => {
+        icon.className = origClass;
+        copyIconTimers.delete(btn);
+    };
+    copyIconTimers.set(btn, { timer: setTimeout(restore, 1600), restore });
 }
 
 /* -------- number count-up -------- */

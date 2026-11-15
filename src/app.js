@@ -10,7 +10,7 @@ import { I18N, locNum, locPct, fmtDate, fmtRelative } from "./i18n.js";
 import { num, hasValue, clamp, fmtBytes, fmtBytesStr, escapeHtml, escapeAttr } from "./format.js";
 import { storeGet, storeSet } from "./store.js";
 import {
-    $, $$, setHidden, copyText, toast, flashCopied,
+    $, $$, setHidden, copyText, toast, flashCopied, flashCopyIcon,
     animateCount, revealAll, hideSplash, showErrorBanner,
 } from "./ui.js";
 import { parseLinks, mountConfigs } from "./configs.js";
@@ -32,6 +32,18 @@ const THEMES = [
 ];
 
 /* ------------------------------------------------------------ data island */
+
+function safeHref(raw, { allowRelative = false, schemes = ["https:", "http:"] } = {}) {
+    const s = raw == null ? "" : String(raw).trim();
+    if (!s || /[\u0000-\u001f\u007f]/.test(s)) return "";
+    if (allowRelative && /^\/(?!\/)/.test(s)) return s;
+    try {
+        const u = new URL(s);
+        return schemes.includes(u.protocol.toLowerCase()) ? s : "";
+    } catch (_) {
+        return "";
+    }
+}
 
 function defaultBrand() {
     // Priority: runtime override (window.AURORA_BRAND) > <meta> fallback in HTML.
@@ -100,8 +112,9 @@ function readContext() {
         nextPlans: [],
         remainingDays: Math.max(0, num(d.remainingDays)),
         subUrl,
-        usageUrl: (d.usageUrl || "").trim(),
-        supportUrl: (d.supportUrl || "").trim() || (window.AURORA_BRAND && window.AURORA_BRAND.supportUrl ? String(window.AURORA_BRAND.supportUrl).trim() : ""),
+        usageUrl: safeHref(d.usageUrl, { allowRelative: true, schemes: ["https:", "http:"] }),
+        supportUrl: safeHref(d.supportUrl, { allowRelative: true, schemes: ["https:", "http:", "tg:", "mailto:"] })
+            || safeHref(window.AURORA_BRAND && window.AURORA_BRAND.supportUrl, { allowRelative: true, schemes: ["https:", "http:", "tg:", "mailto:"] }),
         links: allLinks.filter((l) => !isOvpnLink(l) && !(/\.conf(?:[?#]|$)/i.test(l) && /^https?:\/\//i.test(l))),
         ovpnLinks: allLinks.filter(isOvpnLink),
         wgLinks: allLinks.filter(isWgLink),
@@ -257,9 +270,9 @@ function setTheme(id, persist) {
 
 function renderThemeMenu() {
     const list = $("#theme-list");
-    const brand = defaultBrand();
+    const brand = (CTX && CTX.brandName) || defaultBrand();
     list.innerHTML = THEMES.map((th) => {
-        const label = th.label.replace("%brand%", brand);
+        const label = escapeHtml(th.label.split("%brand%").join(brand));
         return `<li><button data-theme-id="${th.id}" class="justify-between rounded-xl${th.id === theme ? " active font-semibold" : ""}">` +
             `<span class="flex items-center gap-2">` +
             `<span class="h-3.5 w-3.5 rounded-full border border-base-content/20" style="background:${th.swatch}"></span>` +
@@ -456,7 +469,13 @@ function renderCard() {
 
     const remainTraffic = unlimited ? Infinity : Math.max(0, CTX.dataLimit - CTX.usedTraffic);
     const isLowTraffic = !unlimited && (remainTraffic <= Math.min(1073741824, CTX.dataLimit * 0.12) || (CTX.usedTraffic / CTX.dataLimit >= 0.9));
-    const isLowTime = !neverExpire && CTX.remainingDays > 0 && CTX.remainingDays <= 3;
+    const remainingSec = !neverExpire && STATE !== "on_hold" ? Math.max(0, CTX.expire - Date.now() / 1000) : 0;
+    const liveDays = neverExpire || STATE === "on_hold"
+        ? 0
+        : (hasValue(CTX.expireRaw)
+            ? (remainingSec > 0 ? Math.max(0, Math.ceil(remainingSec / 86400)) : 0)
+            : Math.round(CTX.remainingDays));
+    const isLowTime = !neverExpire && STATE !== "on_hold" && liveDays > 0 && liveDays <= 3;
     const isUrgent = ((STATE !== "active" && STATE !== "on_hold") || isLowTraffic || isLowTime) && !hasNextPlan;
 
     // Status badge + banner
@@ -519,7 +538,7 @@ function renderCard() {
     }
 
     // ---- usage ring + stats
-    const usedPct = unlimited ? 0 : Math.min(100, Math.round((CTX.usedTraffic / CTX.dataLimit) * 100));
+    const usedPct = unlimited ? 0 : (CTX.usedTraffic >= CTX.dataLimit ? 100 : Math.min(99, Math.round((CTX.usedTraffic / CTX.dataLimit) * 100)));
     const dataFill = $("#ring-data-fill");
     if (unlimited) {
         dataFill.style.stroke = "url(#aurora-ring-data)";
@@ -587,13 +606,9 @@ function renderCard() {
         expireCell.classList.remove("text-error");
         expireRel.textContent = "";
     } else {
-        const nowSec = Date.now() / 1000;
-        const remainingSec = Math.max(0, CTX.expire - nowSec);
         // `remaining_days` is precomputed server-side (no now() in pongo2) and can
         // be stale — derive live from `expire`, falling back to the server value.
-        const days = hasValue(CTX.expireRaw)
-            ? (remainingSec > 0 ? Math.max(0, Math.ceil(remainingSec / 86400)) : 0)
-            : Math.round(CTX.remainingDays);
+        const days = liveDays;
         // The ring empties across an adaptive cycle window so short plans show
         // useful motion and long plans don't pin to 100%.
         const windowDays = Math.max(CTX.remainingDays, remainingSec / 86400);
@@ -690,7 +705,7 @@ function renderReset() {
     clearInterval(resetTimer);
     const unlimited = !hasValue(CTX.limitRaw) || CTX.dataLimit <= 0;
     const strategy = CTX.resetStrategy;
-    const target = nextResetDate(strategy);
+    let target = nextResetDate(strategy);
     if (unlimited || !target || STATE === "expired" || STATE === "disabled") {
         setHidden(row, true);
         return;
@@ -702,6 +717,10 @@ function renderReset() {
     const tick = () => {
         try {
             let diff = target.getTime() - Date.now();
+            if (diff <= -60_000) {
+                target = nextResetDate(strategy) || target;
+                diff = target.getTime() - Date.now();
+            }
             if (diff <= 0) {
                 out.textContent = t("soon");
                 return;
@@ -890,13 +909,9 @@ function renderSubFormatMenu() {
 
     $$("[data-fmt-copy]", list).forEach((btn) => {
         btn.addEventListener("click", async () => {
-            const icon = btn.querySelector("i");
             if (await copyText(btn.getAttribute("data-fmt-copy"))) {
                 toast(t("copied"));
-                if (icon) {
-                    icon.className = "ph ph-check text-base text-success";
-                    setTimeout(() => { icon.className = "ph ph-copy text-base"; }, 1400);
-                }
+                flashCopyIcon(btn);
             }
         });
     });
@@ -945,42 +960,60 @@ function applyUserInfo(u) {
     if (u.expire !== undefined) {
         CTX.expireRaw = u.expire != null && u.expire > 0 ? String(u.expire) : "";
         CTX.expire = num(u.expire);
+        CTX.remainingDays = CTX.expire > 0
+            ? Math.max(0, Math.ceil((CTX.expire - Date.now() / 1000) / 86400))
+            : 0;
     }
-    if (u.status) CTX.status = String(u.status).trim().toLowerCase();
+    if (u.status) {
+        CTX.status = String(u.status).trim().toLowerCase();
+        CTX.statusClass = String(u.status_class || u.status).trim().toLowerCase();
+    }
     if (u.online_count != null) CTX.onlineCount = num(u.online_count);
     if (u.online_at != null) CTX.onlineAt = String(u.online_at).trim();
     if (u.created_at != null) CTX.createdAt = String(u.created_at).trim();
     if (u.on_hold_expire_duration != null) CTX.onHoldDuration = num(u.on_hold_expire_duration);
     if (u.ip_limit != null) CTX.ipLimit = num(u.ip_limit);
-    if (u.service_name) CTX.serviceName = String(u.service_name).trim();
+    if (u.service_name !== undefined) CTX.serviceName = String(u.service_name || "").trim();
     if (Array.isArray(u.next_plans)) CTX.nextPlans = u.next_plans;
 
     STATE = deriveState(CTX);
     renderOnlineBadge();
     renderCard();
     renderUserDetails();
+    if (usageView) usageView.rerender();
 }
 
 function fetchSubInfo(force = false) {
     if (!CTX || !CTX.subUrl) return Promise.resolve(null);
     if (infoPromise && !force) return infoPromise;
-    const infoUrl = CTX.subUrl.replace(/\/+$/, "") + "/info";
-    infoPromise = (async () => {
-        try {
-            const res = await fetch(infoUrl, {
-                cache: "no-store",
-                credentials: "same-origin",
-                headers: { Accept: "application/json" },
-            });
-            if (!res.ok) return null;
-            const data = await res.json();
-            if (data && data.user) applyUserInfo(data.user);
-            return data;
-        } catch (_) {
-            return null;
+    const rawInfoUrl = CTX.subUrl.replace(/\/+$/, "") + "/info";
+    const localInfoUrl = (location.origin + location.pathname).replace(/\/+$/, "") + "/info";
+    let candidates = [rawInfoUrl];
+    try {
+        if (/^https?:$/i.test(location.protocol) && new URL(rawInfoUrl, location.href).origin !== location.origin) {
+            candidates = [localInfoUrl, rawInfoUrl];
         }
+    } catch (_) {}
+
+    const p = (async () => {
+        for (const infoUrl of candidates) {
+            try {
+                const res = await fetch(infoUrl, {
+                    cache: "no-store",
+                    credentials: "same-origin",
+                    headers: { Accept: "application/json" },
+                });
+                if (!res.ok) continue;
+                const data = await res.json();
+                if (data && data.user) applyUserInfo(data.user);
+                return data;
+            } catch (_) {}
+        }
+        if (infoPromise === p) infoPromise = null;
+        return null;
     })();
-    return infoPromise;
+    infoPromise = p;
+    return p;
 }
 
 function startInfoAutoRefresh() {
@@ -1213,8 +1246,6 @@ async function init() {
                 appsView = mountApps({ apps, subUrl: CTX.subUrl, username: CTX.username, t });
             } catch (err) { console.error("[aurora] apps failed:", err); }
         });
-
-        renderAllDynamic();
 
         requestAnimationFrame(() => {
             revealAll();

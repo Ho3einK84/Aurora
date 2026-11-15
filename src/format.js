@@ -86,6 +86,18 @@ export function escapeAttr(s) {
     });
 }
 
+function safeDecodeURIComponent(s) {
+    if (!s) return "";
+    try { return decodeURIComponent(s); }
+    catch (_) { return String(s); }
+}
+
+const TRANSPORT_MAP = {
+    tcp: "TCP", ws: "WS", websocket: "WS", grpc: "gRPC", gun: "gRPC",
+    xhttp: "XHTTP", splithttp: "XHTTP", httpupgrade: "HTTPUpgrade",
+    h2: "H2", http: "HTTP", kcp: "mKCP", quic: "QUIC", udp: "UDP", ssh: "SSH",
+};
+
 /**
  * Generate standard WireGuard / AmneziaWG .conf text from a wireguard:// or awg:// URI or raw config text.
  */
@@ -108,7 +120,7 @@ export function generateWgConf(raw) {
             return "";
         };
 
-        const privateKey = decodeURIComponent(u.username || getParam("privatekey") || "").trim();
+        const privateKey = (safeDecodeURIComponent(u.username) || getParam("privatekey")).trim();
         const publicKey = getParam("publickey").trim();
         const address = getParam("address").trim() || getParam("ip").trim();
         if (!privateKey && !publicKey) return null;
@@ -133,8 +145,9 @@ export function generateWgConf(raw) {
         // AmneziaWG obfuscation parameters when present
         for (const [key, label] of [
             ["jc", "Jc"], ["jmin", "Jmin"], ["jmax", "Jmax"],
-            ["s1", "S1"], ["s2", "S2"],
+            ["s1", "S1"], ["s2", "S2"], ["s3", "S3"], ["s4", "S4"],
             ["h1", "H1"], ["h2", "H2"], ["h3", "H3"], ["h4", "H4"],
+            ["i1", "I1"], ["i2", "I2"], ["i3", "I3"], ["i4", "I4"], ["i5", "I5"],
         ]) {
             const val = getParam(key).trim();
             if (val) lines.push(`${label} = ${val}`);
@@ -168,10 +181,11 @@ export function parseConfigMeta(uri) {
 
     if (scheme === "vmess") {
         try {
-            const payload = raw.replace(/^vmess:\/\//i, "").split("#")[0];
+            const payload = raw.replace(/^vmess:\/\//i, "").split("#")[0].split("?")[0];
             const j = JSON.parse(b64ToUtf8(payload));
             if (j && typeof j === "object") {
-                const net = String(j.net || "tcp").toUpperCase();
+                const rawNet = String(j.net || "tcp").toLowerCase();
+                const net = TRANSPORT_MAP[rawNet] || rawNet.toUpperCase();
                 const tls = String(j.tls || "").toLowerCase();
                 const security = tls === "tls" ? "TLS" : tls === "reality" ? "Reality" : "";
                 const server = String(j.add || "");
@@ -198,6 +212,34 @@ export function parseConfigMeta(uri) {
         } catch (_) { /* fall through */ }
     }
 
+    if (scheme === "ssr") {
+        try {
+            const decoded = b64ToUtf8(raw.replace(/^ssr:\/\//i, "").split("#")[0].split("?")[0]);
+            const main = decoded.split("/")[0];
+            const parts = main.split(":");
+            if (parts.length >= 6) {
+                const port = parts[parts.length - 5];
+                const server = parts.slice(0, parts.length - 5).join(":");
+                const proto = parts[parts.length - 4];
+                const method = parts[parts.length - 3];
+                const obfs = parts[parts.length - 2];
+                const hostPort = server ? (port ? `${server}:${port}` : server) : "";
+                return {
+                    protocol: "SSR",
+                    server,
+                    port,
+                    id: [method, proto, obfs].filter(Boolean).join(" / "),
+                    security: "None",
+                    transport: "TCP",
+                    sni: "",
+                    host: "",
+                    path: "",
+                    summary: ["TCP", hostPort].filter(Boolean).join(" · "),
+                };
+            }
+        } catch (_) { /* fall through */ }
+    }
+
     try {
         // Normalize custom scheme to http:// for standard URL parsing
         const normUrl = new URL("http://" + raw.slice(schemeMatch[0].length));
@@ -206,21 +248,23 @@ export function parseConfigMeta(uri) {
 
         let server = normUrl.hostname || "";
         let port = normUrl.port || "";
-        let id = decodeURIComponent(normUrl.username || "");
-        const pass = decodeURIComponent(normUrl.password || "");
+        let id = safeDecodeURIComponent(normUrl.username || "");
+        const pass = safeDecodeURIComponent(normUrl.password || "");
 
-        // Shadowsocks base64 userinfo or full host
-        if ((scheme === "ss" || scheme === "ssr") && !port && id && !server.includes(".")) {
+        // Shadowsocks base64 userinfo or full host:port (handles both SIP002 and legacy ss://BASE64)
+        if (scheme === "ss" && !port && (!id || !server.includes("."))) {
             try {
-                const decoded = b64ToUtf8(raw.replace(/^ss:\/\/|^ssr:\/\//i, "").split("#")[0].split("?")[0]);
+                const decoded = b64ToUtf8(raw.replace(/^ss:\/\//i, "").split("#")[0].split("?")[0]);
                 const atIdx = decoded.lastIndexOf("@");
                 if (atIdx > 0) {
                     id = decoded.slice(0, atIdx);
                     const hp = decoded.slice(atIdx + 1);
                     const colon = hp.lastIndexOf(":");
-                    if (colon > 0) {
+                    if (colon > 0 && (!hp.includes("]") || colon > hp.lastIndexOf("]"))) {
                         server = hp.slice(0, colon);
                         port = hp.slice(colon + 1);
+                    } else {
+                        server = hp;
                     }
                 }
             } catch (_) { /* keep parsed */ }
@@ -234,21 +278,16 @@ export function parseConfigMeta(uri) {
         }
 
         const rawType = (getP("type") || getP("net") || (
-            scheme === "hysteria2" || scheme === "hy2" || scheme === "tuic" ? "quic"
+            scheme === "hysteria" || scheme === "hysteria2" || scheme === "hy2" || scheme === "tuic" ? "quic"
             : scheme === "wireguard" || scheme === "awg" || scheme === "amneziawg" ? "udp"
             : scheme === "ssh" ? "ssh"
             : ""
         )).toLowerCase();
 
-        const TRANSPORT_MAP = {
-            tcp: "TCP", ws: "WS", websocket: "WS", grpc: "gRPC", gun: "gRPC",
-            xhttp: "XHTTP", splithttp: "XHTTP", httpupgrade: "HTTPUpgrade",
-            h2: "H2", http: "HTTP", kcp: "mKCP", quic: "QUIC", udp: "UDP", ssh: "SSH",
-        };
         const transport = TRANSPORT_MAP[rawType] || (rawType ? rawType.toUpperCase() : "");
 
         const rawSec = (getP("security") || (
-            scheme === "trojan" || scheme === "hysteria2" || scheme === "hy2" || scheme === "tuic" ? "tls" : ""
+            scheme === "trojan" || scheme === "hysteria" || scheme === "hysteria2" || scheme === "hy2" || scheme === "tuic" ? "tls" : ""
         )).toLowerCase();
         const security = rawSec === "reality" ? "Reality"
             : rawSec === "tls" || rawSec === "xtls" ? rawSec.toUpperCase()

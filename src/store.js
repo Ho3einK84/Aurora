@@ -6,20 +6,29 @@
 
 const mem = {};
 
+const escRe = (s) => String(s).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+
 export function storeGet(key) {
     if (key in mem) return mem[key];
     try {
         const v = localStorage.getItem(key);
         if (v !== null) return v;
     } catch (_) { /* storage blocked */ }
-    const m = document.cookie.match(new RegExp("(?:^|; )" + key + "=([^;]*)"));
-    return m ? decodeURIComponent(m[1]) : null;
+    try {
+        const m = document.cookie.match(new RegExp("(?:^|; )" + escRe(key) + "=([^;]*)"));
+        return m ? decodeURIComponent(m[1]) : null;
+    } catch (_) {
+        return null;
+    }
 }
 
-export function storeSet(key, value) {
-    mem[key] = value;
-    try { localStorage.setItem(key, value); } catch (_) { /* ignore */ }
+export function storeSet(key, value, opts) {
+    const str = String(value);
+    mem[key] = str;
+    try { localStorage.setItem(key, str); } catch (_) { /* ignore */ }
+    if ((opts && opts.noCookie) || str.length > 512) return;
     try {
-        document.cookie = `${key}=${encodeURIComponent(value)}; path=/; max-age=31536000; SameSite=Lax; Secure`;
+        const sec = typeof location !== "undefined" && location.protocol === "https:" ? "; Secure" : "";
+        document.cookie = `${encodeURIComponent(key)}=${encodeURIComponent(str)}; path=/; max-age=31536000; SameSite=Lax${sec}`;
     } catch (_) { /* ignore */ }
 }

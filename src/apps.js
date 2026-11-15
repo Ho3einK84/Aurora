@@ -18,7 +18,8 @@ const OS_ICONS = {
 
 function detectOs(list) {
     const ua = navigator.userAgent || "";
-    if (/iphone|ipad|ipod/i.test(ua) && list.includes("iOS")) return "iOS";
+    const isIpadDesktop = /mac/i.test(ua) && typeof navigator.maxTouchPoints === "number" && navigator.maxTouchPoints > 1;
+    if ((/iphone|ipad|ipod/i.test(ua) || isIpadDesktop) && list.includes("iOS")) return "iOS";
     if (/android/i.test(ua) && list.includes("Android")) return "Android";
     if (/mac/i.test(ua) && list.includes("macOS")) return "macOS";
     if (/win/i.test(ua) && list.includes("Windows")) return "Windows";
@@ -34,11 +35,13 @@ function detectOs(list) {
 export function importUrl(template, subUrl, username) {
     let b64 = "";
     try { b64 = utf8ToB64(subUrl); } catch (_) { /* leave empty */ }
-    return String(template || "")
+    const out = String(template || "")
         .replace(/\{url_enc\}/g, encodeURIComponent(subUrl))
         .replace(/\{url_b64\}/g, b64)
         .replace(/\{url\}/g, subUrl)
         .replace(/\{name\}/g, encodeURIComponent(username || ""));
+    if (/^\s*(?:javascript|data|vbscript):/i.test(out)) return "";
+    return out;
 }
 
 /**
@@ -101,13 +104,14 @@ export function mountApps(deps) {
             const scheme = app.urlScheme
                 ? importUrl(app.urlScheme, deps.subUrl, deps.username)
                 : "";
-            const dl = (app.downloadLinks && app.downloadLinks[activeOs]) || app.link || "";
+            const rawDl = (app.downloadLinks && app.downloadLinks[activeOs]) || app.link || "";
+            const dl = /^https?:\/\//i.test(rawDl) ? rawDl : "";
             const subtitle = scheme ? t("tap_to_add") : t("download");
             return `<div class="card glass row-hover rounded-xl">` +
                 `<div class="flex items-center gap-2.5 p-2.5 sm:gap-3 sm:p-3">` +
                 appTile(app) +
                 `<div class="min-w-0 flex-1">` +
-                `<p class="truncate text-sm font-medium">${escapeHtml(app.name)}</p>` +
+                `<p class="truncate text-sm font-medium" dir="auto">${escapeHtml(app.name)}</p>` +
                 `<p class="text-[11px] text-base-content/50">${escapeHtml(subtitle)}</p>` +
                 `</div>` +
                 `<div class="flex shrink-0 items-center gap-1.5">` +

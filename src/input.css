@@ -728,6 +728,9 @@ html[dir="rtl"] .tabular-nums {
     animation: aurora-pop 0.16s ease;
     transform-origin: top var(--pop-origin, right);
   }
+  html[dir="rtl"] .pop-menu {
+    --pop-origin: left;
+  }
   @keyframes aurora-pop {
     from { opacity: 0; transform: scale(0.95) translateY(-4px); }
     to   { opacity: 1; transform: scale(1) translateY(0); }

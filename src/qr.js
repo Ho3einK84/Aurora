@@ -57,13 +57,14 @@ function noticeSvg(message) {
         else line = (line + " " + w).trim();
     }
     if (line) lines.push(line);
-    const shown = lines.slice(0, 3);
-    const startY = 50 - (shown.length - 1) * 6;
-    const tspans = shown.map((l, i) => `<tspan x="50" y="${startY + i * 12}">${l}</tspan>`).join("");
+    const shown = lines.slice(0, 5);
+    const step = 10;
+    const startY = 50 - ((shown.length - 1) * step) / 2;
+    const tspans = shown.map((l, i) => `<tspan x="50" y="${startY + i * step}">${l}</tspan>`).join("");
     return (
         `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" width="100%" height="100%">` +
         `<rect width="100" height="100" fill="#fff"/>` +
-        `<text fill="#000" font-size="7" font-family="ui-monospace,monospace" font-weight="700" ` +
+        `<text fill="#000" font-size="6" font-family="inherit" font-weight="600" ` +
         `text-anchor="middle">${tspans}</text></svg>`
     );
 }

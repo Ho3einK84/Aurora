@@ -6,7 +6,7 @@
    and base64-injected at runtime so pongo2 never parses this source.
    =========================================================================== */
 
-import { I18N, locNum, locPct, fmtDate, fmtRelative } from "./i18n.js";
+import { I18N, locNum, locPct, fmtDate, fmtRelative, fmtDaysUnit, fmtHoursUnit } from "./i18n.js";
 import { num, hasValue, clamp, fmtBytes, fmtBytesStr, escapeHtml, escapeAttr } from "./format.js";
 import { storeGet, storeSet } from "./store.js";
 import {
@@ -25,10 +25,10 @@ import { isOvpnLink, isWgLink, isAwgLink, mountVpn } from "./vpn.js";
 const AURORA_APPS_REMOTE_URL = "";
 
 const THEMES = [
-    { id: "auroradark", label: "%brand% Dark", swatch: "linear-gradient(135deg,#0d1522,#2ad0e6,#2de0ba)" },
-    { id: "amoleddark", label: "Amoled Dark", swatch: "linear-gradient(135deg,#000000,#38bdf8,#64748b)" },
-    { id: "auroralight", label: "%brand% Light", swatch: "linear-gradient(135deg,#e0f2fe,#0891b2,#3b82f6)" },
-    { id: "nord", label: "Nord", swatch: "linear-gradient(135deg,#2e3440,#88c0d0,#81a1c1)" },
+    { id: "auroradark", label: "%brand% Dark", swatch: "linear-gradient(135deg,#0d1522,#2ad0e6,#2de0ba)", hex: "#080f1b" },
+    { id: "amoleddark", label: "Amoled Dark", swatch: "linear-gradient(135deg,#000000,#38bdf8,#64748b)", hex: "#000000" },
+    { id: "auroralight", label: "%brand% Light", swatch: "linear-gradient(135deg,#e0f2fe,#0891b2,#3b82f6)", hex: "#eef3f8" },
+    { id: "nord", label: "Nord", swatch: "linear-gradient(135deg,#2e3440,#88c0d0,#81a1c1)", hex: "#212732" },
 ];
 
 /* ------------------------------------------------------------ data island */
@@ -201,60 +201,66 @@ function renderLangMenu() {
         const flagSpan = lg.flagClass
             ? `<span class="${lg.flagClass}" role="img"${lg.flagTitle ? ` aria-label="${lg.flagTitle}" title="${lg.flagTitle}"` : ` aria-hidden="true"`}></span>`
             : `<span class="text-base leading-none" aria-hidden="true">${lg.flag}</span>`;
-        return `<li><button data-lang-id="${lg.id}" class="justify-between rounded-xl${lg.id === lang ? " active font-semibold" : ""}">` +
-            `<span class="flex items-center gap-2">` +
+        const active = lg.id === lang;
+        return `<li role="none"><button type="button" role="menuitemradio" aria-checked="${active}" data-lang-id="${lg.id}" class="pop-item${active ? " is-active" : ""}">` +
+            `<span class="flex min-w-0 items-center gap-2.5">` +
             flagSpan +
-            `<span>${lg.label}</span></span>` +
-            (lg.id === lang ? `<i class="ph ph-check text-base text-primary"></i>` : "") +
+            `<span class="truncate">${lg.label}</span></span>` +
+            (active ? `<i class="ph ph-check shrink-0 text-base text-primary"></i>` : "") +
             `</button></li>`;
     }).join("");
     $$("[data-lang-id]", list).forEach((btn) => {
         btn.addEventListener("click", () => {
             setLang(btn.getAttribute("data-lang-id"), true);
-            closeLangMenu();
+            closeLangMenu(true);
         });
     });
 }
 
 function openLangMenu() {
-    // Opening the language menu must dismiss the theme menu first so the two
-    // popovers never overlap (mobile tap targets are tight, and the resulting
-    // stacked glass is hard to dismiss on touch).
     if (!$("#theme-list").hidden) closeThemeMenu();
     closeSubFormatMenu();
     setHidden($("#lang-list"), false);
     $("#lang-toggle").setAttribute("aria-expanded", "true");
 }
 
-function closeLangMenu() {
-    setHidden($("#lang-list"), true);
-    $("#lang-toggle").setAttribute("aria-expanded", "false");
+function closeLangMenu(restoreFocus = false) {
+    const list = $("#lang-list");
+    if (!list || list.hidden) return;
+    setHidden(list, true);
+    const toggle = $("#lang-toggle");
+    toggle.setAttribute("aria-expanded", "false");
+    if (restoreFocus) toggle.focus();
 }
 
-function wireLangMenu() {
-    $("#lang-toggle").addEventListener("click", (e) => {
-        e.stopPropagation();
-        if ($("#lang-list").hidden) openLangMenu();
-        else closeLangMenu();
-    });
-    document.addEventListener("click", (e) => {
-        if (!$("#lang-menu").contains(e.target)) closeLangMenu();
-        if (!$("#theme-menu").contains(e.target)) closeThemeMenu();
-    });
-    document.addEventListener("keydown", (e) => {
-        if (e.key === "Escape") { closeLangMenu(); closeThemeMenu(); }
-    });
+function handleMenuKeydown(e, list, closeFn) {
+    if (list.hidden) return;
+    const items = $$(".pop-item", list);
+    if (!items.length) return;
+    const idx = items.indexOf(document.activeElement);
+    if (e.key === "ArrowDown") {
+        e.preventDefault();
+        items[(idx + 1 + items.length) % items.length].focus();
+    } else if (e.key === "ArrowUp") {
+        e.preventDefault();
+        items[(idx - 1 + items.length) % items.length].focus();
+    } else if (e.key === "Home") {
+        e.preventDefault();
+        items[0].focus();
+    } else if (e.key === "End") {
+        e.preventDefault();
+        items[items.length - 1].focus();
+    } else if (e.key === "Escape") {
+        e.preventDefault();
+        closeFn(true);
+    }
 }
 
 /* ------------------------------------------------------------------ theme */
 
-function themeToken(name, fallback) {
-    try {
-        const v = getComputedStyle(document.documentElement).getPropertyValue(name).trim();
-        return v || fallback;
-    } catch (_) {
-        return fallback;
-    }
+function themeHex(id) {
+    const found = THEMES.find((th) => th.id === id);
+    return (found && found.hex) || "#080f1b";
 }
 
 function setTheme(id, persist) {
@@ -262,9 +268,9 @@ function setTheme(id, persist) {
     document.documentElement.setAttribute("data-theme", theme);
     if (persist) storeSet("aurora_theme", theme);
     renderThemeMenu();
-    // Keep the browser chrome + PWA manifest colours in step with the theme.
+    // Keep browser chrome + PWA manifest colors in exact sRGB hex (iOS/Android compatible).
     const meta = document.querySelector('meta[name="theme-color"]');
-    if (meta) meta.setAttribute("content", themeToken("--color-base-100", "#141c28"));
+    if (meta) meta.setAttribute("content", themeHex(theme));
     if (CTX) installManifest();
 }
 
@@ -273,46 +279,65 @@ function renderThemeMenu() {
     const brand = (CTX && CTX.brandName) || defaultBrand();
     list.innerHTML = THEMES.map((th) => {
         const label = escapeHtml(th.label.split("%brand%").join(brand));
-        return `<li><button data-theme-id="${th.id}" class="justify-between rounded-xl${th.id === theme ? " active font-semibold" : ""}">` +
-            `<span class="flex items-center gap-2">` +
-            `<span class="h-3.5 w-3.5 rounded-full border border-base-content/20" style="background:${th.swatch}"></span>` +
-            `<span>${label}</span></span>` +
-            (th.id === theme ? `<i class="ph ph-check text-base text-primary"></i>` : "") +
+        const active = th.id === theme;
+        return `<li role="none"><button type="button" role="menuitemradio" aria-checked="${active}" data-theme-id="${th.id}" class="pop-item${active ? " is-active" : ""}">` +
+            `<span class="flex min-w-0 items-center gap-2.5">` +
+            `<span class="h-3.5 w-3.5 shrink-0 rounded-full border border-base-content/25 shadow-xs" style="background:${th.swatch}"></span>` +
+            `<span class="truncate">${label}</span></span>` +
+            (active ? `<i class="ph ph-check shrink-0 text-base text-primary"></i>` : "") +
             `</button></li>`;
     }).join("");
     $$("[data-theme-id]", list).forEach((btn) => {
         btn.addEventListener("click", () => {
             setTheme(btn.getAttribute("data-theme-id"), true);
-            closeThemeMenu();
+            closeThemeMenu(true);
         });
     });
 }
 
 function openThemeMenu() {
-    // Mirror of openLangMenu — close the language menu first so the two
-    // popovers never stack. See openLangMenu for context.
     if (!$("#lang-list").hidden) closeLangMenu();
     closeSubFormatMenu();
     setHidden($("#theme-list"), false);
     $("#theme-toggle").setAttribute("aria-expanded", "true");
 }
 
-function closeThemeMenu() {
-    setHidden($("#theme-list"), true);
-    $("#theme-toggle").setAttribute("aria-expanded", "false");
+function closeThemeMenu(restoreFocus = false) {
+    const list = $("#theme-list");
+    if (!list || list.hidden) return;
+    setHidden(list, true);
+    const toggle = $("#theme-toggle");
+    toggle.setAttribute("aria-expanded", "false");
+    if (restoreFocus) toggle.focus();
 }
 
-function wireThemeMenu() {
+function wireMenus() {
+    const langList = $("#lang-list");
+    const themeList = $("#theme-list");
+
+    $("#lang-toggle").addEventListener("click", (e) => {
+        e.stopPropagation();
+        if (langList.hidden) openLangMenu();
+        else closeLangMenu();
+    });
     $("#theme-toggle").addEventListener("click", (e) => {
         e.stopPropagation();
-        if ($("#theme-list").hidden) openThemeMenu();
+        if (themeList.hidden) openThemeMenu();
         else closeThemeMenu();
     });
+
+    $("#lang-menu").addEventListener("keydown", (e) => handleMenuKeydown(e, langList, closeLangMenu));
+    $("#theme-menu").addEventListener("keydown", (e) => handleMenuKeydown(e, themeList, closeThemeMenu));
+
     document.addEventListener("click", (e) => {
+        if (!$("#lang-menu").contains(e.target)) closeLangMenu();
         if (!$("#theme-menu").contains(e.target)) closeThemeMenu();
     });
     document.addEventListener("keydown", (e) => {
-        if (e.key === "Escape") closeThemeMenu();
+        if (e.key === "Escape") {
+            if (!langList.hidden) closeLangMenu(true);
+            if (!themeList.hidden) closeThemeMenu(true);
+        }
     });
 }
 
@@ -397,13 +422,14 @@ function renderAnnouncement() {
         setHidden(banner, true);
         return;
     }
+    banner.dataset.announceText = text;
     $("#announce-banner-text").textContent = text;
     setHidden(banner, false);
     const closeBtn = $("#announce-banner-close");
     if (closeBtn && !closeBtn.dataset.wired) {
         closeBtn.dataset.wired = "1";
         closeBtn.addEventListener("click", () => {
-            storeSet("aurora_announce_dismissed", text);
+            storeSet("aurora_announce_dismissed", banner.dataset.announceText || "");
             setHidden(banner, true);
         });
     }
@@ -414,13 +440,14 @@ let manifestUrl = null;
 /** Dynamic PWA manifest so "Add to Home Screen" carries the brand + theme. */
 function installManifest() {
     try {
+        const bg = themeHex(theme);
         const manifest = {
             name: CTX.brandName,
             short_name: CTX.brandName,
             start_url: ".",
             display: "standalone",
-            background_color: themeToken("--color-base-100", "#141c28"),
-            theme_color: themeToken("--color-base-100", "#141c28"),
+            background_color: bg,
+            theme_color: bg,
         };
         const blob = new Blob([JSON.stringify(manifest)], { type: "application/json" });
         if (manifestUrl) URL.revokeObjectURL(manifestUrl);
@@ -470,12 +497,13 @@ function renderCard() {
     const remainTraffic = unlimited ? Infinity : Math.max(0, CTX.dataLimit - CTX.usedTraffic);
     const isLowTraffic = !unlimited && (remainTraffic <= Math.min(1073741824, CTX.dataLimit * 0.12) || (CTX.usedTraffic / CTX.dataLimit >= 0.9));
     const remainingSec = !neverExpire && STATE !== "on_hold" ? Math.max(0, CTX.expire - Date.now() / 1000) : 0;
+    const underOneDay = !neverExpire && STATE !== "on_hold" && hasValue(CTX.expireRaw) && remainingSec > 0 && remainingSec < 86400;
     const liveDays = neverExpire || STATE === "on_hold"
         ? 0
         : (hasValue(CTX.expireRaw)
-            ? (remainingSec > 0 ? Math.max(0, Math.ceil(remainingSec / 86400)) : 0)
+            ? (remainingSec > 0 ? Math.max(1, Math.round(remainingSec / 86400)) : 0)
             : Math.round(CTX.remainingDays));
-    const isLowTime = !neverExpire && STATE !== "on_hold" && liveDays > 0 && liveDays <= 3;
+    const isLowTime = !neverExpire && STATE !== "on_hold" && (underOneDay || (liveDays > 0 && liveDays <= 3));
     const isUrgent = ((STATE !== "active" && STATE !== "on_hold") || isLowTraffic || isLowTime) && !hasNextPlan;
 
     // Status badge + banner
@@ -494,9 +522,11 @@ function renderCard() {
     }
 
     if (STATE !== "active" && I18N.en["banner_" + STATE]) {
-        banner.className = `reveal shown alert mb-4 items-center justify-between gap-3 rounded-2xl glass border border-current/15 sm:mb-5 ${BANNER_TONES[STATE] || ""}`;
+        banner.className = `reveal shown aurora-banner glass mb-4 flex-wrap rounded-2xl border border-current/20 sm:mb-5 sm:flex-nowrap ${BANNER_TONES[STATE] || ""}`;
         bannerText.textContent = t("banner_" + STATE);
         if (CTX.supportUrl && STATE !== "on_hold" && !hasNextPlan) {
+            const actTone = STATE === "limited" ? "btn-error" : "btn-warning";
+            bannerAction.className = `btn btn-sm ${actTone} inline-flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-xl font-semibold shadow-sm`;
             bannerAction.href = CTX.supportUrl;
             $("#status-banner-action-text").textContent = t("renew");
             setHidden(bannerAction, false);
@@ -505,10 +535,11 @@ function renderCard() {
         }
         setHidden(banner, false);
     } else if ((isLowTraffic || isLowTime) && !hasNextPlan) {
-        banner.className = `reveal shown alert mb-4 items-center justify-between gap-3 rounded-2xl glass border border-warning/25 text-warning sm:mb-5`;
+        banner.className = `reveal shown aurora-banner glass mb-4 flex-wrap rounded-2xl border border-warning/25 text-warning sm:mb-5 sm:flex-nowrap`;
         const alertKey = isLowTraffic && isLowTime ? "banner_low_both" : isLowTraffic ? "banner_low_traffic" : "banner_low_time";
         bannerText.textContent = t(alertKey);
         if (CTX.supportUrl) {
+            bannerAction.className = `btn btn-sm btn-warning inline-flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-xl font-semibold shadow-sm`;
             bannerAction.href = CTX.supportUrl;
             $("#status-banner-action-text").textContent = t("renew");
             setHidden(bannerAction, false);
@@ -540,16 +571,19 @@ function renderCard() {
     // ---- usage ring + stats
     const usedPct = unlimited ? 0 : (CTX.usedTraffic >= CTX.dataLimit ? 100 : Math.min(99, Math.round((CTX.usedTraffic / CTX.dataLimit) * 100)));
     const dataFill = $("#ring-data-fill");
+    const dataLabel = $("#ring-data-label");
     if (unlimited) {
         dataFill.style.stroke = "url(#aurora-ring-data)";
         setRing(dataFill, 100);
         $("#ring-data-pct").textContent = "∞";
+        if (dataLabel) dataLabel.textContent = t("unlimited");
         $("#ring-data").classList.remove("is-urgent");
     } else {
-        const ringUrgent = usedPct >= 90 && !hasNextPlan;
+        const ringUrgent = STATE === "limited" || usedPct >= 100 || (usedPct >= 90 && !hasNextPlan);
         dataFill.style.stroke = ringUrgent ? "var(--color-error)" : "url(#aurora-ring-data)";
         setRing(dataFill, usedPct);
         $("#ring-data-pct").textContent = locPct(usedPct, lang);
+        if (dataLabel) dataLabel.textContent = t("used");
         $("#ring-data").classList.toggle("is-urgent", ringUrgent);
     }
 
@@ -579,6 +613,7 @@ function renderCard() {
 
     // ---- time ring + expiry
     const timeFill = $("#ring-time-fill");
+    const timeUnit = $("#ring-time-unit");
     const expireCell = $("#stat-expire");
     const expireRel = $("#stat-expire-rel");
     if (STATE === "on_hold" && neverExpire) {
@@ -590,9 +625,11 @@ function renderCard() {
         $("#ring-time").classList.remove("is-urgent");
         if (holdDays > 0) {
             $("#ring-time-val").textContent = locNum(holdDays, lang);
-            expireCell.textContent = `${locNum(holdDays, lang)} ${t(holdDays === 1 ? "day" : "days")}`;
+            timeUnit.textContent = fmtDaysUnit(holdDays, lang);
+            expireCell.textContent = `${locNum(holdDays, lang)} ${fmtDaysUnit(holdDays, lang)}`;
         } else {
             $("#ring-time-val").textContent = "—";
+            timeUnit.textContent = t("status_on_hold");
             expireCell.textContent = t("status_on_hold");
         }
         expireCell.classList.remove("text-error");
@@ -601,32 +638,34 @@ function renderCard() {
         timeFill.style.stroke = "url(#aurora-ring-time)";
         setRing(timeFill, 100);
         $("#ring-time-val").textContent = "∞";
+        timeUnit.textContent = t("unlimited");
         $("#ring-time").classList.remove("is-urgent");
         expireCell.textContent = t("never");
         expireCell.classList.remove("text-error");
         expireRel.textContent = "";
     } else {
-        // `remaining_days` is precomputed server-side (no now() in pongo2) and can
-        // be stale — derive live from `expire`, falling back to the server value.
         const days = liveDays;
-        // The ring empties across an adaptive cycle window so short plans show
-        // useful motion and long plans don't pin to 100%.
         const windowDays = Math.max(CTX.remainingDays, remainingSec / 86400);
         const cycleDays = windowDays <= 1 ? 1 : windowDays <= 7 ? 7 : windowDays <= 31 ? 31
             : windowDays <= 93 ? 93 : windowDays <= 366 ? 366 : windowDays;
         const frac = clamp(remainingSec / (cycleDays * 86400), 0, 1);
-        const tone = days <= 3 ? "var(--color-error)" : days <= 7 ? "var(--color-warning)" : "url(#aurora-ring-time)";
+        const isExpiredOrLow = STATE === "expired" || remainingSec <= 0 || underOneDay || days <= 3;
+        const tone = isExpiredOrLow ? "var(--color-error)" : days <= 7 ? "var(--color-warning)" : "url(#aurora-ring-time)";
         timeFill.style.stroke = tone;
         setRing(timeFill, Math.round(frac * 100));
-        $("#ring-time").classList.toggle("is-urgent", frac <= 0.1 && STATE === "active" && !hasNextPlan);
-        $("#ring-time-val").textContent = locNum(days, lang);
+        $("#ring-time").classList.toggle("is-urgent", (STATE === "expired" || frac <= 0.1) && !hasNextPlan);
+        if (underOneDay) {
+            const hrs = Math.max(1, Math.ceil(remainingSec / 3600));
+            $("#ring-time-val").textContent = locNum(hrs, lang);
+            timeUnit.textContent = fmtHoursUnit(hrs, lang);
+        } else {
+            $("#ring-time-val").textContent = locNum(days, lang);
+            timeUnit.textContent = fmtDaysUnit(days, lang);
+        }
         expireCell.textContent = fmtDate(new Date(CTX.expire * 1000), lang);
-        expireCell.classList.toggle("text-error", days <= 3 && !hasNextPlan);
-        // Relative hint under the date: "in 3 days" / "expired 2 days ago".
-        // `fmtRelative` handles both past and future from the current clock.
+        expireCell.classList.toggle("text-error", STATE === "expired" || (isExpiredOrLow && !hasNextPlan));
         expireRel.textContent = fmtRelative(new Date(CTX.expire * 1000), lang);
     }
-    $("#ring-time-unit").textContent = t("days");
 
     // ---- linear usage bar
     const bar = $("#usage-bar");
@@ -663,7 +702,7 @@ function renderNextPlan() {
     }
     if (num(np.expire_duration) > 0) {
         const d = Math.max(1, Math.round(num(np.expire_duration) / 86400));
-        parts.push(`${locNum(d, lang)} ${t(d === 1 ? "day" : "days")}`);
+        parts.push(`${locNum(d, lang)} ${fmtDaysUnit(d, lang)}`);
     }
     let label = parts.join(" · ");
     if (CTX.nextPlans.length > 1) {
@@ -731,7 +770,7 @@ function renderReset() {
             const ss = Math.floor(diff / 1000);
             const pad = (n) => String(n).padStart(2, "0");
             const clock = `${pad(hh)}:${pad(mm)}:${pad(ss)}`;
-            out.textContent = locNum(dd > 0 ? `${dd} ${t(dd === 1 ? "day" : "days")} ${clock}` : clock, lang);
+            out.textContent = locNum(dd > 0 ? `${dd} ${fmtDaysUnit(dd, lang)} ${clock}` : clock, lang);
         } catch (_) {
             clearInterval(resetTimer);
         }
@@ -831,26 +870,35 @@ function wireOffline() {
 
 /* ---- system preference watchers ---- */
 
-/** Watch for OS color-scheme changes and follow automatically (unless the user explicitly picked). */
+/** Watch for OS color-scheme changes and follow automatically (unless user picked or brand pinned AMOLED/Nord). */
 function wireThemeWatcher() {
     if (typeof matchMedia !== "function") return;
     try {
         matchMedia("(prefers-color-scheme: light)").addEventListener("change", (e) => {
-            if (!storeGet("aurora_theme")) {
-                setTheme(e.matches ? "auroralight" : "auroradark", false);
-                renderAllDynamic();
-            }
+            if (storeGet("aurora_theme")) return;
+            const brand = window.AURORA_BRAND || {};
+            const metaTheme = (document.querySelector('meta[name="aurora-default-theme"]') || {}).content || "";
+            const def = brand.defaultTheme || brand.theme || metaTheme;
+            if (def === "amoleddark" || def === "nord") return;
+            setTheme(e.matches ? "auroralight" : "auroradark", false);
+            renderAllDynamic();
         });
     } catch (_) { /* older engines */ }
 }
 
-/** Re-render relative time strings ("3 min ago", "in 2 days") every 60 s. */
+/** Re-render relative time strings ("3 min ago", "in 2 days") every 60 s and detect live expiry crossing. */
 function startRelativeTimeRefresh() {
     setInterval(() => {
         if (!CTX || document.visibilityState !== "visible") return;
-        // Only update the two cells that carry relative text — cheap DOM writes.
+        const nextState = deriveState(CTX);
+        if (nextState !== STATE) {
+            STATE = nextState;
+            renderCard();
+            if (usageView) usageView.rerender();
+            return;
+        }
         const neverExpire = !hasValue(CTX.expireRaw);
-        if (!neverExpire) {
+        if (!neverExpire && STATE !== "on_hold") {
             const rel = $("#stat-expire-rel");
             if (rel) rel.textContent = fmtRelative(new Date(CTX.expire * 1000), lang);
         }
@@ -897,12 +945,12 @@ function renderSubFormatMenu() {
     list.innerHTML = SUB_FORMATS.map((f) => {
         const label = f.labelKey ? t(f.labelKey) : f.label;
         const url = base + f.suffix;
-        return `<div class="sub-tile flex items-center gap-2 rounded-xl px-3 py-2.5">` +
-            `<span class="min-w-0 flex-1 truncate text-sm font-medium">${escapeHtml(label)}</span>` +
-            `<button data-fmt-copy="${escapeAttr(url)}" class="btn btn-ghost btn-xs btn-square rounded-lg" aria-label="${escapeAttr(t("copy"))}">` +
+        return `<div class="sub-tile row-hover flex items-center gap-2 rounded-xl px-3 py-2.5">` +
+            `<span class="min-w-0 flex-1 truncate text-start text-sm font-medium"><span dir="auto">${escapeHtml(label)}</span></span>` +
+            `<button type="button" data-fmt-copy="${escapeAttr(url)}" class="btn btn-ghost btn-xs btn-square rounded-lg" aria-label="${escapeAttr(t("copy"))}" title="${escapeAttr(t("copy"))}">` +
             `<i class="ph ph-copy text-base"></i></button>` +
-            `<button data-fmt-qr="${escapeAttr(url)}" data-fmt-title="${escapeAttr(label)}" ` +
-            `class="btn btn-ghost btn-xs btn-square rounded-lg" aria-label="${escapeAttr(t("qrcode"))}">` +
+            `<button type="button" data-fmt-qr="${escapeAttr(url)}" data-fmt-title="${escapeAttr(label)}" ` +
+            `class="btn btn-ghost btn-xs btn-square rounded-lg" aria-label="${escapeAttr(t("qrcode"))}" title="${escapeAttr(t("qrcode"))}">` +
             `<i class="ph ph-qr-code text-base text-base-content/75"></i></button>` +
             `</div>`;
     }).join("");
@@ -984,7 +1032,7 @@ function applyUserInfo(u) {
 }
 
 function fetchSubInfo(force = false) {
-    if (!CTX || !CTX.subUrl) return Promise.resolve(null);
+    if (!CTX || !CTX.subUrl) return Promise.resolve({ data: null, networkError: false });
     if (infoPromise && !force) return infoPromise;
     const rawInfoUrl = CTX.subUrl.replace(/\/+$/, "") + "/info";
     const localInfoUrl = (location.origin + location.pathname).replace(/\/+$/, "") + "/info";
@@ -996,6 +1044,7 @@ function fetchSubInfo(force = false) {
     } catch (_) {}
 
     const p = (async () => {
+        let sawHttpResponse = false;
         for (const infoUrl of candidates) {
             try {
                 const res = await fetch(infoUrl, {
@@ -1003,14 +1052,15 @@ function fetchSubInfo(force = false) {
                     credentials: "same-origin",
                     headers: { Accept: "application/json" },
                 });
+                sawHttpResponse = true;
                 if (!res.ok) continue;
                 const data = await res.json();
                 if (data && data.user) applyUserInfo(data.user);
-                return data;
+                return { data, networkError: false };
             } catch (_) {}
         }
         if (infoPromise === p) infoPromise = null;
-        return null;
+        return { data: null, networkError: !sawHttpResponse };
     })();
     infoPromise = p;
     return p;
@@ -1152,9 +1202,7 @@ async function init() {
         setTheme(theme, false);
         setLang(lang, false); // applies i18n and the first dynamic render
 
-        wireLangMenu();
-        renderLangMenu();
-        wireThemeMenu();
+        wireMenus();
         wireSubFormatMenu();
         wireQrModal();
         wireCollapses();

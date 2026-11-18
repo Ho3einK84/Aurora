@@ -8,7 +8,7 @@ import {
     downloadTextFile, safeFileName, parseConfigMeta,
 } from "./format.js";
 import { locNum, locCountry } from "./i18n.js";
-import { $, $$, setHidden, copyText, toast, flashCopied, flashCopyIcon } from "./ui.js";
+import { $, $$, setHidden, copyText, toast, flashCopied, flashCopyIcon, scrollTabIntoView } from "./ui.js";
 import { storeGet, storeSet } from "./store.js";
 
 // pongo2 (the panel's template engine) autoescapes {{ link }} even though
@@ -227,17 +227,30 @@ export function mountConfigs(deps) {
     // Connection Details modal (#cfg-modal)
     let activeModalRow = null;
     const cfgModal = $("#cfg-modal");
+    const canShare = typeof navigator.share === "function";
     if (cfgModal) {
         const closeBtn = $("#cfg-modal-close");
         const copyBtn = $("#cfg-modal-copy");
         const qrBtn = $("#cfg-modal-qr");
         const pinModalBtn = $("#cfg-modal-pin");
+        const shareModalBtn = $("#cfg-modal-share");
         if (closeBtn) closeBtn.addEventListener("click", () => cfgModal.close());
         if (pinModalBtn) {
             pinModalBtn.addEventListener("click", () => {
                 if (!activeModalRow) return;
                 togglePin(activeModalRow);
             });
+        }
+        if (shareModalBtn) {
+            setHidden(shareModalBtn, !canShare);
+            if (canShare) {
+                shareModalBtn.addEventListener("click", async () => {
+                    if (!activeModalRow) return;
+                    try {
+                        await navigator.share({ title: activeModalRow.name, text: activeModalRow.link });
+                    } catch (_) { /* user cancelled */ }
+                });
+            }
         }
         if (copyBtn) {
             copyBtn.addEventListener("click", async (e) => {
@@ -254,10 +267,11 @@ export function mountConfigs(deps) {
         }
     }
 
-    function openCfgModal(r) {
-        if (!cfgModal) return;
-        activeModalRow = r;
-        $("#cfg-modal-title").textContent = r.name;
+    function renderCfgModalBody(r) {
+        const titleEl = $("#cfg-modal-title");
+        const inner = titleEl && titleEl.querySelector("span");
+        if (inner) inner.textContent = r.name;
+        else if (titleEl) titleEl.textContent = r.name;
         syncModalPinBtn();
         const m = r.meta || {};
         const fields = [
@@ -280,12 +294,12 @@ export function mountConfigs(deps) {
         const fieldsEl = $("#cfg-modal-fields");
         fieldsEl.innerHTML = fields.map(([label, val, icon, full]) =>
             `<div class="sub-tile flex items-center gap-2 rounded-xl px-3 py-2${full ? " col-span-2" : ""}">` +
-            `<i class="ph ${icon} shrink-0 text-base text-base-content/45"></i>` +
-            `<div class="min-w-0 flex-1">` +
+            `<i class="ph ${icon} shrink-0 text-base text-base-content/50"></i>` +
+            `<div class="min-w-0 flex-1 text-start">` +
             `<p class="text-[11px] font-medium text-base-content/55">${escapeHtml(label)}</p>` +
-            `<p class="truncate font-mono text-[12px]" dir="ltr">${escapeHtml(val)}</p>` +
+            `<p class="truncate text-start font-mono text-[12px]"><span class="inline-block max-w-full truncate align-bottom" dir="ltr">${escapeHtml(val)}</span></p>` +
             `</div>` +
-            `<button class="btn btn-circle btn-ghost btn-xs" data-cfg-copy="${escapeAttr(val)}" aria-label="${escapeAttr(t("copy"))}">` +
+            `<button type="button" class="btn btn-circle btn-ghost btn-xs shrink-0" data-cfg-copy="${escapeAttr(val)}" aria-label="${escapeAttr(t("copy"))}" title="${escapeAttr(t("copy"))}">` +
             `<i class="ph ph-copy text-base"></i></button>` +
             `</div>`
         ).join("");
@@ -298,7 +312,12 @@ export function mountConfigs(deps) {
                 }
             });
         });
+    }
 
+    function openCfgModal(r) {
+        if (!cfgModal) return;
+        activeModalRow = r;
+        renderCfgModalBody(r);
         if (!cfgModal.open) cfgModal.showModal();
     }
 
@@ -327,7 +346,7 @@ export function mountConfigs(deps) {
             });
     };
 
-    function renderFilters() {
+    function renderFilters(smooth = false) {
         const protos = [...new Set(rows.map((r) => r.proto))];
         if (protos.length <= 1) {
             filtersEl.innerHTML = "";
@@ -338,33 +357,39 @@ export function mountConfigs(deps) {
         if (activeProto !== "all" && !protos.includes(activeProto)) activeProto = "all";
         const pills = [["all", t("filter_all")], ...protos.map((p) => [p, p])];
         filtersEl.innerHTML = pills.map(([val, label]) =>
-            `<button role="tab" class="filter-pill${val === activeProto ? " active" : ""}" ` +
+            `<button type="button" role="tab" class="filter-pill${val === activeProto ? " active" : ""}" ` +
             `aria-selected="${val === activeProto}" data-proto="${escapeAttr(val)}">${escapeHtml(label)}</button>`
         ).join("");
         $$(".filter-pill", filtersEl).forEach((btn) => {
             btn.addEventListener("click", () => {
                 activeProto = btn.getAttribute("data-proto");
-                renderFilters();
+                renderFilters(true);
                 renderList();
+                updateSelectionBar();
             });
         });
+        const activeBtn = filtersEl.querySelector(".filter-pill.active");
+        if (activeBtn) scrollTabIntoView(filtersEl, activeBtn, smooth);
     }
 
-    function emptyState(textKey, hintKey) {
-        return `<div class="card glass rounded-2xl p-10 text-center">
-            <i class="ph ph-tray mx-auto text-5xl text-base-content/30"></i>
-            <p class="mt-3 font-semibold">${escapeHtml(t(textKey))}</p>
-            ${hintKey ? `<p class="mt-1 text-sm text-base-content/50">${escapeHtml(t(hintKey))}</p>` : ""}
-        </div>`;
+    function emptyState(textKey, hintKey, withReset = false) {
+        return `<div class="sub-tile rounded-xl px-6 py-8 text-center">` +
+            `<i class="ph ph-tray mx-auto text-4xl text-base-content/30"></i>` +
+            `<p class="mt-2.5 text-sm font-semibold">${escapeHtml(t(textKey))}</p>` +
+            (hintKey ? `<p class="mt-1 text-xs text-base-content/55">${escapeHtml(t(hintKey))}</p>` : "") +
+            (withReset
+                ? `<button type="button" data-reset-filters class="btn btn-ghost btn-xs glass mt-3 gap-1.5 rounded-lg px-3 font-medium text-primary">` +
+                  `<i class="ph ph-arrow-counter-clockwise text-sm"></i><span>${escapeHtml(t("reset_filters"))}</span></button>`
+                : "") +
+            `</div>`;
     }
 
     function buildRow(r) {
         const el = document.createElement("div");
         const pinActive = isPinned(r);
-        el.className = "group card glass row-hover cfg-row cursor-pointer rounded-xl" + (pinActive ? " cfg-row-pinned" : "");
+        el.className = "group sub-tile row-hover cfg-row cursor-pointer rounded-xl" + (pinActive ? " cfg-row-pinned" : "");
         el.tabIndex = 0;
         el.dataset.link = r.link;
-        const canShare = typeof navigator.share === "function";
         const isWg = r.proto === "WIREGUARD" || r.proto === "AMNEZIAWG" || r.proto === "AWG" ||
             /^(?:wireguard|amneziawg|awg):\/\//i.test(r.link) || /\.conf(?:[?#]|$)/i.test(r.link);
         const subline = (r.meta && r.meta.summary) || r.link;
@@ -379,23 +404,23 @@ export function mountConfigs(deps) {
             `<span class="truncate" dir="auto">${escapeHtml(r.name)}</span>` +
             (pinActive ? `<i class="ph ph-push-pin shrink-0 text-xs text-primary/80" aria-hidden="true"></i>` : "") +
             `</p>` +
-            `<p class="truncate text-start font-mono text-[11px] text-base-content/50"><span class="inline-block max-w-full truncate align-bottom" dir="ltr">${escapeHtml(subline)}</span></p>` +
+            `<p class="truncate text-start font-mono text-[11px] text-base-content/55"><span class="inline-block max-w-full truncate align-bottom" dir="ltr">${escapeHtml(subline)}</span></p>` +
             `</div>` +
             `<div class="cfg-actions">` +
-            `<button class="cfg-action cfg-action-pin${pinActive ? " text-primary opacity-100" : ""}" data-act="pin" ` +
+            `<button type="button" class="cfg-action cfg-action-desktop${pinActive ? " text-primary opacity-100" : ""}" data-act="pin" ` +
             `aria-label="${escapeAttr(t(pinActive ? "unpin" : "pin"))}" title="${escapeAttr(t(pinActive ? "unpin" : "pin"))}">` +
             `<i class="ph ${pinActive ? "ph-push-pin-slash" : "ph-push-pin"}"></i></button>` +
             (canShare
-                ? `<button class="cfg-action" data-act="share" aria-label="${escapeAttr(t("share"))}">` +
+                ? `<button type="button" class="cfg-action cfg-action-desktop" data-act="share" aria-label="${escapeAttr(t("share"))}" title="${escapeAttr(t("share"))}">` +
                   `<i class="ph ph-share-network"></i></button>`
                 : "") +
             (isWg
-                ? `<button class="cfg-action" data-act="download" aria-label="${escapeAttr(t("download_conf"))}" title="${escapeAttr(t("download_conf"))}">` +
+                ? `<button type="button" class="cfg-action" data-act="download" aria-label="${escapeAttr(t("download_conf"))}" title="${escapeAttr(t("download_conf"))}">` +
                   `<i class="ph ph-download-simple"></i></button>`
                 : "") +
-            `<button class="cfg-action" data-act="copy" aria-label="${escapeAttr(t("copy"))}">` +
+            `<button type="button" class="cfg-action" data-act="copy" aria-label="${escapeAttr(t("copy"))}" title="${escapeAttr(t("copy"))}">` +
             `<i class="ph ph-copy"></i></button>` +
-            `<button class="cfg-action" data-act="qr" aria-label="${escapeAttr(t("qrcode"))}">` +
+            `<button type="button" class="cfg-action" data-act="qr" aria-label="${escapeAttr(t("qrcode"))}" title="${escapeAttr(t("qrcode"))}">` +
             `<i class="ph ph-qr-code"></i></button>` +
             `</div>` +
             `</div>`;
@@ -407,7 +432,10 @@ export function mountConfigs(deps) {
         el.querySelector('[data-act="copy"]').addEventListener("click", async (e) => {
             e.stopPropagation();
             const btn = e.currentTarget;
-            if (await copyText(r.link)) flashCopyIcon(btn);
+            if (await copyText(r.link)) {
+                flashCopyIcon(btn);
+                toast(t("copied"));
+            }
         });
         const shareBtn = el.querySelector('[data-act="share"]');
         if (shareBtn) {
@@ -466,15 +494,32 @@ export function mountConfigs(deps) {
     }
 
     function renderList() {
-        $("#configs-count").textContent = locNum(rows.length, lang());
+        const isFiltered = Boolean(search.trim()) || activeProto !== "all";
         listEl.innerHTML = "";
         if (!rows.length) {
+            $("#configs-count").textContent = locNum(0, lang());
             listEl.innerHTML = emptyState("no_configs", "no_configs_hint");
             return;
         }
         const visible = filtered();
+        $("#configs-count").textContent = isFiltered
+            ? `${locNum(visible.length, lang())} / ${locNum(rows.length, lang())}`
+            : locNum(rows.length, lang());
         if (!visible.length) {
-            listEl.innerHTML = emptyState("no_match");
+            listEl.innerHTML = emptyState("no_match", "", true);
+            const resetBtn = listEl.querySelector("[data-reset-filters]");
+            if (resetBtn) {
+                resetBtn.addEventListener("click", () => {
+                    search = "";
+                    activeProto = "all";
+                    const inp = $("#config-search");
+                    if (inp) inp.value = "";
+                    setHidden($("#config-search-clear"), true);
+                    renderFilters();
+                    renderList();
+                    updateSelectionBar();
+                });
+            }
             return;
         }
         const frag = document.createDocumentFragment();
@@ -510,26 +555,60 @@ export function mountConfigs(deps) {
         setHidden(selectionBar, !selecting);
         $("#selection-count").textContent = locNum(selected.size, lang());
         $("#copy-selected").disabled = selected.size === 0;
+        const toggleBtn = $("#select-all-toggle");
+        if (toggleBtn) {
+            const vis = filtered();
+            const allSelected = vis.length > 0 && vis.every((r) => selected.has(r.link));
+            toggleBtn.textContent = t(allSelected ? "deselect_all" : "select_all");
+            toggleBtn.disabled = !vis.length;
+        }
     }
 
     /* ---- toolbar wiring (once) ---- */
 
     // Debounce the search input so rapid typing fires one `renderList()`
     // after the user pauses (~180ms trailing) instead of one reflow per
-    // keystroke. The fragment-based render already makes each pass cheap,
-    // but skipping the intermediate renders is an even bigger win on long
-    // lists and slow phones.
+    // keystroke.
     let searchTimer = 0;
     const SEARCH_DEBOUNCE_MS = 180;
     const scheduleSearchRender = () => {
         clearTimeout(searchTimer);
-        searchTimer = setTimeout(() => renderList(), SEARCH_DEBOUNCE_MS);
+        searchTimer = setTimeout(() => {
+            renderList();
+            updateSelectionBar();
+        }, SEARCH_DEBOUNCE_MS);
     };
 
-    $("#config-search").addEventListener("input", (e) => {
-        search = e.target.value || "";
-        scheduleSearchRender();
-    });
+    const searchInput = $("#config-search");
+    const searchClear = $("#config-search-clear");
+    if (searchInput) {
+        searchInput.addEventListener("input", (e) => {
+            search = e.target.value || "";
+            setHidden(searchClear, !search);
+            scheduleSearchRender();
+        });
+        searchInput.addEventListener("keydown", (e) => {
+            if (e.key === "Escape" && search) {
+                e.stopPropagation();
+                search = "";
+                searchInput.value = "";
+                setHidden(searchClear, true);
+                clearTimeout(searchTimer);
+                renderList();
+                updateSelectionBar();
+            }
+        });
+    }
+    if (searchClear) {
+        searchClear.addEventListener("click", () => {
+            search = "";
+            if (searchInput) { searchInput.value = ""; searchInput.focus(); }
+            setHidden(searchClear, true);
+            clearTimeout(searchTimer);
+            renderList();
+            updateSelectionBar();
+        });
+    }
 
     $("#config-group").addEventListener("click", (e) => {
         grouped = !grouped;
@@ -547,11 +626,25 @@ export function mountConfigs(deps) {
         updateSelectionBar();
     });
 
-    $("#copy-selected").addEventListener("click", async () => {
+    const selectAllBtn = $("#select-all-toggle");
+    if (selectAllBtn) {
+        selectAllBtn.addEventListener("click", () => {
+            const vis = filtered();
+            const allSelected = vis.length > 0 && vis.every((r) => selected.has(r.link));
+            if (allSelected) vis.forEach((r) => selected.delete(r.link));
+            else vis.forEach((r) => selected.add(r.link));
+            renderList();
+            updateSelectionBar();
+        });
+    }
+
+    $("#copy-selected").addEventListener("click", async (e) => {
         if (!selected.size) return;
-        // Preserve original order rather than insertion order.
         const list = rows.filter((r) => selected.has(r.link)).map((r) => r.link);
-        if (await copyText(list.join("\n"))) toast(t("copied"));
+        if (await copyText(list.join("\n"))) {
+            flashCopied(e.currentTarget, t);
+            toast(t("copied"));
+        }
     });
 
     const sanitizeFilename = (name) => String(name || "").replace(/[/\\?%*:|"<>]+/g, "_").trim() || "aurora";
@@ -625,6 +718,7 @@ export function mountConfigs(deps) {
     });
 
     const disabled = !rows.length;
+    setHidden($("#configs-toolbar"), disabled);
     ["#copy-all", "#config-group", "#config-select", "#config-export", "#config-export-json"].forEach((sel) => {
         const el = $(sel);
         if (el) el.disabled = disabled;
@@ -638,6 +732,9 @@ export function mountConfigs(deps) {
         renderFilters();
         renderList();
         updateSelectionBar();
+        if (cfgModal && cfgModal.open && activeModalRow) {
+            renderCfgModalBody(activeModalRow);
+        }
     }
 
     renderFilters();

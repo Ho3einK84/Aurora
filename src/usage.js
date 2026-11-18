@@ -8,7 +8,7 @@
    =========================================================================== */
 
 import { num, hasValue, fmtBytes, fmtBytesStr, escapeHtml, escapeAttr } from "./format.js";
-import { locNum, locPct, fmtDayMonth, fmtClock } from "./i18n.js";
+import { locNum, locPct, fmtDayMonth, fmtClock, fmtDaysUnit } from "./i18n.js";
 import { $, $$, setHidden } from "./ui.js";
 import { storeGet, storeSet } from "./store.js";
 
@@ -114,6 +114,8 @@ export function mountUsage(deps) {
     let updatedAt = 0;      // epoch ms of the data shown
     let stale = false;      // true when showing a cached copy
     let rangeDays = 30;     // 1 (24H) / 7 / 30 / 90 — the user-toggleable chart window
+    let chartHideTimer = 0;
+    let lastChartWidth = 0;
 
     async function load() {
         if (!ctx.usageUrl) return;
@@ -231,11 +233,11 @@ export function mountUsage(deps) {
         if (peakBytes > 0 && rows.length > 1) {
             items.push([t("usage_peak_day"), fmtBytesStr(peakBytes, lang())]);
         }
-        box.className = `sub-tile grid gap-2 rounded-xl p-2.5 text-center sm:p-3 ${
+        box.className = `sub-tile grid divide-x divide-base-content/10 rtl:divide-x-reverse rounded-xl py-2.5 text-center sm:py-3 ${
             items.length === 1 ? "grid-cols-1" : items.length === 2 ? "grid-cols-2" : "grid-cols-3"
         }`;
         box.innerHTML = items.map(([label, val]) =>
-            `<div class="min-w-0">` +
+            `<div class="min-w-0 px-2">` +
             `<p class="truncate text-[11px] font-medium text-base-content/55">${escapeHtml(label)}</p>` +
             `<p class="mt-0.5 truncate text-xs font-semibold tabular-nums text-base-content/90 sm:text-sm">${escapeHtml(val)}</p>` +
             `</div>`
@@ -243,13 +245,24 @@ export function mountUsage(deps) {
         setHidden(box, false);
     }
 
+    function topRoundedBarPath(x, y, w, h, bottom) {
+        const r = Math.min(3.5, w / 2, h);
+        const x2 = x + w;
+        return `M${x.toFixed(2)} ${bottom.toFixed(2)}V${(y + r).toFixed(2)}` +
+            `Q${x.toFixed(2)} ${y.toFixed(2)} ${(x + r).toFixed(2)} ${y.toFixed(2)}` +
+            `H${(x2 - r).toFixed(2)}` +
+            `Q${x2.toFixed(2)} ${y.toFixed(2)} ${x2.toFixed(2)} ${(y + r).toFixed(2)}` +
+            `V${bottom.toFixed(2)}Z`;
+    }
+
     function renderChart() {
+        clearTimeout(chartHideTimer);
         const chart = $("#usage-chart");
         const period = $("#usage-period");
         const isHourly = rangeDays === 1 && hourly && hourly.length > 0;
         const source = isHourly ? hourly : history;
         if (!source || !source.length) {
-            chart.innerHTML = `<p class="py-5 text-center text-sm text-base-content/50">${escapeHtml(t("usage_empty"))}</p>`;
+            chart.innerHTML = `<p class="py-5 text-center text-sm text-base-content/55">${escapeHtml(t("usage_empty"))}</p>`;
             chart.setAttribute("aria-label", t("usage_empty"));
             period.textContent = "";
             setHidden($("#usage-summary"), true);
@@ -265,19 +278,37 @@ export function mountUsage(deps) {
         const peakVal = Math.max(0, ...vals);
         const max = Math.max(1, peakVal);
 
-        const W = 300, H = 96, pad = 2;
-        const step = (W - pad * 2) / rows.length;
-        const barW = Math.max(1.8, step - 2.2);
-        const guides = [24, 48, 72]
-            .map((gy) => `<line class="usage-gridline" x1="${pad}" y1="${gy}" x2="${W - pad}" y2="${gy}" />`)
-            .join("");
+        const measuredW = chart.clientWidth || 0;
+        const W = Math.max(280, Math.round(measuredW || 560));
+        lastChartWidth = W;
+        const H = 120;
+        const topPad = 14;
+        const bottomPad = 18;
+        const plotBottom = H - bottomPad;
+        const plotH = plotBottom - topPad;
+        const sidePad = 2;
 
-        let rects = "";
+        const step = (W - sidePad * 2) / rows.length;
+        const gap = rows.length > 45 ? 1.5 : rows.length > 20 ? 3 : 6;
+        const barW = Math.min(28, Math.max(2.5, Math.min(step * 0.72, step - gap)));
+
+        const guides = [0.25, 0.5, 0.75]
+            .map((frac) => {
+                const gy = (plotBottom - plotH * frac).toFixed(1);
+                return `<line class="usage-gridline" x1="${sidePad}" y1="${gy}" x2="${W - sidePad}" y2="${gy}" />`;
+            })
+            .join("") +
+            `<line class="usage-baseline" x1="${sidePad}" y1="${plotBottom}" x2="${W - sidePad}" y2="${plotBottom}" />`;
+
+        const isRtl = document.documentElement.dir === "rtl";
+        let bars = "";
         rows.forEach((r, i) => {
             const v = vals[i];
-            const h = Math.max(v > 0 ? 3 : 1.5, (v / max) * (H - 12));
-            const x = pad + i * step;
-            const y = H - h;
+            const h = Math.max(v > 0 ? 4 : 2, (v / max) * (plotH - 4));
+            const slotX = sidePad + i * step;
+            const x = slotX + (step - barW) / 2;
+            const y = plotBottom - h;
+            const cx = slotX + step / 2;
             const d = dateOf(r);
             const f = fmtBytes(v, lang());
             const isPeak = peakVal > 0 && v === peakVal;
@@ -286,43 +317,58 @@ export function mountUsage(deps) {
                 : isHourly
                     ? ` ${t("usage_on")} ${fmtClock(d, lang())}`
                     : ` ${t("usage_on")} ${fmtDayMonth(d, lang())}`;
-            rects += `<rect class="usage-bar-rect${isPeak ? " is-peak" : ""}${v <= 0 ? " is-zero" : ""}" x="${x.toFixed(2)}" y="${y.toFixed(2)}" width="${barW.toFixed(2)}" ` +
-                `height="${h.toFixed(2)}" rx="1.8"><title>${escapeHtml(`${locNum(f.value, lang())} ${f.unit}${whenStr}`)}</title></rect>`;
+            const tip = `${locNum(f.value, lang())} ${f.unit}${whenStr}`;
+            bars += `<g class="usage-bar-group" tabindex="0" role="graphics-symbol" aria-label="${escapeAttr(tip)}" data-tip="${escapeAttr(tip)}" data-cx="${cx.toFixed(1)}">` +
+                `<rect class="usage-bar-hit" x="${slotX.toFixed(2)}" y="${topPad}" width="${step.toFixed(2)}" height="${plotH}" />` +
+                `<path class="usage-bar-rect${isPeak ? " is-peak" : ""}${v <= 0 ? " is-zero" : ""}" d="${topRoundedBarPath(x, y, barW, h, plotBottom)}" />` +
+                `<title>${escapeHtml(tip)}</title></g>`;
         });
+
+        const first = dateOf(rows[0]);
+        const last = dateOf(rows[rows.length - 1]);
+        const fmtTick = (d) => (isNaN(d) ? "" : isHourly ? fmtClock(d, lang()) : fmtDayMonth(d, lang()));
+        const firstLbl = fmtTick(first);
+        const lastLbl = fmtTick(last);
+        const peakLbl = peakVal > 0 ? fmtBytesStr(peakVal, lang()) : "";
+
+        const leftAnchor = isRtl ? "end" : "start";
+        const rightAnchor = isRtl ? "start" : "end";
+        let labels = "";
+        if (peakLbl) {
+            const px = isRtl ? sidePad + 2 : W - sidePad - 2;
+            const anchor = isRtl ? leftAnchor : rightAnchor;
+            labels += `<text class="usage-axis-label" x="${px}" y="10" text-anchor="${anchor}">${escapeHtml(peakLbl)}</text>`;
+        }
+        if (firstLbl && lastLbl) {
+            labels += `<text class="usage-axis-label" x="${sidePad + 2}" y="${H - 4}" text-anchor="${leftAnchor}">${escapeHtml(firstLbl)}</text>`;
+            if (rows.length > 1) {
+                labels += `<text class="usage-axis-label" x="${W - sidePad - 2}" y="${H - 4}" text-anchor="${rightAnchor}">${escapeHtml(lastLbl)}</text>`;
+            }
+        }
+
         chart.innerHTML =
-            `<svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="none" class="usage-svg">${guides}${rects}</svg>`;
+            `<svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="xMidYMid meet" class="usage-svg">${guides}${bars}${labels}</svg>`;
 
         const total = fmtBytes(rows.reduce((s, r) => s + usageValOf(r), 0), lang());
         chart.setAttribute("aria-label",
             `${t("usage_history")} — ${locNum(rows.length, lang())} ${t(isHourly ? "usage_range_24h" : "days")}, ${t("total")} ${locNum(total.value, lang())} ${total.unit}`);
 
-        const first = dateOf(rows[0]);
-        const last = dateOf(rows[rows.length - 1]);
-        period.textContent = (!isNaN(first) && !isNaN(last))
-            ? (isHourly
-                ? `${fmtClock(first, lang())} – ${fmtClock(last, lang())}`
-                : `${fmtDayMonth(first, lang())} – ${fmtDayMonth(last, lang())}`)
-            : "";
+        period.textContent = (firstLbl && lastLbl) ? `${firstLbl} – ${lastLbl}` : "";
 
         renderSummary(rows, isHourly);
-        wireChartTap(chart);
+        wireChartInteract(chart, W);
     }
 
     /**
-     * Minimal tap-to-reveal readout for the usage chart bars. The native SVG
-     * `<title>` already covers hover (desktop); on touch, hover barely fires,
-     * so a tap on a bar flips up a small floating bubble with the same text
-     * the `<title>` holds. Built from scratch — no tooltip library, no
-     * persistent hover layer, no per-bar DOM nodes. One reused bubble, one
-     * delegated listener, ~2s auto-hide. Re-wired on every render because
-     * `renderChart` replaces chart.innerHTML; the listener is cheap.
+     * Unified glass readout tooltip for usage bars — instant hover on desktop,
+     * tap-to-reveal on touch, and keyboard focus support.
      */
-    function wireChartTap(chart) {
+    function wireChartInteract(chart, viewW) {
         const svg = chart.querySelector("svg.usage-svg");
         if (!svg) return;
-        // One reused bubble, created on first tap.
         let bubble = null;
-        let hideTimer = 0;
+        let activeGroup = null;
+
         const ensureBubble = () => {
             if (bubble) return bubble;
             bubble = document.createElement("div");
@@ -333,33 +379,61 @@ export function mountUsage(deps) {
             chart.appendChild(bubble);
             return bubble;
         };
-        const show = (text, x, y) => {
+
+        const hide = () => {
+            if (activeGroup) {
+                activeGroup.classList.remove("is-active");
+                activeGroup = null;
+            }
+            if (bubble) bubble.hidden = true;
+        };
+
+        const showFor = (group, autoHideMs = 0) => {
+            const tip = group && group.getAttribute("data-tip");
+            if (!tip) return;
+            if (activeGroup && activeGroup !== group) activeGroup.classList.remove("is-active");
+            activeGroup = group;
+            group.classList.add("is-active");
+
             const b = ensureBubble();
-            b.textContent = text;
+            b.textContent = tip;
             b.hidden = false;
-            // Position relative to the chart box; clamp inside.
-            const cw = chart.clientWidth || 1;
+            const cw = chart.clientWidth || viewW || 1;
             const bw = b.offsetWidth || 0;
-            const left = Math.max(0, Math.min(cw - bw, x - bw / 2));
+            const cxSvg = parseFloat(group.getAttribute("data-cx") || "0");
+            const cxPx = (cxSvg / (viewW || 1)) * cw;
+            const left = Math.max(0, Math.min(cw - bw, cxPx - bw / 2));
             b.style.left = `${left}px`;
-            b.style.bottom = "0.25rem";
-            clearTimeout(hideTimer);
-            hideTimer = setTimeout(() => { b.hidden = true; }, 2000);
+            b.style.top = "0px";
+
+            clearTimeout(chartHideTimer);
+            if (autoHideMs > 0) {
+                chartHideTimer = setTimeout(hide, autoHideMs);
+            }
         };
-        const onPointer = (e) => {
-            // Only react to touch-style taps here — mouse hover still uses the
-            // native <title>. Treat pointer events of type "touch" as taps.
+
+        svg.addEventListener("pointermove", (e) => {
+            if (e.pointerType !== "mouse") return;
+            const g = e.target.closest(".usage-bar-group");
+            if (g) showFor(g, 0);
+            else hide();
+        });
+        svg.addEventListener("pointerleave", () => {
+            clearTimeout(chartHideTimer);
+            hide();
+        });
+        svg.addEventListener("pointerdown", (e) => {
             if (e.pointerType === "mouse") return;
-            const target = e.target.closest("rect");
-            if (!target) return;
-            const titleEl = target.querySelector("title");
-            const text = titleEl ? titleEl.textContent : "";
-            if (!text) return;
-            const rect = target.getBoundingClientRect();
-            const cx = rect.left + rect.width / 2;
-            show(text, cx - chart.getBoundingClientRect().left, rect.top);
-        };
-        svg.addEventListener("pointerdown", onPointer);
+            const g = e.target.closest(".usage-bar-group");
+            if (g) showFor(g, 2400);
+        });
+        svg.addEventListener("focusin", (e) => {
+            const g = e.target.closest(".usage-bar-group");
+            if (g) showFor(g, 0);
+        });
+        svg.addEventListener("focusout", (e) => {
+            if (!svg.contains(e.relatedTarget)) hide();
+        });
     }
 
     /** Project when the data limit will be hit from the recent daily average. */
@@ -394,8 +468,8 @@ export function mountUsage(deps) {
         const days = Math.max(0, Math.ceil(daysLeft));
         $("#usage-forecast-text").innerHTML = expiresFirst
             ? escapeHtml(t("forecast_expire_first"))
-            : `${escapeHtml(t("forecast_deplete"))} <strong class="text-base-content/80">${escapeHtml(fmtDayMonth(depleteAt, lang()))}</strong>` +
-              ` · ${locNum(days, lang())} ${escapeHtml(days === 1 ? t("day") : t("days"))}`;
+            : `${escapeHtml(t("forecast_deplete"))} <strong class="text-base-content/85">${escapeHtml(fmtDayMonth(depleteAt, lang()))}</strong>` +
+              ` · ${locNum(days, lang())} ${escapeHtml(fmtDaysUnit(days, lang()))}`;
         setHidden(box, false);
     }
 
@@ -483,7 +557,23 @@ export function mountUsage(deps) {
         el.textContent = `${t("usage_updated")} ${fmtDayMonth(d, lang())} ${fmtClock(d, lang())}` +
             (stale ? ` · ${t("usage_stale")}` : "");
         el.classList.toggle("text-warning", stale);
+        el.classList.toggle("text-base-content/50", !stale);
         setHidden(el, false);
+    }
+
+    function wireChartResize() {
+        const chart = $("#usage-chart");
+        if (!chart || typeof ResizeObserver !== "function") return;
+        let timer = 0;
+        const ro = new ResizeObserver(() => {
+            const w = Math.round(chart.clientWidth || 0);
+            if (!w || Math.abs(w - lastChartWidth) < 16) return;
+            clearTimeout(timer);
+            timer = setTimeout(() => {
+                if (history != null) renderChart();
+            }, 140);
+        });
+        ro.observe(chart);
     }
 
     /** Refresh every 5 minutes, but only while the tab is visible. */
@@ -508,6 +598,7 @@ export function mountUsage(deps) {
             await load();
             render();
             wireRangePills();
+            wireChartResize();
             startAutoRefresh();
         },
         rerender: render,

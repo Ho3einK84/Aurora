@@ -29,7 +29,7 @@ import {
     safeFileName, generatePbkEntry, generatePbkFile, generateGreCli,
 } from "./format.js";
 import { configLabel } from "./configs.js";
-import { $, $$, setHidden, copyText, toast, flashCopyIcon } from "./ui.js";
+import { $, $$, setHidden, copyText, toast, flashCopyIcon, scrollTabIntoView } from "./ui.js";
 import { storeGet, storeSet } from "./store.js";
 
 const CACHE_KEY = "aurora_vpn";
@@ -354,20 +354,30 @@ export function mountVpn(deps) {
     async function load() {
         if (!ctx.subUrl) return;
         const infoUrl = ctx.subUrl.replace(/\/+$/, "") + "/info";
+        let networkError = false;
         try {
             let data = null;
             if (typeof deps.fetchInfo === "function") {
-                data = await deps.fetchInfo();
+                const res = await deps.fetchInfo();
+                if (res && typeof res === "object" && "networkError" in res) {
+                    data = res.data;
+                    networkError = Boolean(res.networkError);
+                } else {
+                    data = res;
+                }
             } else {
                 const res = await fetch(infoUrl, {
                     cache: "no-store",
                     credentials: "same-origin",
                     headers: { Accept: "application/json" },
                 });
-                if (!res.ok) throw new Error("info HTTP " + res.status);
+                if (!res.ok) return; // Clean HTTP 404/non-2xx: do not resurrect stale cache
                 data = await res.json();
             }
-            if (!data) throw new Error("empty info");
+            if (!data) {
+                if (networkError) throw new Error("network error");
+                return;
+            }
             if (applyInfo(data)) {
                 storeSet(cacheKey, JSON.stringify({
                     openvpn: { downloads: ovpn.map((o) => o.url) },
@@ -382,8 +392,7 @@ export function mountVpn(deps) {
                 }), { noCookie: true });
             }
         } catch (_) {
-            // Older panels (or offline) — fall back to the last cached payload;
-            // the .ovpn links parsed from the data island are already showing.
+            // Only fall back to cached VPN data on genuine network failure / offline.
             try { applyInfo(JSON.parse(storeGet(cacheKey))); }
             catch (_) { /* nothing cached — keep island-derived state */ }
         }
@@ -405,7 +414,7 @@ export function mountVpn(deps) {
 
     const availableTabs = () => TABS.filter(([, , count]) => count() > 0);
 
-    function renderTabs(tabs) {
+    function renderTabs(tabs, smooth = false) {
         if (tabs.length <= 1) {
             tabsEl.innerHTML = "";
             setHidden(tabsEl, true);
@@ -413,21 +422,23 @@ export function mountVpn(deps) {
         }
         setHidden(tabsEl, false);
         tabsEl.innerHTML = tabs.map(([id, label]) =>
-            `<button role="tab" class="filter-pill${id === activeTab ? " active" : ""}" ` +
+            `<button type="button" role="tab" class="filter-pill${id === activeTab ? " active" : ""}" ` +
             `aria-selected="${id === activeTab}" data-vpn-tab="${escapeAttr(id)}">${escapeHtml(label)}</button>`
         ).join("");
         $$("#vpn-tabs [data-vpn-tab]", tabsEl).forEach((btn) => {
             btn.addEventListener("click", () => {
                 activeTab = btn.getAttribute("data-vpn-tab");
                 revealed.clear();
-                render();
+                render(true);
             });
         });
+        const activeBtn = tabsEl.querySelector(".filter-pill.active");
+        if (activeBtn) scrollTabIntoView(tabsEl, activeBtn, smooth);
     }
 
     function copyButton(value, label) {
-        return `<button class="btn btn-circle btn-ghost btn-xs" data-copy="${escapeAttr(value)}" ` +
-            `aria-label="${escapeAttr(label)}"><i class="ph ph-copy text-base"></i></button>`;
+        return `<button type="button" class="btn btn-circle btn-ghost btn-xs shrink-0" data-copy="${escapeAttr(value)}" ` +
+            `aria-label="${escapeAttr(label)}" title="${escapeAttr(label)}"><i class="ph ph-copy text-base"></i></button>`;
     }
 
     function fieldRow(labelKey, value, opts = {}) {
@@ -435,15 +446,17 @@ export function mountVpn(deps) {
         const { icon, secret, key } = opts;
         const hidden = secret && !revealed.has(key);
         const shown = hidden ? "••••••••" : value;
-        return `<div class="sub-tile flex items-center gap-2 rounded-lg px-3 py-2">` +
-            `<i class="ph ${icon} shrink-0 text-base text-base-content/45"></i>` +
+        return `<div class="flex items-center gap-2 rounded-lg border border-base-content/[0.08] bg-base-content/[0.03] px-3 py-2">` +
+            `<i class="ph ${icon} shrink-0 text-base text-base-content/50"></i>` +
             `<div class="min-w-0 flex-1 text-start">` +
             `<p class="text-[11px] font-medium text-base-content/55">${escapeHtml(t(labelKey))}</p>` +
-            `<p class="truncate font-mono text-[12px]" dir="ltr">${escapeHtml(shown)}</p>` +
+            `<p class="truncate text-start font-mono text-[12px]">` +
+            `<span class="inline-block max-w-full truncate align-bottom" dir="ltr"${secret ? ` data-secret-val="${escapeAttr(key)}" data-secret-raw="${escapeAttr(value)}"` : ""}>${escapeHtml(shown)}</span>` +
+            `</p>` +
             `</div>` +
             (secret
-                ? `<button class="btn btn-circle btn-ghost btn-xs" data-reveal="${escapeAttr(key)}" ` +
-                  `aria-label="${escapeAttr(t(hidden ? "show_secret" : "hide_secret"))}" aria-pressed="${!hidden}">` +
+                ? `<button type="button" class="btn btn-circle btn-ghost btn-xs shrink-0" data-reveal="${escapeAttr(key)}" ` +
+                  `aria-label="${escapeAttr(t(hidden ? "show_secret" : "hide_secret"))}" title="${escapeAttr(t(hidden ? "show_secret" : "hide_secret"))}" aria-pressed="${!hidden}">` +
                   `<i class="ph ${hidden ? "ph-eye" : "ph-eye-slash"} text-base"></i></button>`
                 : "") +
             copyButton(value, t("copy")) +
@@ -452,143 +465,158 @@ export function mountVpn(deps) {
 
     function ovpnRow(profile) {
         const safeUrl = isSafeDownloadUrl(profile.url);
-        return `<div class="group card glass row-hover rounded-xl">` +
+        return `<div class="group sub-tile row-hover rounded-xl">` +
             `<div class="flex items-center gap-2.5 p-2.5 sm:gap-3 sm:p-3">` +
             `<div class="grid h-9 w-9 shrink-0 place-items-center rounded-lg border border-primary/20 bg-primary/10 text-[10px] font-semibold text-primary">OVPN</div>` +
             `<div class="min-w-0 flex-1 text-start">` +
             `<p class="truncate text-sm font-medium"><span dir="auto">${escapeHtml(profile.name)}</span></p>` +
-            `<p class="truncate text-start font-mono text-[11px] text-base-content/45"><span class="inline-block max-w-full truncate align-bottom" dir="ltr">${escapeHtml(profile.url)}</span></p>` +
+            `<p class="truncate text-start font-mono text-[11px] text-base-content/50"><span class="inline-block max-w-full truncate align-bottom" dir="ltr">${escapeHtml(profile.url)}</span></p>` +
             `</div>` +
-            `<button class="btn btn-circle btn-ghost btn-sm" data-copy="${escapeAttr(profile.url)}" aria-label="${escapeAttr(t("copy"))}">` +
+            `<button type="button" class="btn btn-circle btn-ghost btn-sm shrink-0" data-copy="${escapeAttr(profile.url)}" aria-label="${escapeAttr(t("copy"))}" title="${escapeAttr(t("copy"))}">` +
             `<i class="ph ph-copy text-lg"></i></button>` +
             (safeUrl
-                ? `<a class="btn btn-sm btn-primary h-8 min-h-0 gap-1.5 rounded-lg px-3 text-xs font-medium" href="${escapeAttr(profile.url)}" download>` +
+                ? `<a class="btn btn-sm btn-primary h-8 min-h-0 shrink-0 gap-1.5 rounded-lg px-2.5 text-xs font-medium sm:px-3" href="${escapeAttr(profile.url)}" download ` +
+                  `aria-label="${escapeAttr(t("ovpn_download"))}" title="${escapeAttr(t("ovpn_download"))}">` +
                   `<i class="ph ph-download-simple text-base"></i><span class="hidden sm:inline">${escapeHtml(t("ovpn_download"))}</span></a>`
                 : "") +
             `</div></div>`;
     }
 
     function wgRow(profile, i) {
-        const buttons = [];
+        const iconBtns = [];
+        const primaryBtns = [];
         if (profile.link) {
-            buttons.push(
-                `<button class="btn btn-circle btn-ghost btn-sm" data-copy="${escapeAttr(profile.link)}" ` +
-                `aria-label="${escapeAttr(t("copy_link"))}"><i class="ph ph-link text-lg"></i></button>`
+            iconBtns.push(
+                `<button type="button" class="btn btn-ghost btn-sm glass h-8 w-8 min-h-0 shrink-0 rounded-lg p-0" data-copy="${escapeAttr(profile.link)}" ` +
+                `aria-label="${escapeAttr(t("copy_link"))}" title="${escapeAttr(t("copy_link"))}"><i class="ph ph-link text-base"></i></button>`
             );
         }
         if (profile.body) {
-            buttons.push(
-                `<button class="btn btn-circle btn-ghost btn-sm" data-copy="${escapeAttr(profile.body)}" ` +
-                `aria-label="${escapeAttr(t("copy_config"))}"><i class="ph ph-file-text text-lg"></i></button>`
+            iconBtns.push(
+                `<button type="button" class="btn btn-ghost btn-sm glass h-8 w-8 min-h-0 shrink-0 rounded-lg p-0" data-copy="${escapeAttr(profile.body)}" ` +
+                `aria-label="${escapeAttr(t("copy_config"))}" title="${escapeAttr(t("copy_config"))}"><i class="ph ph-file-text text-base"></i></button>`
             );
         }
         if (profile.downloadUrl && isSafeDownloadUrl(profile.downloadUrl)) {
-            buttons.push(
-                `<a class="btn btn-sm btn-primary h-8 min-h-0 gap-1.5 rounded-lg px-3 text-xs font-medium" ` +
-                `href="${escapeAttr(profile.downloadUrl)}" download>` +
+            primaryBtns.push(
+                `<a class="btn btn-sm btn-primary h-8 min-h-0 flex-1 gap-1.5 rounded-lg px-3 text-xs font-medium sm:flex-initial" ` +
+                `href="${escapeAttr(profile.downloadUrl)}" download aria-label="${escapeAttr(t("download_conf"))}" title="${escapeAttr(t("download_conf"))}">` +
                 `<i class="ph ph-download-simple text-base"></i>` +
-                `<span class="hidden sm:inline">${escapeHtml(t("download_conf"))}</span></a>`
+                `<span class="truncate">${escapeHtml(t("download_conf"))}</span></a>`
             );
         } else if (profile.body || profile.link) {
-            buttons.push(
-                `<button class="btn btn-sm btn-primary h-8 min-h-0 gap-1.5 rounded-lg px-3 text-xs font-medium" data-dl-wg="${i}" ` +
-                `aria-label="${escapeAttr(t("download_conf"))}"><i class="ph ph-download-simple text-base"></i>` +
-                `<span class="hidden sm:inline">${escapeHtml(t("download_conf"))}</span></button>`
+            primaryBtns.push(
+                `<button type="button" class="btn btn-sm btn-primary h-8 min-h-0 flex-1 gap-1.5 rounded-lg px-3 text-xs font-medium sm:flex-initial" data-dl-wg="${i}" ` +
+                `aria-label="${escapeAttr(t("download_conf"))}" title="${escapeAttr(t("download_conf"))}"><i class="ph ph-download-simple text-base"></i>` +
+                `<span class="truncate">${escapeHtml(t("download_conf"))}</span></button>`
             );
         }
         if (profile.link && /^wireguard:\/\//i.test(profile.link)) {
-            buttons.push(
-                `<a class="btn btn-sm btn-accent h-8 min-h-0 gap-1.5 rounded-lg px-3 text-xs font-medium" ` +
+            primaryBtns.push(
+                `<a class="btn btn-sm btn-accent h-8 min-h-0 flex-1 gap-1.5 rounded-lg px-3 text-xs font-medium sm:flex-initial" ` +
                 `href="${escapeAttr(profile.link)}" ` +
-                `aria-label="${escapeAttr(t("connect"))}"><i class="ph ph-plug-charging text-base"></i>` +
-                `<span class="hidden sm:inline">${escapeHtml(t("connect"))}</span></a>`
+                `aria-label="${escapeAttr(t("connect"))}" title="${escapeAttr(t("connect"))}"><i class="ph ph-plug-charging text-base"></i>` +
+                `<span class="truncate">${escapeHtml(t("connect"))}</span></a>`
             );
         }
-        return `<div class="group card glass row-hover rounded-xl">` +
-            `<div class="flex items-center gap-2.5 p-2.5 sm:gap-3 sm:p-3">` +
+        const actionsBar = (iconBtns.length || primaryBtns.length)
+            ? `<div class="flex shrink-0 items-center gap-1.5">${primaryBtns.join("")}${iconBtns.join("")}</div>`
+            : "";
+        return `<div class="group sub-tile rounded-xl">` +
+            `<div class="flex flex-col gap-2.5 p-2.5 sm:flex-row sm:items-center sm:gap-3 sm:p-3">` +
+            `<div class="flex min-w-0 flex-1 items-center gap-2.5 sm:gap-3">` +
             `<div class="grid h-9 w-9 shrink-0 place-items-center rounded-lg border border-success/20 bg-success/10 text-[10px] font-semibold text-success">WG</div>` +
             `<div class="min-w-0 flex-1 text-start">` +
             `<p class="truncate text-sm font-medium"><span dir="auto">${escapeHtml(profile.name)}</span></p>` +
             (profile.downloadUrl
-                ? `<p class="truncate text-start font-mono text-[11px] text-base-content/45"><span class="inline-block max-w-full truncate align-bottom" dir="ltr">${escapeHtml(profile.downloadUrl)}</span></p>`
+                ? `<p class="truncate text-start font-mono text-[11px] text-base-content/50"><span class="inline-block max-w-full truncate align-bottom" dir="ltr">${escapeHtml(profile.downloadUrl)}</span></p>`
                 : profile.link
-                    ? `<p class="truncate text-start font-mono text-[11px] text-base-content/45"><span class="inline-block max-w-full truncate align-bottom" dir="ltr">${escapeHtml(profile.link)}</span></p>`
+                    ? `<p class="truncate text-start font-mono text-[11px] text-base-content/50"><span class="inline-block max-w-full truncate align-bottom" dir="ltr">${escapeHtml(profile.link)}</span></p>`
                     : "") +
+            `</div></div>` +
+            actionsBar +
             `</div>` +
-            buttons.join("") +
-            `</div>` +
-            `<div class="grid grid-cols-1 gap-2 px-3 pb-3 sm:grid-cols-2">` +
-            fieldRow("vpn_server", profile.server, { icon: "ph-hard-drives", key: `wg:server:${profile.server}` }) +
-            fieldRow("wg_address", profile.address, { icon: "ph-globe", key: `wg:address:${profile.address}` }) +
-            fieldRow("wg_port", profile.port ? String(profile.port) : "", { icon: "ph-plug", key: `wg:port:${profile.port}` }) +
-            fieldRow("wg_client_address", profile.clientAddress, { icon: "ph-network", key: `wg:clientAddr:${profile.clientAddress}` }) +
-            fieldRow("wg_client_pubkey", profile.clientPublicKey, { icon: "ph-key", key: `wg:clientPub:${profile.clientPublicKey}` }) +
-            fieldRow("wg_server_pubkey", profile.serverPublicKey, { icon: "ph-lock-key", key: `wg:serverPub:${profile.serverPublicKey}` }) +
+            `<div class="grid grid-cols-1 gap-2 px-2.5 pb-2.5 sm:grid-cols-2 sm:px-3 sm:pb-3">` +
+            fieldRow("vpn_server", profile.server, { icon: "ph-hard-drives", key: `wg:${i}:server` }) +
+            (profile.address && profile.address !== profile.server
+                ? fieldRow("wg_address", profile.address, { icon: "ph-globe", key: `wg:${i}:address` })
+                : "") +
+            fieldRow("wg_port", profile.port ? String(profile.port) : "", { icon: "ph-plug", key: `wg:${i}:port` }) +
+            fieldRow("wg_client_address", profile.clientAddress, { icon: "ph-network", key: `wg:${i}:clientAddr` }) +
+            fieldRow("wg_client_pubkey", profile.clientPublicKey, { icon: "ph-key", key: `wg:${i}:clientPub` }) +
+            fieldRow("wg_server_pubkey", profile.serverPublicKey, { icon: "ph-lock-key", key: `wg:${i}:serverPub` }) +
             `</div></div>`;
     }
 
     function awgRow(profile, i) {
-        const buttons = [];
+        const iconBtns = [];
+        const primaryBtns = [];
         if (profile.link) {
-            buttons.push(
-                `<button class="btn btn-circle btn-ghost btn-sm" data-copy="${escapeAttr(profile.link)}" ` +
-                `aria-label="${escapeAttr(t("copy_link"))}"><i class="ph ph-link text-lg"></i></button>`
+            iconBtns.push(
+                `<button type="button" class="btn btn-ghost btn-sm glass h-8 w-8 min-h-0 shrink-0 rounded-lg p-0" data-copy="${escapeAttr(profile.link)}" ` +
+                `aria-label="${escapeAttr(t("copy_link"))}" title="${escapeAttr(t("copy_link"))}"><i class="ph ph-link text-base"></i></button>`
             );
         }
         if (profile.body) {
-            buttons.push(
-                `<button class="btn btn-circle btn-ghost btn-sm" data-copy="${escapeAttr(profile.body)}" ` +
-                `aria-label="${escapeAttr(t("copy_config"))}"><i class="ph ph-file-text text-lg"></i></button>`
+            iconBtns.push(
+                `<button type="button" class="btn btn-ghost btn-sm glass h-8 w-8 min-h-0 shrink-0 rounded-lg p-0" data-copy="${escapeAttr(profile.body)}" ` +
+                `aria-label="${escapeAttr(t("copy_config"))}" title="${escapeAttr(t("copy_config"))}"><i class="ph ph-file-text text-base"></i></button>`
             );
         }
         if (profile.downloadUrl && isSafeDownloadUrl(profile.downloadUrl)) {
-            buttons.push(
-                `<a class="btn btn-sm btn-primary h-8 min-h-0 gap-1.5 rounded-lg px-3 text-xs font-medium" ` +
-                `href="${escapeAttr(profile.downloadUrl)}" download>` +
+            primaryBtns.push(
+                `<a class="btn btn-sm btn-primary h-8 min-h-0 flex-1 gap-1.5 rounded-lg px-3 text-xs font-medium sm:flex-initial" ` +
+                `href="${escapeAttr(profile.downloadUrl)}" download aria-label="${escapeAttr(t("download_conf"))}" title="${escapeAttr(t("download_conf"))}">` +
                 `<i class="ph ph-download-simple text-base"></i>` +
-                `<span class="hidden sm:inline">${escapeHtml(t("download_conf"))}</span></a>`
+                `<span class="truncate">${escapeHtml(t("download_conf"))}</span></a>`
             );
         } else if (profile.body || profile.link) {
-            buttons.push(
-                `<button class="btn btn-sm btn-primary h-8 min-h-0 gap-1.5 rounded-lg px-3 text-xs font-medium" data-dl-awg="${i}" ` +
-                `aria-label="${escapeAttr(t("download_conf"))}"><i class="ph ph-download-simple text-base"></i>` +
-                `<span class="hidden sm:inline">${escapeHtml(t("download_conf"))}</span></button>`
+            primaryBtns.push(
+                `<button type="button" class="btn btn-sm btn-primary h-8 min-h-0 flex-1 gap-1.5 rounded-lg px-3 text-xs font-medium sm:flex-initial" data-dl-awg="${i}" ` +
+                `aria-label="${escapeAttr(t("download_conf"))}" title="${escapeAttr(t("download_conf"))}"><i class="ph ph-download-simple text-base"></i>` +
+                `<span class="truncate">${escapeHtml(t("download_conf"))}</span></button>`
             );
         }
-        return `<div class="group card glass row-hover rounded-xl">` +
-            `<div class="flex items-center gap-2.5 p-2.5 sm:gap-3 sm:p-3">` +
+        const actionsBar = (iconBtns.length || primaryBtns.length)
+            ? `<div class="flex shrink-0 items-center gap-1.5">${primaryBtns.join("")}${iconBtns.join("")}</div>`
+            : "";
+        return `<div class="group sub-tile rounded-xl">` +
+            `<div class="flex flex-col gap-2.5 p-2.5 sm:flex-row sm:items-center sm:gap-3 sm:p-3">` +
+            `<div class="flex min-w-0 flex-1 items-center gap-2.5 sm:gap-3">` +
             `<div class="grid h-9 w-9 shrink-0 place-items-center rounded-lg border border-accent/20 bg-accent/10 text-[10px] font-semibold text-accent">AWG</div>` +
             `<div class="min-w-0 flex-1 text-start">` +
             `<p class="truncate text-sm font-medium"><span dir="auto">${escapeHtml(profile.name)}</span></p>` +
             (profile.downloadUrl
-                ? `<p class="truncate text-start font-mono text-[11px] text-base-content/45"><span class="inline-block max-w-full truncate align-bottom" dir="ltr">${escapeHtml(profile.downloadUrl)}</span></p>`
+                ? `<p class="truncate text-start font-mono text-[11px] text-base-content/50"><span class="inline-block max-w-full truncate align-bottom" dir="ltr">${escapeHtml(profile.downloadUrl)}</span></p>`
                 : profile.link
-                    ? `<p class="truncate text-start font-mono text-[11px] text-base-content/45"><span class="inline-block max-w-full truncate align-bottom" dir="ltr">${escapeHtml(profile.link)}</span></p>`
+                    ? `<p class="truncate text-start font-mono text-[11px] text-base-content/50"><span class="inline-block max-w-full truncate align-bottom" dir="ltr">${escapeHtml(profile.link)}</span></p>`
                     : "") +
+            `</div></div>` +
+            actionsBar +
             `</div>` +
-            buttons.join("") +
-            `</div>` +
-            `<div class="grid grid-cols-1 gap-2 px-3 pb-3 sm:grid-cols-2">` +
-            fieldRow("vpn_server", profile.server, { icon: "ph-hard-drives", key: `awg:server:${profile.server}` }) +
-            fieldRow("wg_address", profile.address, { icon: "ph-globe", key: `awg:address:${profile.address}` }) +
-            fieldRow("wg_port", profile.port ? String(profile.port) : "", { icon: "ph-plug", key: `awg:port:${profile.port}` }) +
-            fieldRow("wg_client_address", profile.clientAddress, { icon: "ph-network", key: `awg:clientAddr:${profile.clientAddress}` }) +
-            fieldRow("wg_client_pubkey", profile.clientPublicKey, { icon: "ph-key", key: `awg:clientPub:${profile.clientPublicKey}` }) +
-            fieldRow("wg_server_pubkey", profile.serverPublicKey, { icon: "ph-lock-key", key: `awg:serverPub:${profile.serverPublicKey}` }) +
+            `<div class="grid grid-cols-1 gap-2 px-2.5 pb-2.5 sm:grid-cols-2 sm:px-3 sm:pb-3">` +
+            fieldRow("vpn_server", profile.server, { icon: "ph-hard-drives", key: `awg:${i}:server` }) +
+            (profile.address && profile.address !== profile.server
+                ? fieldRow("wg_address", profile.address, { icon: "ph-globe", key: `awg:${i}:address` })
+                : "") +
+            fieldRow("wg_port", profile.port ? String(profile.port) : "", { icon: "ph-plug", key: `awg:${i}:port` }) +
+            fieldRow("wg_client_address", profile.clientAddress, { icon: "ph-network", key: `awg:${i}:clientAddr` }) +
+            fieldRow("wg_client_pubkey", profile.clientPublicKey, { icon: "ph-key", key: `awg:${i}:clientPub` }) +
+            fieldRow("wg_server_pubkey", profile.serverPublicKey, { icon: "ph-lock-key", key: `awg:${i}:serverPub` }) +
             `</div></div>`;
     }
 
     function credsRow(item, tab, index) {
         const badge = tab === "l2tp" ? "L2TP" : "PPTP";
         const keyOf = (field) => `${tab}:${index}:${field}`;
-        return `<div class="card glass rounded-xl">` +
-            `<div class="space-y-2 p-2.5 sm:p-3">` +
+        return `<div class="sub-tile rounded-xl">` +
+            `<div class="space-y-2.5 p-2.5 sm:p-3">` +
             `<div class="flex items-center gap-2.5 sm:gap-3">` +
             `<div class="grid h-9 w-9 shrink-0 place-items-center rounded-lg border border-secondary/20 bg-secondary/10 text-[10px] font-semibold text-secondary">${badge}</div>` +
             `<p class="min-w-0 flex-1 truncate text-start text-sm font-medium"><span dir="auto">${escapeHtml(item.remark || badge)}</span></p>` +
             (item.server
-                ? `<button class="btn btn-sm btn-primary h-8 min-h-0 gap-1.5 rounded-lg px-3 text-xs font-medium" data-dl-pbk="${escapeAttr(tab)}:${index}" ` +
-                  `aria-label="${escapeAttr(t("download_pbk"))}"><i class="ph ph-windows-logo text-base"></i>` +
+                ? `<button type="button" class="btn btn-sm btn-primary h-8 min-h-0 shrink-0 gap-1.5 rounded-lg px-2.5 text-xs font-medium sm:px-3" data-dl-pbk="${escapeAttr(tab)}:${index}" ` +
+                  `aria-label="${escapeAttr(t("download_pbk"))}" title="${escapeAttr(t("download_pbk"))}"><i class="ph ph-windows-logo text-base"></i>` +
                   `<span class="hidden sm:inline">${escapeHtml(t("download_pbk"))}</span></button>`
                 : "") +
             `</div>` +
@@ -609,18 +637,22 @@ export function mountVpn(deps) {
 
         if (tab === "gre") {
             const cli = generateGreCli(item);
-            return `<div class="card glass rounded-xl">` +
-                `<div class="space-y-2 p-2.5 sm:p-3">` +
-                `<div class="flex flex-wrap items-center gap-2">` +
+            return `<div class="sub-tile rounded-xl">` +
+                `<div class="space-y-2.5 p-2.5 sm:p-3">` +
+                `<div class="flex flex-col gap-2.5 sm:flex-row sm:items-center sm:justify-between">` +
+                `<div class="flex min-w-0 flex-1 items-center gap-2.5 sm:gap-3">` +
                 `<div class="grid h-9 w-9 shrink-0 place-items-center rounded-lg border border-info/20 bg-info/10 text-[10px] font-semibold text-info">${badge}</div>` +
                 `<p class="min-w-0 flex-1 truncate text-start text-sm font-medium"><span dir="auto">${escapeHtml(item.remark || badge)}</span></p>` +
+                `</div>` +
                 (cli
-                    ? `<button class="btn btn-xs btn-ghost glass gap-1 rounded-lg font-medium" data-copy="${escapeAttr(cli.linux)}" ` +
-                      `aria-label="${escapeAttr(t("copy_linux_cmd"))}"><i class="ph ph-terminal-window text-sm"></i>` +
-                      `<span>${escapeHtml(t("copy_linux_cmd"))}</span></button>` +
-                      `<button class="btn btn-xs btn-ghost glass gap-1 rounded-lg font-medium" data-copy="${escapeAttr(cli.mikrotik)}" ` +
-                      `aria-label="${escapeAttr(t("copy_mikrotik_cmd"))}"><i class="ph ph-terminal text-sm"></i>` +
-                      `<span>${escapeHtml(t("copy_mikrotik_cmd"))}</span></button>`
+                    ? `<div class="flex shrink-0 items-center gap-1.5">` +
+                      `<button type="button" class="btn btn-xs btn-ghost glass h-8 min-h-0 flex-1 gap-1.5 rounded-lg px-2.5 font-medium sm:flex-initial" data-copy="${escapeAttr(cli.linux)}" ` +
+                      `aria-label="${escapeAttr(t("copy_linux_cmd"))}" title="${escapeAttr(t("copy_linux_cmd"))}"><i class="ph ph-terminal-window text-sm"></i>` +
+                      `<span class="truncate">${escapeHtml(t("copy_linux_cmd"))}</span></button>` +
+                      `<button type="button" class="btn btn-xs btn-ghost glass h-8 min-h-0 flex-1 gap-1.5 rounded-lg px-2.5 font-medium sm:flex-initial" data-copy="${escapeAttr(cli.mikrotik)}" ` +
+                      `aria-label="${escapeAttr(t("copy_mikrotik_cmd"))}" title="${escapeAttr(t("copy_mikrotik_cmd"))}"><i class="ph ph-terminal text-sm"></i>` +
+                      `<span class="truncate">${escapeHtml(t("copy_mikrotik_cmd"))}</span></button>` +
+                      `</div>`
                     : "") +
                 `</div>` +
                 `<div class="grid grid-cols-1 gap-2 sm:grid-cols-2">` +
@@ -637,14 +669,14 @@ export function mountVpn(deps) {
                 `</div></div></div>`;
         }
 
-        return `<div class="card glass rounded-xl">` +
-            `<div class="space-y-2 p-2.5 sm:p-3">` +
+        return `<div class="sub-tile rounded-xl">` +
+            `<div class="space-y-2.5 p-2.5 sm:p-3">` +
             `<div class="flex items-center gap-2.5 sm:gap-3">` +
             `<div class="grid h-9 w-9 shrink-0 place-items-center rounded-lg border border-secondary/20 bg-secondary/10 text-[10px] font-semibold text-secondary">${badge}</div>` +
             `<p class="min-w-0 flex-1 truncate text-start text-sm font-medium"><span dir="auto">${escapeHtml(item.remark || badge)}</span></p>` +
             (item.server && (tab === "ikev2" || tab === "sstp")
-                ? `<button class="btn btn-sm btn-primary h-8 min-h-0 gap-1.5 rounded-lg px-3 text-xs font-medium" data-dl-pbk="${escapeAttr(tab)}:${index}" ` +
-                  `aria-label="${escapeAttr(t("download_pbk"))}"><i class="ph ph-windows-logo text-base"></i>` +
+                ? `<button type="button" class="btn btn-sm btn-primary h-8 min-h-0 shrink-0 gap-1.5 rounded-lg px-2.5 text-xs font-medium sm:px-3" data-dl-pbk="${escapeAttr(tab)}:${index}" ` +
+                  `aria-label="${escapeAttr(t("download_pbk"))}" title="${escapeAttr(t("download_pbk"))}"><i class="ph ph-windows-logo text-base"></i>` +
                   `<span class="hidden sm:inline">${escapeHtml(t("download_pbk"))}</span></button>`
                 : "") +
             `</div>` +
@@ -657,7 +689,7 @@ export function mountVpn(deps) {
             (item.mtu ? fieldRow("vpn_mtu", item.mtu, { icon: "ph-arrows-left-right", key: keyOf("mtu") }) : "") +
             fieldRow("vpn_dns", item.dns, { icon: "ph-cloud", key: keyOf("dns") }) +
             (isCert
-                ? `<div class="col-span-full rounded-xl bg-warning/10 px-3 py-2 text-[11px] text-warning">` +
+                ? `<div class="col-span-full rounded-xl bg-warning/10 px-3 py-2 text-start text-[11px] text-warning">` +
                   `<span dir="auto">${escapeHtml(t("vpn_certificate_auth"))}</span>` +
                   `</div>`
                 : fieldRow("vpn_username", item.username, { icon: "ph-user", key: keyOf("username") }) +
@@ -665,7 +697,7 @@ export function mountVpn(deps) {
             `</div></div></div>`;
     }
 
-    function render() {
+    function render(smoothTab = false) {
         const tabs = availableTabs();
         if (!tabs.length) {
             setHidden(card, true);
@@ -673,7 +705,7 @@ export function mountVpn(deps) {
         }
         setHidden(card, false);
         if (!tabs.some(([id]) => id === activeTab)) activeTab = tabs[0][0];
-        renderTabs(tabs);
+        renderTabs(tabs, smoothTab);
 
         const rows =
             activeTab === "ovpn" ? ovpn.map(ovpnRow)
@@ -801,9 +833,21 @@ export function mountVpn(deps) {
         $$("[data-reveal]", listEl).forEach((btn) => {
             btn.addEventListener("click", () => {
                 const key = btn.getAttribute("data-reveal");
-                if (revealed.has(key)) revealed.delete(key);
-                else revealed.add(key);
-                render();
+                const show = !revealed.has(key);
+                if (show) revealed.add(key);
+                else revealed.delete(key);
+                // Update in-place so focus and copy-flash states are preserved cleanly.
+                const row = btn.parentElement;
+                const valEl = row && row.querySelector("[data-secret-val]");
+                if (valEl) {
+                    valEl.textContent = show ? (valEl.getAttribute("data-secret-raw") || "") : "••••••••";
+                }
+                const label = t(show ? "hide_secret" : "show_secret");
+                btn.setAttribute("aria-label", label);
+                btn.setAttribute("title", label);
+                btn.setAttribute("aria-pressed", String(show));
+                const icon = btn.querySelector("i");
+                if (icon) icon.className = `ph ${show ? "ph-eye-slash" : "ph-eye"} text-base`;
             });
         });
     }
@@ -814,6 +858,6 @@ export function mountVpn(deps) {
             await load();
             render();
         },
-        rerender: render,
+        rerender() { render(false); },
     };
 }

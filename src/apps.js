@@ -4,7 +4,7 @@
    =========================================================================== */
 
 import { utf8ToB64, escapeHtml, escapeAttr } from "./format.js";
-import { $, $$, setHidden } from "./ui.js";
+import { $, $$, setHidden, scrollTabIntoView } from "./ui.js";
 
 const OS_ORDER = ["iOS", "Android", "Windows", "macOS", "Linux"];
 
@@ -68,10 +68,9 @@ export function mountApps(deps) {
     const tabsEl = $("#os-tabs");
     const listEl = $("#apps-list");
 
-    function renderTabs() {
+    function renderTabs(smooth = false) {
         tabsEl.innerHTML = osList.map((os) =>
-            `<button role="tab" class="tab shrink-0 gap-1 rounded-lg px-2.5 text-xs font-medium transition-colors sm:gap-1.5 sm:px-3 sm:text-[13px]` +
-            `${os === activeOs ? " tab-active border border-primary/25 bg-primary/14 text-primary" : ""}" ` +
+            `<button type="button" role="tab" class="os-tab${os === activeOs ? " active" : ""}" ` +
             `aria-selected="${os === activeOs}" data-os="${escapeAttr(os)}">` +
             `<i class="ph ${OS_ICONS[os] || "ph-device-mobile"} text-base"></i>` +
             `<span>${escapeHtml(os)}</span></button>`
@@ -79,10 +78,12 @@ export function mountApps(deps) {
         $$("[data-os]", tabsEl).forEach((btn) => {
             btn.addEventListener("click", () => {
                 activeOs = btn.getAttribute("data-os");
-                renderTabs();
+                renderTabs(true);
                 renderList();
             });
         });
+        const activeBtn = tabsEl.querySelector(".os-tab.active");
+        if (activeBtn) scrollTabIntoView(tabsEl, activeBtn, smooth);
     }
 
     function appTile(app) {
@@ -107,22 +108,22 @@ export function mountApps(deps) {
             const rawDl = (app.downloadLinks && app.downloadLinks[activeOs]) || app.link || "";
             const dl = /^https?:\/\//i.test(rawDl) ? rawDl : "";
             const subtitle = scheme ? t("tap_to_add") : t("download");
-            return `<div class="card glass row-hover rounded-xl">` +
+            return `<div class="sub-tile row-hover rounded-xl">` +
                 `<div class="flex items-center gap-2.5 p-2.5 sm:gap-3 sm:p-3">` +
                 appTile(app) +
-                `<div class="min-w-0 flex-1">` +
-                `<p class="truncate text-sm font-medium" dir="auto">${escapeHtml(app.name)}</p>` +
-                `<p class="text-[11px] text-base-content/50">${escapeHtml(subtitle)}</p>` +
+                `<div class="min-w-0 flex-1 text-start">` +
+                `<p class="truncate text-start text-sm font-medium"><span dir="auto">${escapeHtml(app.name)}</span></p>` +
+                `<p class="text-[11px] text-base-content/55">${escapeHtml(subtitle)}</p>` +
                 `</div>` +
                 `<div class="flex shrink-0 items-center gap-1.5">` +
                 (scheme
                     ? `<a class="btn btn-primary btn-sm h-8 min-h-0 rounded-lg px-3 text-xs font-medium" href="${escapeAttr(scheme)}">${escapeHtml(t("add"))}</a>`
                     : "") +
                 (dl
-                    ? `<a class="btn btn-ghost btn-sm glass h-8 min-h-0 gap-1 rounded-lg text-xs font-medium${scheme ? " w-8 px-0" : " px-2.5"}" target="_blank" ` +
+                    ? `<a class="btn btn-ghost btn-sm glass h-8 min-h-0 gap-1.5 rounded-lg text-xs font-medium${scheme ? " w-8 px-0" : " px-2.5"}" target="_blank" ` +
                       `rel="noopener" href="${escapeAttr(dl)}" title="${escapeAttr(t("download"))}" aria-label="${escapeAttr(t("download"))}">` +
                       `<i class="ph ph-download-simple text-base"></i>` +
-                      (scheme ? "" : `<span class="hidden sm:inline">${escapeHtml(t("download"))}</span>`) +
+                      (scheme ? "" : `<span>${escapeHtml(t("download"))}</span>`) +
                       `</a>`
                     : "") +
                 `</div></div></div>`;
@@ -148,18 +149,9 @@ export function mountApps(deps) {
         renderList();
     }
 
-    // Lazy-render when the section scrolls near the viewport.
-    if ("IntersectionObserver" in window) {
-        const io = new IntersectionObserver((entries) => {
-            if (entries[0].isIntersecting) {
-                renderAll();
-                io.disconnect();
-            }
-        }, { rootMargin: "150px" });
-        io.observe(card);
-    } else {
-        renderAll();
-    }
+    // Render synchronously from the already-loaded catalogue so the card is
+    // never visible as an empty shell during fast scrolling.
+    renderAll();
 
     return {
         rerender() {

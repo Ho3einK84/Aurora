@@ -52,7 +52,7 @@ let toastTimer = null;
 let toastHome = null;
 let toastDialogListener = false;
 
-export function toast(message) {
+export function toast(message, tone = "success") {
     const el = $("#toast");
     if (!el) return;
     if (!toastHome) toastHome = el.parentElement;
@@ -67,7 +67,17 @@ export function toast(message) {
     const openDialog = document.querySelector("dialog[open]");
     const host = openDialog || toastHome;
     if (host && el.parentElement !== host) host.appendChild(el);
-    el.textContent = message;
+    const textEl = $("#toast-text", el);
+    const iconEl = $("#toast-icon", el);
+    if (textEl) textEl.textContent = message;
+    else el.textContent = message;
+    if (iconEl) {
+        iconEl.className = tone === "error" || tone === "warn"
+            ? "ph ph-warning-circle shrink-0 text-base text-warning"
+            : tone === "info"
+                ? "ph ph-info shrink-0 text-base text-info"
+                : "ph ph-check-circle shrink-0 text-base text-success";
+    }
     el.hidden = false;
     el.classList.remove("toast-in");
     void el.offsetWidth; // restart the enter animation
@@ -77,6 +87,27 @@ export function toast(message) {
         el.hidden = true;
         if (toastHome && el.parentElement !== toastHome) toastHome.appendChild(el);
     }, 1800);
+}
+
+/**
+ * Center an active tab horizontally inside an overflow-x container without
+ * ever disturbing vertical page scroll (works identically in LTR & RTL).
+ */
+export function scrollTabIntoView(container, activeEl, smooth = false) {
+    if (!container || !activeEl) return;
+    if (container.scrollWidth <= container.clientWidth + 1) return;
+    requestAnimationFrame(() => {
+        const cr = container.getBoundingClientRect();
+        const er = activeEl.getBoundingClientRect();
+        if (!cr.width || !er.width) return;
+        const delta = (er.left + er.width / 2) - (cr.left + cr.width / 2);
+        if (Math.abs(delta) < 2) return;
+        try {
+            container.scrollBy({ left: delta, behavior: smooth && !reduceMotion ? "smooth" : "instant" });
+        } catch (_) {
+            container.scrollLeft += delta;
+        }
+    });
 }
 
 /**

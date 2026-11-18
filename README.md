@@ -10,15 +10,15 @@ Glassmorphism · usage dashboard · EN/FA RTL · white-label · Tailwind v4 + Da
 
 | Aurora Dark (`auroradark`) | Aurora Light (`auroralight`) |
 | :---: | :---: |
-| ![Aurora Dark subscription page](assets/screenshots/preview-v4.1.1.png) | ![Aurora Light subscription page](assets/screenshots/preview-light-v4.1.1.png) |
+| ![Aurora Dark subscription page](assets/screenshots/preview-v4.2.0.png) | ![Aurora Light subscription page](assets/screenshots/preview-light-v4.2.0.png) |
 
-*Aurora v4.1.3 (`auroradark` & `auroralight`) — refined boreal glass surfaces, dual usage/time rings, flat SVG chart bars, calm hierarchy, and crisp LTR/RTL typography.*
+*Aurora v4.2.0 (`auroradark` & `auroralight`) — true frosted glass surfaces, dual usage/time rings, responsive SVG bar chart with interactive glass tooltips, native mobile bottom sheets, and razor-sharp LTR/RTL typography.*
 
 ---
 
 ## ✨ Features
 
-- **Aurora v4.1 Visual System & Mobile Layout** — balanced 4-theme chromatic hierarchy (`auroradark` midnight cyan/cobalt, `amoleddark` pure `#000000` OLED contrast with cool ice-slate accents, `auroralight` crisp alabaster glass, and authentic Polar Night slate `nord`), calm `.sub-tile` elevation, 2-column mobile grid for compact metadata (`Last online` / `Member since`, `Device limit` / `Lifetime used`), wrapping VPN protocol tabs, balanced 1-row mobile bulk-action bar, and crisp RTL typography (`Arad` 400/500/600/700 + `tabular-nums`).
+- **Aurora v4.2 Visual System & Mobile Layout** — balanced 4-theme chromatic hierarchy (`auroradark` midnight cyan/cobalt, `amoleddark` pure `#000000` OLED contrast with cool ice-slate accents, `auroralight` crisp alabaster glass, and authentic Polar Night slate `nord`), true cross-browser `backdrop-filter` glassmorphism, three-tier surface elevation (`.glass` / `.sub-tile` / `.pop-menu`), native mobile bottom-sheet modals with safe-area padding, auto-centered tab strips, responsive mobile VPN headers, and crisp LTR/RTL BiDi typography (`Inter` variable + `Arad` 400/500/600/700).
 
 - **Live Service Card** — usage/time rings, animated stats, live quota-reset countdown, and 5-minute background `/info` sync. Handles unlimited, never-expire, `on_hold` (showing exact pre-activation duration & *"Starts on first connect"*), reserved/queued `next_plans` badge, device limit (`ip_limit`), lifetime traffic, client-derived expired/limited states, and smart low-traffic / low-time renewal alerts.
 - **Support & Renewal** — top-bar quick support button with warning border highlight (`alert-active`) when subscription expiration is near or traffic is running low (automatically suppressed if a reserved plan is already queued).

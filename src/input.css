@@ -6,11 +6,11 @@
 @plugin "daisyui" {
   themes: auroradark --default --prefersdark, auroralight, amoleddark, nord;
   include: properties, rootcolor, rootscrollgutter, rootscrolllock, scrollbar, svg,
-    alert, badge, button, card, checkbox, link, menu, modal, tab;
+    badge, button, card, checkbox, link, modal;
 }
 
 /* ----------------------------------------------------------------------------
-   Aurora Dark (v4.1) — luminous Boreal Cyan + Arctic Cobalt + Mint on deep
+   Aurora Dark — luminous Boreal Cyan + Arctic Cobalt + Mint on deep
    abyssal midnight navy. Preserves the signature ocean aurora identity while
    sharpening elevation contrast across cards and bento tiles.
 ---------------------------------------------------------------------------- */
@@ -54,7 +54,7 @@
 }
 
 /* ----------------------------------------------------------------------------
-   Amoled Dark (v4.1) — true pure-black #000000 OLED canvas with elevated carbon
+   Amoled Dark — true pure-black #000000 OLED canvas with elevated carbon
    glass cards, Electric Sapphire, Ice Slate, and Cyan highlights.
 ---------------------------------------------------------------------------- */
 @plugin "daisyui/theme" {
@@ -97,7 +97,7 @@
 }
 
 /* ----------------------------------------------------------------------------
-   Aurora Light (v4.1) — crisp daylight ceramic glass over cool glacial sky.
+   Aurora Light — crisp daylight ceramic glass over cool glacial sky.
    Sharper ink contrast and layered pearl tiles instead of washed-out white.
 ---------------------------------------------------------------------------- */
 @plugin "daisyui/theme" {
@@ -140,9 +140,9 @@
 }
 
 /* ----------------------------------------------------------------------------
-   Nord (v4.1) — authentic Arctic Polar Night slate (#242933 / #2e3440) with
+   Nord — authentic Arctic Polar Night slate (#242933 / #2e3440) with
    Frost Cyan (#88c0d0), Frost Blue (#81a1c1), Frozen Teal (#8fbcbb), and
-   Nord Aurora statuses — replacing DaisyUI's low-contrast light fallback.
+   Nord Aurora statuses.
 ---------------------------------------------------------------------------- */
 @plugin "daisyui/theme" {
   name: "nord";
@@ -220,13 +220,22 @@ html[dir="rtl"] .tabular-nums {
   html {
     scroll-behavior: smooth;
   }
+
+  /* Remove inconsistent native browser search cancel glyphs (we render our own). */
+  input[type="search"]::-webkit-search-cancel-button,
+  input[type="search"]::-webkit-search-decoration {
+    -webkit-appearance: none;
+    appearance: none;
+  }
 }
 
 /* ----------------------------------------------------------------------------
-   Aurora Atmosphere & Surface System (v4.1)
+   Aurora Atmosphere & Surface System
    NOTE: Placed in `@layer utilities` (un-sublayered) so surface overrides
    cleanly outrank DaisyUI v5's sublayered `@layer daisyui.*` components
-   (`.btn`, `.modal-box`, `.tabs-box`) without relying on `!important`.
+   (`.btn`, `.modal-box`) without relying on `!important`.
+   IMPORTANT: Always declare `-webkit-backdrop-filter` BEFORE `backdrop-filter`
+   so LightningCSS preserves BOTH standard and webkit declarations!
 ---------------------------------------------------------------------------- */
 @layer utilities {
   .aurora-bg {
@@ -253,18 +262,18 @@ html[dir="rtl"] .tabular-nums {
       var(--color-base-100);
   }
 
-  /* Primary elevated frosted cards */
+  /* Level-1 elevated frosted glass cards & controls */
   .glass {
-    background: color-mix(in oklch, var(--color-base-200) 72%, transparent);
-    backdrop-filter: blur(18px) saturate(135%);
-    -webkit-backdrop-filter: blur(18px) saturate(135%);
+    background: color-mix(in oklch, var(--color-base-200) 74%, transparent);
+    -webkit-backdrop-filter: blur(18px) saturate(140%);
+    backdrop-filter: blur(18px) saturate(140%);
     border: 1px solid color-mix(in oklch, var(--color-base-content) 10%, transparent);
     box-shadow:
       inset 0 1px 0 color-mix(in oklch, white 7%, transparent),
       0 12px 28px -18px oklch(0% 0 0 / 0.42);
   }
   [data-theme="amoleddark"] .glass {
-    background: color-mix(in oklch, var(--color-base-200) 82%, #000);
+    background: color-mix(in oklch, var(--color-base-200) 84%, #000);
     border-color: color-mix(in oklch, white 11%, transparent);
     box-shadow:
       inset 0 1px 0 color-mix(in oklch, white 6%, transparent),
@@ -274,26 +283,51 @@ html[dir="rtl"] .tabular-nums {
     background: color-mix(in oklch, white 78%, transparent);
     border-color: color-mix(in oklch, var(--color-base-content) 9%, white 55%);
     box-shadow:
-      inset 0 1px 0 color-mix(in oklch, white 85%, transparent),
+      inset 0 1px 0 color-mix(in oklch, white 88%, transparent),
       0 12px 28px -16px oklch(35% 0.04 235 / 0.13);
+  }
+
+  /* Tactile hover & press polish on glass buttons */
+  .btn.glass {
+    transition: background-color 0.18s ease, border-color 0.18s ease, color 0.18s ease, transform 0.15s ease, box-shadow 0.18s ease;
+  }
+  .btn.glass:active:not(:disabled) {
+    transform: scale(0.98);
+  }
+  @media (hover: hover) {
+    .btn.glass:hover:not(:disabled) {
+      background: color-mix(in oklch, var(--color-base-content) 8%, color-mix(in oklch, var(--color-base-200) 78%, transparent));
+      border-color: color-mix(in oklch, var(--color-base-content) 18%, transparent);
+    }
+    [data-theme="amoleddark"] .btn.glass:hover:not(:disabled) {
+      background: color-mix(in oklch, white 8%, var(--color-base-200) 84%);
+      border-color: color-mix(in oklch, white 20%, transparent);
+    }
+    [data-theme="auroralight"] .btn.glass:hover:not(:disabled) {
+      background: color-mix(in oklch, white 94%, transparent);
+      border-color: color-mix(in oklch, var(--color-base-content) 16%, white 40%);
+      box-shadow:
+        inset 0 1px 0 white,
+        0 6px 18px -10px oklch(35% 0.04 235 / 0.22);
+    }
   }
 
   /* Centerpiece hero account card with northern-lights ambient glow & hairline */
   .hero-card {
     position: relative;
     background:
-      radial-gradient(85% 48% at 50% -6%, color-mix(in oklch, var(--color-primary) 8%, transparent), transparent 66%),
-      radial-gradient(60% 40% at 88% 12%, color-mix(in oklch, var(--color-accent) 5%, transparent), transparent 70%),
-      color-mix(in oklch, var(--color-base-200) 75%, transparent);
+      radial-gradient(85% 48% at 50% -6%, color-mix(in oklch, var(--color-primary) 9%, transparent), transparent 66%),
+      radial-gradient(60% 40% at 88% 12%, color-mix(in oklch, var(--color-accent) 5.5%, transparent), transparent 70%),
+      color-mix(in oklch, var(--color-base-200) 76%, transparent);
   }
   [data-theme="amoleddark"] .hero-card {
     background:
-      radial-gradient(80% 44% at 50% -6%, color-mix(in oklch, var(--color-primary) 7%, transparent), transparent 64%),
+      radial-gradient(80% 44% at 50% -6%, color-mix(in oklch, var(--color-primary) 8%, transparent), transparent 64%),
       color-mix(in oklch, var(--color-base-200) 86%, #000);
   }
   [data-theme="auroralight"] .hero-card {
     background:
-      radial-gradient(85% 48% at 50% -6%, color-mix(in oklch, var(--color-primary) 6%, transparent), transparent 66%),
+      radial-gradient(85% 48% at 50% -6%, color-mix(in oklch, var(--color-primary) 7%, transparent), transparent 66%),
       color-mix(in oklch, white 84%, transparent);
   }
   .hero-card::before {
@@ -305,27 +339,35 @@ html[dir="rtl"] .tabular-nums {
     background: linear-gradient(
       90deg,
       transparent,
-      color-mix(in oklch, var(--color-primary) 28%, white 14%),
-      color-mix(in oklch, var(--color-accent) 22%, white 14%),
+      color-mix(in oklch, var(--color-primary) 32%, white 14%),
+      color-mix(in oklch, var(--color-accent) 26%, white 14%),
       transparent
     );
     pointer-events: none;
   }
 
-  /* Crisp inner Bento micro-surface that never vanishes on AMOLED or Light */
+  /* Level-2 inner Bento micro-surface & list rows (zero redundant nested blur) */
   .sub-tile {
-    background: color-mix(in oklch, var(--color-base-content) 4.5%, color-mix(in oklch, var(--color-base-200) 58%, transparent));
+    background: color-mix(in oklch, var(--color-base-content) 4.2%, color-mix(in oklch, var(--color-base-200) 64%, transparent));
     border: 1px solid color-mix(in oklch, var(--color-base-content) 9%, transparent);
-    transition: border-color 0.2s ease, background-color 0.2s ease;
+    box-shadow: inset 0 1px 0 color-mix(in oklch, white 4.5%, transparent);
+    transition: border-color 0.2s ease, background-color 0.2s ease, box-shadow 0.2s ease;
   }
   [data-theme="amoleddark"] .sub-tile {
-    background: color-mix(in oklch, white 5.5%, var(--color-base-200) 50%);
-    border-color: color-mix(in oklch, white 9%, transparent);
+    background: color-mix(in oklch, white 4.5%, var(--color-base-200) 68%);
+    border-color: color-mix(in oklch, white 10%, transparent);
+    box-shadow: inset 0 1px 0 color-mix(in oklch, white 4%, transparent);
   }
   [data-theme="auroralight"] .sub-tile {
-    background: color-mix(in oklch, white 76%, var(--color-base-100));
-    border-color: color-mix(in oklch, var(--color-base-content) 8%, transparent);
-    box-shadow: 0 1px 3px oklch(30% 0.03 240 / 0.05);
+    background: color-mix(in oklch, white 78%, var(--color-base-100));
+    border-color: color-mix(in oklch, var(--color-base-content) 8.5%, transparent);
+    box-shadow:
+      inset 0 1px 0 color-mix(in oklch, white 90%, transparent),
+      0 1px 3px oklch(30% 0.03 240 / 0.05);
+  }
+  [data-theme="nord"] .sub-tile {
+    background: color-mix(in oklch, var(--color-base-content) 4%, color-mix(in oklch, var(--color-base-200) 70%, transparent));
+    border-color: color-mix(in oklch, var(--color-base-content) 10%, transparent);
   }
 
   /* Prominent CTA button for primary subscription actions */
@@ -337,23 +379,53 @@ html[dir="rtl"] .tabular-nums {
     color: var(--color-primary-content);
     box-shadow:
       inset 0 1px 0 color-mix(in oklch, white 22%, transparent),
-      0 2px 6px oklch(0% 0 0 / 0.16);
+      0 2px 8px color-mix(in oklch, var(--color-primary) 26%, oklch(0% 0 0 / 0.16));
+    transition: filter 0.18s ease, box-shadow 0.18s ease, transform 0.15s ease;
   }
   .btn-aurora-cta:not(.btn-success) > i {
     color: var(--color-primary-content);
+  }
+  .btn-aurora-cta:not(.btn-success):active:not(:disabled) {
+    transform: scale(0.985);
   }
   [data-theme="auroralight"] .btn-aurora-cta:not(.btn-success) {
     border-color: color-mix(in oklch, var(--color-primary) 30%, transparent);
     box-shadow:
       inset 0 1px 0 color-mix(in oklch, white 28%, transparent),
-      0 2px 6px oklch(30% 0.04 235 / 0.14);
+      0 3px 10px color-mix(in oklch, var(--color-primary) 24%, transparent);
   }
   @media (hover: hover) {
     .btn-aurora-cta:not(.btn-success):hover {
       filter: brightness(1.06);
       box-shadow:
-        inset 0 1px 0 color-mix(in oklch, white 26%, transparent),
-        0 3px 10px oklch(0% 0 0 / 0.18);
+        inset 0 1px 0 color-mix(in oklch, white 28%, transparent),
+        0 4px 14px color-mix(in oklch, var(--color-primary) 34%, oklch(0% 0 0 / 0.18));
+    }
+  }
+
+  /* Banner container (replaces DaisyUI .alert grid quirk on mobile) */
+  .aurora-banner {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.75rem;
+    padding: 0.75rem 1rem;
+    text-align: start;
+  }
+
+  /* Collapsible card header */
+  .collapse-head {
+    cursor: pointer;
+    border-radius: 20px;
+    transition: background-color 0.18s ease;
+  }
+  .collapse-head:focus-visible {
+    outline: 2px solid color-mix(in oklch, var(--color-primary) 60%, transparent);
+    outline-offset: -2px;
+  }
+  @media (hover: hover) {
+    .collapse-head:hover {
+      background: color-mix(in oklch, var(--color-base-content) 3.5%, transparent);
     }
   }
 
@@ -365,10 +437,11 @@ html[dir="rtl"] .tabular-nums {
   /* Default monogram logo orb rim */
   .brand-orb {
     background:
-      radial-gradient(circle at 30% 25%, color-mix(in oklch, var(--color-primary) 14%, transparent), transparent 65%),
-      radial-gradient(circle at 75% 80%, color-mix(in oklch, var(--color-accent) 10%, transparent), transparent 70%),
-      color-mix(in oklch, var(--color-base-200) 80%, transparent);
-    border: 1px solid color-mix(in oklch, var(--color-primary) 26%, color-mix(in oklch, var(--color-base-content) 14%, transparent));
+      radial-gradient(circle at 30% 25%, color-mix(in oklch, var(--color-primary) 16%, transparent), transparent 65%),
+      radial-gradient(circle at 75% 80%, color-mix(in oklch, var(--color-accent) 12%, transparent), transparent 70%),
+      color-mix(in oklch, var(--color-base-200) 82%, transparent);
+    border: 1px solid color-mix(in oklch, var(--color-primary) 28%, color-mix(in oklch, var(--color-base-content) 14%, transparent));
+    box-shadow: inset 0 1px 0 color-mix(in oklch, white 10%, transparent);
   }
 
   /* Calm tactile feedback + surface step row hover */
@@ -382,15 +455,16 @@ html[dir="rtl"] .tabular-nums {
   @media (hover: hover) {
     .row-hover:hover {
       border-color: color-mix(in oklch, var(--color-base-content) 18%, transparent);
-      background: color-mix(in oklch, var(--color-base-content) 7%, color-mix(in oklch, var(--color-base-200) 64%, transparent));
+      background: color-mix(in oklch, var(--color-base-content) 7.5%, color-mix(in oklch, var(--color-base-200) 70%, transparent));
     }
     [data-theme="amoleddark"] .row-hover:hover {
-      border-color: color-mix(in oklch, white 18%, transparent);
-      background: color-mix(in oklch, white 8%, var(--color-base-200) 55%);
+      border-color: color-mix(in oklch, white 19%, transparent);
+      background: color-mix(in oklch, white 8%, var(--color-base-200) 72%);
     }
     [data-theme="auroralight"] .row-hover:hover {
       border-color: color-mix(in oklch, var(--color-base-content) 15%, transparent);
-      background: color-mix(in oklch, white 92%, var(--color-base-100));
+      background: color-mix(in oklch, white 94%, var(--color-base-100));
+      box-shadow: 0 3px 10px -4px oklch(30% 0.03 240 / 0.1);
     }
   }
 
@@ -399,34 +473,151 @@ html[dir="rtl"] .tabular-nums {
     display: grid;
     grid-template-rows: 0fr;
     visibility: hidden;
-    transition: grid-template-rows 0.38s cubic-bezier(0.4, 0, 0.2, 1), visibility 0s 0.38s;
+    transition: grid-template-rows 0.36s cubic-bezier(0.4, 0, 0.2, 1), visibility 0s 0.36s;
   }
   .collapsey.open {
     grid-template-rows: 1fr;
     visibility: visible;
-    transition: grid-template-rows 0.38s cubic-bezier(0.4, 0, 0.2, 1);
+    transition: grid-template-rows 0.36s cubic-bezier(0.4, 0, 0.2, 1);
   }
   .collapsey > .collapsey-inner {
     overflow: hidden;
     min-height: 0;
   }
   .collapsey > .collapsey-inner > * {
-    transition: opacity 0.3s ease;
+    transition: opacity 0.28s ease;
   }
   .collapsey:not(.open) > .collapsey-inner > * {
     opacity: 0;
   }
   .chev {
-    transition: transform 0.35s cubic-bezier(0.4, 0, 0.2, 1);
+    transition: transform 0.32s cubic-bezier(0.4, 0, 0.2, 1);
   }
   .chev.open {
     transform: rotate(180deg);
   }
 
+  /* Level-3 Floating glass overlays: popovers, toast, modals */
+  .pop-menu {
+    background: color-mix(in oklch, var(--color-base-200) 93%, var(--color-base-100));
+    -webkit-backdrop-filter: blur(24px) saturate(165%);
+    backdrop-filter: blur(24px) saturate(165%);
+    border: 1px solid color-mix(in oklch, var(--color-base-content) 14%, transparent);
+    box-shadow:
+      inset 0 1px 0 color-mix(in oklch, white 8%, transparent),
+      0 20px 44px -14px oklch(0% 0 0 / 0.56);
+  }
+  [data-theme="amoleddark"] .pop-menu {
+    background: color-mix(in oklch, var(--color-base-200) 95%, #000);
+    border-color: color-mix(in oklch, white 15%, transparent);
+    box-shadow:
+      inset 0 1px 0 color-mix(in oklch, white 7%, transparent),
+      0 22px 48px -12px oklch(0% 0 0 / 0.92);
+  }
+  [data-theme="auroralight"] .pop-menu {
+    background: color-mix(in oklch, white 95%, var(--color-base-100));
+    border-color: color-mix(in oklch, var(--color-base-content) 12%, white 40%);
+    box-shadow:
+      inset 0 1px 0 white,
+      0 18px 40px -12px oklch(28% 0.04 240 / 0.18);
+  }
+  .pop-menu:not([hidden]) {
+    animation: aurora-pop 0.16s cubic-bezier(0.2, 0.8, 0.2, 1);
+    transform-origin: top var(--pop-origin, right);
+  }
+  html[dir="rtl"] .pop-menu {
+    --pop-origin: left;
+  }
+  @keyframes aurora-pop {
+    from { opacity: 0; transform: scale(0.95) translateY(-4px); }
+    to   { opacity: 1; transform: scale(1) translateY(0); }
+  }
+
+  .pop-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0.125rem;
+    list-style: none;
+    margin: 0;
+  }
+  .pop-item {
+    display: flex;
+    width: 100%;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.625rem;
+    padding: 0.5rem 0.625rem;
+    border: 1px solid transparent;
+    border-radius: 0.625rem;
+    background: transparent;
+    color: var(--color-base-content);
+    font-size: 0.8125rem;
+    line-height: 1.25;
+    text-align: start;
+    cursor: pointer;
+    transition: background-color 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+  }
+  @media (hover: hover) {
+    .pop-item:hover {
+      background: color-mix(in oklch, var(--color-base-content) 7.5%, transparent);
+    }
+  }
+  .pop-item:focus-visible {
+    outline: 2px solid color-mix(in oklch, var(--color-primary) 60%, transparent);
+    outline-offset: -1px;
+  }
+  .pop-item.is-active {
+    background: color-mix(in oklch, var(--color-primary) 13%, transparent);
+    border-color: color-mix(in oklch, var(--color-primary) 24%, transparent);
+    color: var(--color-primary);
+    font-weight: 600;
+  }
+
+  /* Modals & Mobile bottom sheets */
   .modal[open],
   .modal.modal-open {
     -webkit-backdrop-filter: blur(10px) saturate(130%);
     backdrop-filter: blur(10px) saturate(130%);
+  }
+  .modal-glass {
+    background: color-mix(in oklch, var(--color-base-200) 94%, var(--color-base-100));
+    -webkit-backdrop-filter: blur(24px) saturate(155%);
+    backdrop-filter: blur(24px) saturate(155%);
+    border: 1px solid color-mix(in oklch, var(--color-base-content) 13%, transparent);
+    box-shadow:
+      inset 0 1px 0 color-mix(in oklch, white 8%, transparent),
+      0 24px 54px -16px oklch(0% 0 0 / 0.65);
+    max-height: 88dvh;
+    overflow-y: auto;
+  }
+  [data-theme="amoleddark"] .modal-glass {
+    background: color-mix(in oklch, var(--color-base-200) 96%, #000);
+    border-color: color-mix(in oklch, white 14%, transparent);
+    box-shadow:
+      inset 0 1px 0 color-mix(in oklch, white 7%, transparent),
+      0 26px 56px -14px oklch(0% 0 0 / 0.94);
+  }
+  [data-theme="auroralight"] .modal-glass {
+    background: color-mix(in oklch, white 96%, var(--color-base-100));
+    border-color: color-mix(in oklch, var(--color-base-content) 11%, white 45%);
+    box-shadow:
+      inset 0 1px 0 white,
+      0 22px 48px -14px oklch(28% 0.04 240 / 0.22);
+  }
+  @media (max-width: 639px) {
+    .modal-bottom .modal-glass {
+      border-bottom-left-radius: 0;
+      border-bottom-right-radius: 0;
+      border-bottom: 0;
+      padding-bottom: max(1.25rem, env(safe-area-inset-bottom));
+    }
+  }
+  .sheet-handle {
+    width: 2.25rem;
+    height: 0.25rem;
+    margin: -0.25rem auto 0.875rem;
+    border-radius: 9999px;
+    background: color-mix(in oklch, var(--color-base-content) 22%, transparent);
   }
 
   .aurora-scroll {
@@ -473,7 +664,7 @@ html[dir="rtl"] .tabular-nums {
   .alert-active {
     position: relative;
     border-color: color-mix(in oklch, var(--color-warning) 55%, transparent) !important;
-    background: color-mix(in oklch, var(--color-warning) 6%, color-mix(in oklch, var(--color-base-200) 68%, transparent)) !important;
+    background: color-mix(in oklch, var(--color-warning) 8%, color-mix(in oklch, var(--color-base-200) 74%, transparent)) !important;
   }
 
   /* Usage progress bar */
@@ -500,17 +691,25 @@ html[dir="rtl"] .tabular-nums {
 
   /* Config rows & pinned state */
   .cfg-search {
-    transition: border-color 0.2s ease;
+    transition: border-color 0.2s ease, box-shadow 0.2s ease;
   }
   .cfg-search:focus-within {
     border-color: color-mix(in oklch, var(--color-primary) 55%, transparent);
+    box-shadow: 0 0 0 3px color-mix(in oklch, var(--color-primary) 12%, transparent);
   }
   .cfg-row {
-    transition: transform 0.22s cubic-bezier(0.22, 1, 0.36, 1), border-color 0.2s ease, background-color 0.2s ease;
+    transition: transform 0.2s cubic-bezier(0.22, 1, 0.36, 1), border-color 0.2s ease, background-color 0.2s ease, box-shadow 0.2s ease;
+  }
+  .cfg-row:focus-visible {
+    outline: 2px solid color-mix(in oklch, var(--color-primary) 65%, transparent);
+    outline-offset: 1px;
   }
   .cfg-row-pinned {
     border-color: color-mix(in oklch, var(--color-primary) 38%, transparent) !important;
-    background: color-mix(in oklch, var(--color-primary) 7%, color-mix(in oklch, var(--color-base-200) 75%, transparent)) !important;
+    background: color-mix(in oklch, var(--color-primary) 7%, color-mix(in oklch, var(--color-base-200) 76%, transparent)) !important;
+  }
+  [data-theme="auroralight"] .cfg-row-pinned {
+    background: color-mix(in oklch, var(--color-primary) 6%, white 92%) !important;
   }
 
   .cfg-actions {
@@ -531,12 +730,12 @@ html[dir="rtl"] .tabular-nums {
     border-radius: 9999px;
     cursor: pointer;
     -webkit-tap-highlight-color: transparent;
-    transition: background 0.18s ease, color 0.18s ease;
+    transition: background 0.18s ease, color 0.18s ease, transform 0.14s ease;
   }
   @media (min-width: 640px) {
     .cfg-action {
-      width: 2.4rem;
-      height: 2.4rem;
+      width: 2.35rem;
+      height: 2.35rem;
     }
   }
   .cfg-action > i {
@@ -551,31 +750,44 @@ html[dir="rtl"] .tabular-nums {
   }
   .cfg-action:active {
     background: color-mix(in oklch, var(--color-base-content) 14%, transparent);
+    transform: scale(0.94);
   }
   .cfg-action:focus-visible {
     outline: 2px solid color-mix(in oklch, var(--color-primary) 60%, transparent);
     outline-offset: 1px;
   }
-  .cfg-action-pin {
+  .cfg-action-desktop {
     display: none;
   }
   @media (min-width: 640px) {
-    .cfg-action-pin {
+    .cfg-action-desktop {
       display: inline-grid;
     }
   }
 
-  /* Protocol filter tabs */
+  /* Protocol filter tabs & VPN tabs */
   .filter-pill {
     flex-shrink: 0;
     border-radius: 0.5rem;
-    padding: 0.3rem 0.75rem;
+    padding: 0.3rem 0.72rem;
     font-size: 12px;
     font-weight: 500;
+    cursor: pointer;
     color: color-mix(in oklch, var(--color-base-content) 68%, transparent);
     background: color-mix(in oklch, var(--color-base-content) 4.5%, transparent);
     border: 1px solid color-mix(in oklch, var(--color-base-content) 9%, transparent);
-    transition: background 0.2s ease, color 0.2s ease, border-color 0.2s ease;
+    transition: background-color 0.18s ease, color 0.18s ease, border-color 0.18s ease;
+  }
+  @media (hover: hover) {
+    .filter-pill:hover:not(.active) {
+      background: color-mix(in oklch, var(--color-base-content) 8.5%, transparent);
+      border-color: color-mix(in oklch, var(--color-base-content) 16%, transparent);
+      color: var(--color-base-content);
+    }
+  }
+  .filter-pill:focus-visible {
+    outline: 2px solid color-mix(in oklch, var(--color-primary) 60%, transparent);
+    outline-offset: 1px;
   }
   .filter-pill.active {
     background: color-mix(in oklch, var(--color-primary) 15%, transparent);
@@ -583,8 +795,12 @@ html[dir="rtl"] .tabular-nums {
     color: var(--color-primary);
     font-weight: 600;
   }
+  #vpn-tabs .filter-pill {
+    padding: 0.28rem 0.52rem;
+    font-size: 11.5px;
+  }
 
-  /* Range pills inside segmented track */
+  /* Segmented tracks (Usage range + OS switcher) */
   .seg-track {
     display: inline-flex;
     align-items: center;
@@ -592,27 +808,84 @@ html[dir="rtl"] .tabular-nums {
     padding: 0.2rem;
     border-radius: 0.625rem;
     background: color-mix(in oklch, var(--color-base-content) 5%, transparent);
-    border: 1px solid color-mix(in oklch, var(--color-base-content) 8%, transparent);
+    border: 1px solid color-mix(in oklch, var(--color-base-content) 8.5%, transparent);
   }
   .range-pill {
     flex-shrink: 0;
     border-radius: 0.5rem;
-    padding: 0.25rem 0.7rem;
+    padding: 0.28rem 0.72rem;
     font-size: 11px;
     font-weight: 600;
     letter-spacing: 0.01em;
+    cursor: pointer;
     color: color-mix(in oklch, var(--color-base-content) 60%, transparent);
     background: transparent;
     border: 1px solid transparent;
-    transition: background 0.2s ease, color 0.2s ease, border-color 0.2s ease;
+    transition: background-color 0.18s ease, color 0.18s ease, border-color 0.18s ease;
   }
-  .range-pill:hover {
-    color: color-mix(in oklch, var(--color-base-content) 88%, transparent);
+  @media (hover: hover) {
+    .range-pill:hover:not(.active) {
+      color: color-mix(in oklch, var(--color-base-content) 88%, transparent);
+      background: color-mix(in oklch, var(--color-base-content) 5%, transparent);
+    }
+  }
+  .range-pill:focus-visible {
+    outline: 2px solid color-mix(in oklch, var(--color-accent) 60%, transparent);
+    outline-offset: 1px;
   }
   .range-pill.active {
     background: color-mix(in oklch, var(--color-accent) 16%, transparent);
     border-color: color-mix(in oklch, var(--color-accent) 32%, transparent);
     color: var(--color-accent);
+  }
+
+  /* OS tab bar in Recommended Apps */
+  .os-tabs {
+    display: flex;
+    align-items: center;
+    gap: 0.2rem;
+    padding: 0.25rem;
+    border-radius: 0.75rem;
+  }
+  .os-tab {
+    display: inline-flex;
+    flex-shrink: 0;
+    align-items: center;
+    justify-content: center;
+    gap: 0.35rem;
+    padding: 0.4rem 0.7rem;
+    border-radius: 0.55rem;
+    border: 1px solid transparent;
+    background: transparent;
+    color: color-mix(in oklch, var(--color-base-content) 62%, transparent);
+    font-size: 12px;
+    font-weight: 500;
+    cursor: pointer;
+    white-space: nowrap;
+    transition: background-color 0.18s ease, color 0.18s ease, border-color 0.18s ease;
+  }
+  @media (min-width: 640px) {
+    .os-tab {
+      flex: 1 1 0%;
+      padding: 0.45rem 0.75rem;
+      font-size: 13px;
+    }
+  }
+  @media (hover: hover) {
+    .os-tab:hover:not(.active) {
+      color: var(--color-base-content);
+      background: color-mix(in oklch, var(--color-base-content) 5.5%, transparent);
+    }
+  }
+  .os-tab:focus-visible {
+    outline: 2px solid color-mix(in oklch, var(--color-primary) 60%, transparent);
+    outline-offset: 1px;
+  }
+  .os-tab.active {
+    background: color-mix(in oklch, var(--color-primary) 15%, transparent);
+    border-color: color-mix(in oklch, var(--color-primary) 32%, transparent);
+    color: var(--color-primary);
+    font-weight: 600;
   }
 
   /* Toolbar toggles (group / select) when engaged */
@@ -628,17 +901,27 @@ html[dir="rtl"] .tabular-nums {
   .usage-chart svg.usage-svg {
     display: block;
     width: 100%;
-    height: 7rem;
+    height: 7.5rem;
+    overflow: visible;
   }
   .usage-gridline {
     stroke: color-mix(in oklch, var(--color-base-content) 8%, transparent);
-    stroke-width: 0.6;
-    stroke-dasharray: 2 3;
+    stroke-width: 1;
+    stroke-dasharray: 2 4;
+  }
+  .usage-baseline {
+    stroke: color-mix(in oklch, var(--color-base-content) 14%, transparent);
+    stroke-width: 1;
+  }
+  .usage-bar-hit {
+    fill: transparent;
+    cursor: pointer;
   }
   .usage-bar-rect {
     fill: var(--color-primary);
-    fill-opacity: 0.45;
-    transition: fill-opacity 0.16s ease;
+    fill-opacity: 0.48;
+    transition: fill-opacity 0.15s ease;
+    pointer-events: none;
   }
   .usage-bar-rect.is-zero {
     fill: var(--color-base-content);
@@ -648,36 +931,57 @@ html[dir="rtl"] .tabular-nums {
     fill: var(--color-accent);
     fill-opacity: 0.92;
   }
-  .usage-bar-rect:hover {
-    fill-opacity: 0.85;
+  .usage-bar-group:hover .usage-bar-rect,
+  .usage-bar-group.is-active .usage-bar-rect {
+    fill-opacity: 0.95;
+  }
+  .usage-bar-group:hover .usage-bar-rect.is-zero,
+  .usage-bar-group.is-active .usage-bar-rect.is-zero {
+    fill-opacity: 0.32;
+  }
+  .usage-bar-group:focus-visible {
+    outline: none;
+  }
+  .usage-bar-group:focus-visible .usage-bar-rect {
+    fill-opacity: 1;
+  }
+  .usage-axis-label {
+    fill: color-mix(in oklch, var(--color-base-content) 48%, transparent);
+    font-size: 10px;
+    font-weight: 500;
+    pointer-events: none;
   }
 
   .usage-readout {
     position: absolute;
-    bottom: 0.25rem;
+    top: 0;
     left: 0;
-    transform: translateX(0);
-    z-index: 5;
+    z-index: 6;
     max-width: 92%;
-    padding: 0.35rem 0.6rem;
+    padding: 0.35rem 0.65rem;
     border-radius: 0.6rem;
-    background: color-mix(in oklch, var(--color-base-200) 88%, transparent);
-    border: 1px solid color-mix(in oklch, var(--color-base-content) 14%, transparent);
-    backdrop-filter: blur(10px) saturate(130%);
-    -webkit-backdrop-filter: blur(10px) saturate(130%);
+    background: color-mix(in oklch, var(--color-base-200) 94%, var(--color-base-100));
+    border: 1px solid color-mix(in oklch, var(--color-base-content) 16%, transparent);
+    -webkit-backdrop-filter: blur(14px) saturate(150%);
+    backdrop-filter: blur(14px) saturate(150%);
+    box-shadow: 0 8px 20px -8px oklch(0% 0 0 / 0.45);
     color: var(--color-base-content);
     font-size: 11px;
     font-weight: 600;
-    line-height: 1.25;
+    line-height: 1.3;
     white-space: nowrap;
     pointer-events: none;
     animation: aurora-readout-in 0.14s ease;
+  }
+  [data-theme="auroralight"] .usage-readout {
+    background: color-mix(in oklch, white 95%, var(--color-base-100));
+    box-shadow: 0 8px 20px -8px oklch(30% 0.04 240 / 0.18);
   }
   .usage-readout[hidden] {
     display: none;
   }
   @keyframes aurora-readout-in {
-    from { opacity: 0; transform: translateY(0.25rem); }
+    from { opacity: 0; transform: translateY(3px); }
     to   { opacity: 1; transform: translateY(0); }
   }
 
@@ -693,6 +997,7 @@ html[dir="rtl"] .tabular-nums {
     height: 100%;
     border-radius: 9999px;
     background: var(--color-primary);
+    transition: width 0.45s cubic-bezier(0.22, 1, 0.36, 1);
   }
 
   /* Toast */
@@ -701,7 +1006,7 @@ html[dir="rtl"] .tabular-nums {
     margin-bottom: env(safe-area-inset-bottom);
   }
   .toast-pill.toast-in {
-    animation: aurora-toast-in 0.25s cubic-bezier(0.22, 1, 0.36, 1);
+    animation: aurora-toast-in 0.24s cubic-bezier(0.22, 1, 0.36, 1);
   }
   @keyframes aurora-toast-in {
     from {
@@ -714,28 +1019,6 @@ html[dir="rtl"] .tabular-nums {
     }
   }
 
-  /* Popover glassmorphism */
-  .pop-menu {
-    background: color-mix(in oklch, var(--color-base-200) 84%, transparent);
-    backdrop-filter: blur(28px) saturate(160%);
-    -webkit-backdrop-filter: blur(28px) saturate(160%);
-    border: 1px solid color-mix(in oklch, var(--color-base-content) 14%, transparent);
-  }
-  [data-theme="auroralight"] .pop-menu {
-    background: color-mix(in oklch, white 88%, transparent);
-  }
-  .pop-menu:not([hidden]) {
-    animation: aurora-pop 0.16s ease;
-    transform-origin: top var(--pop-origin, right);
-  }
-  html[dir="rtl"] .pop-menu {
-    --pop-origin: left;
-  }
-  @keyframes aurora-pop {
-    from { opacity: 0; transform: scale(0.95) translateY(-4px); }
-    to   { opacity: 1; transform: scale(1) translateY(0); }
-  }
-
   .qr-box > svg {
     width: 100%;
     height: 100%;
@@ -744,17 +1027,13 @@ html[dir="rtl"] .tabular-nums {
 
 @media (max-width: 640px) {
   .glass {
-    backdrop-filter: blur(14px) saturate(135%);
     -webkit-backdrop-filter: blur(14px) saturate(135%);
+    backdrop-filter: blur(14px) saturate(135%);
   }
   .pop-menu {
-    backdrop-filter: blur(20px) saturate(150%);
-    -webkit-backdrop-filter: blur(20px) saturate(150%);
+    -webkit-backdrop-filter: blur(20px) saturate(155%);
+    backdrop-filter: blur(20px) saturate(155%);
   }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .reveal { transition: none; }
 }
 
 .reveal {
@@ -764,7 +1043,7 @@ html[dir="rtl"] .tabular-nums {
 }
 .reveal.shown {
   opacity: 1;
-  transform: translateY(0);
+  transform: none;
 }
 
 /* ----------------------------------------------------------------------------
@@ -787,7 +1066,7 @@ html[dir="rtl"] .tabular-nums {
   position: absolute;
   inset: 0.75rem;
   border-radius: 9999px;
-  background: radial-gradient(circle, color-mix(in oklch, var(--ring-glow, var(--color-primary)) 8%, transparent), transparent 72%);
+  background: radial-gradient(circle, color-mix(in oklch, var(--ring-glow, var(--color-primary)) 9%, transparent), transparent 72%);
   pointer-events: none;
 }
 .ring-wrap-time {
@@ -826,10 +1105,6 @@ html[dir="rtl"] .tabular-nums {
 }
 .ring-wrap.is-urgent {
   --ring-glow: var(--color-error);
-}
-@media (prefers-reduced-motion: reduce) {
-  .ring-fill { transition: none; }
-  .online-dot { animation: none; }
 }
 
 /* ----------------------------------------------------------------------------
@@ -873,6 +1148,22 @@ html[dir="rtl"] .tabular-nums {
   background-size: 200% 100%;
   animation: aurora-shimmer 1.5s ease-in-out infinite;
 }
+
 @media (prefers-reduced-motion: reduce) {
-  .aurora-skeleton { animation: none; }
+  .reveal,
+  .ring-fill,
+  .usage-fill,
+  .collapsey,
+  .collapsey > .collapsey-inner > *,
+  .chev,
+  .node-bar > span {
+    transition: none;
+  }
+  .online-dot,
+  .aurora-skeleton,
+  .pop-menu:not([hidden]),
+  .toast-pill.toast-in,
+  .usage-readout {
+    animation: none;
+  }
 }

@@ -14,7 +14,7 @@ export const I18N = {
         online_never: "Never connected",
         online_ago: "ago",
         used: "Used", total: "Total", remaining: "Remaining", expires: "Expires",
-        never: "Never", days: "days", day: "day",
+        never: "Never", days: "days", day: "day", hours: "hours", hour: "hour",
         expires_in: "in",
         expired_since: "",
         status_active: "Active", status_limited: "Data limit reached",
@@ -124,6 +124,10 @@ export const I18N = {
         usage_peak_day: "Peak",
         copy_linux_cmd: "Linux CLI",
         copy_mikrotik_cmd: "MikroTik CLI",
+        select_all: "Select all",
+        deselect_all: "Clear",
+        clear_search: "Clear search",
+        reset_filters: "Reset filters",
     },
     fa: {
         dir: "rtl",
@@ -134,7 +138,7 @@ export const I18N = {
         online_never: "تاکنون متصل نشده",
         online_ago: "پیش",
         used: "مصرف‌شده", total: "کل", remaining: "باقی‌مانده", expires: "انقضا",
-        never: "هرگز", days: "روز", day: "روز",
+        never: "هرگز", days: "روز", day: "روز", hours: "ساعت", hour: "ساعت",
         expires_in: "تا",
         expired_since: "",
         status_active: "فعال", status_limited: "اتمام حجم",
@@ -193,8 +197,8 @@ export const I18N = {
         vpn_server: "سرور", vpn_username: "نام کاربری", vpn_password: "رمز عبور",
         vpn_psk: "کلید مشترک IPsec",
         ovpn_download: "دانلود",
-        download_pbk: "دانلود فایل \u200E.pbk",
-        download_all_pbk: "همه سرورها (.pbk)",
+        download_pbk: "دانلود فایل \u2066.pbk\u2069",
+        download_all_pbk: "همه سرورها \u2066(.pbk)\u2069",
         show_secret: "نمایش", hide_secret: "پنهان",
         ovpn_note: "پروفایل را دانلود و در اپلیکیشن OpenVPN (مثل OpenVPN Connect) وارد کنید، سپس با یک لمس متصل شوید.",
         l2tp_note: "این مقادیر را در تنظیمات VPN داخلی دستگاه به‌صورت اتصال L2TP/IPsec با کلید مشترک وارد کنید.",
@@ -244,6 +248,10 @@ export const I18N = {
         usage_peak_day: "اوج مصرف",
         copy_linux_cmd: "دستور لینوکس",
         copy_mikrotik_cmd: "اسکریپت میکروتیک",
+        select_all: "انتخاب همه",
+        deselect_all: "لغو انتخاب",
+        clear_search: "پاک کردن جست‌وجو",
+        reset_filters: "بازنشانی فیلترها",
     },
     ru: {
         dir: "ltr",
@@ -254,7 +262,7 @@ export const I18N = {
         online_never: "Не подключался",
         online_ago: "назад",
         used: "Использовано", total: "Всего", remaining: "Осталось", expires: "Истекает",
-        never: "Никогда", days: "дн.", day: "день",
+        never: "Никогда", days: "дн.", day: "день", hours: "ч.", hour: "час",
         expires_in: "через",
         expired_since: "",
         status_active: "Активна", status_limited: "Лимит трафика",
@@ -364,6 +372,10 @@ export const I18N = {
         usage_peak_day: "Пик",
         copy_linux_cmd: "Команда Linux",
         copy_mikrotik_cmd: "Скрипт MikroTik",
+        select_all: "Выбрать все",
+        deselect_all: "Сбросить",
+        clear_search: "Очистить поиск",
+        reset_filters: "Сбросить фильтры",
     },
     zh: {
         dir: "ltr",
@@ -374,7 +386,7 @@ export const I18N = {
         online_never: "从未连接",
         online_ago: "前",
         used: "已用", total: "总计", remaining: "剩余", expires: "到期",
-        never: "永不过期", days: "天", day: "天",
+        never: "永不过期", days: "天", day: "天", hours: "小时", hour: "小时",
         expires_in: "还有",
         expired_since: "已过期",
         status_active: "活跃", status_limited: "流量已用尽",
@@ -383,7 +395,7 @@ export const I18N = {
         banner_limited: "您的流量已用完，配置已停用。请续费以继续使用。",
         banner_expired: "您的订阅已过期。请续费以继续使用。",
         banner_disabled: "此账户当前已停用。",
-        banner_on_hold: "此订阅处于待启用状态,尚未开始。",
+        banner_on_hold: "此订阅处于待启用状态，尚未开始。",
         banner_low_traffic: "您的流量即将用尽。请及时续费。",
         banner_low_time: "您的订阅即将到期。请及时续费。",
         banner_low_both: "您的流量与订阅时间均即将用尽。请及时续费。",
@@ -402,7 +414,7 @@ export const I18N = {
         apps: "推荐应用", add: "添加", download: "下载",
         tap_to_add: "一键导入", qrcode: "二维码", close: "关闭",
         sub_qr: "订阅二维码", subscription: "订阅链接",
-        qr_too_long: "链接过长,无法生成二维码 — 请改用复制。",
+        qr_too_long: "链接过长，无法生成二维码 — 请改用复制。",
         qr_loading: "生成中…",
         qr_error: "二维码不可用 — 请改用复制。",
         support: "获取支持", renew: "续费", download_conf: "下载 .conf",
@@ -427,7 +439,7 @@ export const I18N = {
         usage_range_7d: "7天",
         usage_range_30d: "30天",
         usage_range_90d: "90天",
-        forecast_deplete: "按此速度,流量将于",
+        forecast_deplete: "按此速度，流量将于",
         forecast_expire_first: "您的订阅将先于流量到期",
         vpn_access: "VPN 文件",
         vpn_server: "服务器", vpn_username: "用户名", vpn_password: "密码",
@@ -436,10 +448,10 @@ export const I18N = {
         download_pbk: "下载 .pbk",
         download_all_pbk: "所有服务器 (.pbk)",
         show_secret: "显示", hide_secret: "隐藏",
-        ovpn_note: "下载配置文件并导入 OpenVPN 应用(如 OpenVPN Connect),然后一键连接。",
-        l2tp_note: "在设备的内置 VPN 设置中以 L2TP/IPsec 连接方式输入这些信息,并设置预共享密钥。",
+        ovpn_note: "下载配置文件并导入 OpenVPN 应用（如 OpenVPN Connect），然后一键连接。",
+        l2tp_note: "在设备的内置 VPN 设置中以 L2TP/IPsec 连接方式输入这些信息，并设置预共享密钥。",
         pptp_note: "在设备的内置 VPN 设置中以 PPTP 连接方式输入这些信息。",
-        wg_note: "下载 WireGuard 配置文件并导入 WireGuard 应用,或复制/扫描链接。完整配置文本也可用于手动设置。",
+        wg_note: "下载 WireGuard 配置文件并导入 WireGuard 应用，或复制/扫描链接。完整配置文本也可用于手动设置。",
         copy_link: "复制链接", copy_config: "复制配置",
         wg_address: "地址", wg_port: "端口",
         wg_client_address: "客户端地址",
@@ -484,6 +496,10 @@ export const I18N = {
         usage_peak_day: "峰值",
         copy_linux_cmd: "Linux 命令",
         copy_mikrotik_cmd: "MikroTik 脚本",
+        select_all: "全选",
+        deselect_all: "取消全选",
+        clear_search: "清除搜索",
+        reset_filters: "重置筛选",
     },
 };
 
@@ -516,9 +532,28 @@ export function locNum(value, lang) {
     return lang === "fa" ? toFaDigits(value) : String(value);
 }
 
-/** Percent with the proper localized sign (٪ for Persian). */
+/** Percent with the proper localized sign (٪ for Persian), BiDi-isolated so RTL never flips `۷۵٪` to `٪۷۵`. */
 export function locPct(value, lang) {
-    return locNum(value, lang) + (lang === "fa" ? "٪" : "%");
+    const out = locNum(value, lang) + (lang === "fa" ? "٪" : "%");
+    return lang === "fa" ? `\u2066${out}\u2069` : out;
+}
+
+/** Localized singular/plural day unit (proper EN & RU declension). */
+export function fmtDaysUnit(n, lang) {
+    const v = Math.abs(Math.round(Number(n) || 0));
+    if (lang === "ru") return pickRuPlural(v, ["день", "дня", "дней"]);
+    if (lang === "fa") return "روز";
+    if (lang === "zh") return "天";
+    return v === 1 ? "day" : "days";
+}
+
+/** Localized singular/plural hour unit (proper EN & RU declension). */
+export function fmtHoursUnit(n, lang) {
+    const v = Math.abs(Math.round(Number(n) || 0));
+    if (lang === "ru") return pickRuPlural(v, ["час", "часа", "часов"]);
+    if (lang === "fa") return "ساعت";
+    if (lang === "zh") return "小时";
+    return v === 1 ? "hour" : "hours";
 }
 
 const DATE_LOCALES = { fa: "fa-IR", ru: "ru-RU", zh: "zh-CN", en: "en-GB" };
@@ -604,7 +639,7 @@ export function fmtRelative(date, lang, opts) {
     for (let i = 0; i < RT_UNITS.length - 1; i++) {
         if (abs < RT_UNITS[i + 1].ms) { unit = RT_UNITS[i]; break; }
     }
-    const value = Math.max(1, Math.floor(abs / unit.ms));
+    const value = Math.max(1, (!past && unit.ms >= 3_600_000) ? Math.round(abs / unit.ms) : Math.floor(abs / unit.ms));
     let word;
     const candidate = unit[lang] != null ? unit[lang] : unit.en;
     if (Array.isArray(candidate)) {

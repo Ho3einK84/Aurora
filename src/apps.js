@@ -80,6 +80,7 @@ export function mountApps(deps) {
                 activeOs = btn.getAttribute("data-os");
                 renderTabs(true);
                 renderList();
+                listEl.scrollTop = 0;
             });
         });
         const activeBtn = tabsEl.querySelector(".os-tab.active");

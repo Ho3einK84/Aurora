@@ -12,7 +12,7 @@ Glassmorphism · usage dashboard · EN/FA RTL · white-label · Tailwind v4 + Da
 | :---: | :---: |
 | ![Aurora Dark subscription page](assets/screenshots/preview-v4.2.0.png) | ![Aurora Light subscription page](assets/screenshots/preview-light-v4.2.0.png) |
 
-*Aurora v4.2.0 (`auroradark` & `auroralight`) — true frosted glass surfaces, dual usage/time rings, responsive SVG bar chart with interactive glass tooltips, native mobile bottom sheets, and razor-sharp LTR/RTL typography.*
+*Aurora v4.2.1 (`auroradark` & `auroralight`) — true frosted glass surfaces, dual usage/time rings, responsive SVG bar chart with interactive glass tooltips, native mobile bottom sheets, and razor-sharp LTR/RTL typography.*
 
 ---
 

@@ -281,8 +281,8 @@ export function mountUsage(deps) {
         const measuredW = chart.clientWidth || 0;
         const W = Math.max(280, Math.round(measuredW || 560));
         lastChartWidth = W;
-        const H = 120;
-        const topPad = 14;
+        const H = 124;
+        const topPad = 18;
         const bottomPad = 18;
         const plotBottom = H - bottomPad;
         const plotH = plotBottom - topPad;
@@ -319,7 +319,7 @@ export function mountUsage(deps) {
                     : ` ${t("usage_on")} ${fmtDayMonth(d, lang())}`;
             const tip = `${locNum(f.value, lang())} ${f.unit}${whenStr}`;
             bars += `<g class="usage-bar-group" tabindex="0" role="graphics-symbol" aria-label="${escapeAttr(tip)}" data-tip="${escapeAttr(tip)}" data-cx="${cx.toFixed(1)}">` +
-                `<rect class="usage-bar-hit" x="${slotX.toFixed(2)}" y="${topPad}" width="${step.toFixed(2)}" height="${plotH}" />` +
+                `<rect class="usage-bar-hit" x="${slotX.toFixed(2)}" y="${topPad}" width="${step.toFixed(2)}" height="${plotH}" rx="3" />` +
                 `<path class="usage-bar-rect${isPeak ? " is-peak" : ""}${v <= 0 ? " is-zero" : ""}" d="${topRoundedBarPath(x, y, barW, h, plotBottom)}" />` +
                 `<title>${escapeHtml(tip)}</title></g>`;
         });
@@ -337,7 +337,7 @@ export function mountUsage(deps) {
         if (peakLbl) {
             const px = isRtl ? sidePad + 2 : W - sidePad - 2;
             const anchor = isRtl ? leftAnchor : rightAnchor;
-            labels += `<text class="usage-axis-label" x="${px}" y="10" text-anchor="${anchor}">${escapeHtml(peakLbl)}</text>`;
+            labels += `<text class="usage-axis-label usage-axis-peak" x="${px}" y="10" text-anchor="${anchor}">${escapeHtml(peakLbl)}</text>`;
         }
         if (firstLbl && lastLbl) {
             labels += `<text class="usage-axis-label" x="${sidePad + 2}" y="${H - 4}" text-anchor="${leftAnchor}">${escapeHtml(firstLbl)}</text>`;
@@ -347,7 +347,7 @@ export function mountUsage(deps) {
         }
 
         chart.innerHTML =
-            `<svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="xMidYMid meet" class="usage-svg">${guides}${bars}${labels}</svg>`;
+            `<svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="xMidYMid meet" focusable="false" class="usage-svg">${guides}${bars}${labels}</svg>`;
 
         const total = fmtBytes(rows.reduce((s, r) => s + usageValOf(r), 0), lang());
         chart.setAttribute("aria-label",
@@ -368,6 +368,7 @@ export function mountUsage(deps) {
         if (!svg) return;
         let bubble = null;
         let activeGroup = null;
+        let lastPointerTs = 0;
 
         const ensureBubble = () => {
             if (bubble) return bubble;
@@ -385,6 +386,7 @@ export function mountUsage(deps) {
                 activeGroup.classList.remove("is-active");
                 activeGroup = null;
             }
+            svg.classList.remove("is-reading");
             if (bubble) bubble.hidden = true;
         };
 
@@ -394,6 +396,7 @@ export function mountUsage(deps) {
             if (activeGroup && activeGroup !== group) activeGroup.classList.remove("is-active");
             activeGroup = group;
             group.classList.add("is-active");
+            svg.classList.add("is-reading");
 
             const b = ensureBubble();
             b.textContent = tip;
@@ -404,7 +407,7 @@ export function mountUsage(deps) {
             const cxPx = (cxSvg / (viewW || 1)) * cw;
             const left = Math.max(0, Math.min(cw - bw, cxPx - bw / 2));
             b.style.left = `${left}px`;
-            b.style.top = "0px";
+            b.style.top = "-6px";
 
             clearTimeout(chartHideTimer);
             if (autoHideMs > 0) {
@@ -423,11 +426,23 @@ export function mountUsage(deps) {
             hide();
         });
         svg.addEventListener("pointerdown", (e) => {
+            lastPointerTs = Date.now();
             if (e.pointerType === "mouse") return;
             const g = e.target.closest(".usage-bar-group");
-            if (g) showFor(g, 2400);
+            if (g) {
+                if (g === activeGroup && bubble && !bubble.hidden) {
+                    clearTimeout(chartHideTimer);
+                    hide();
+                    return;
+                }
+                showFor(g, 2800);
+            } else {
+                clearTimeout(chartHideTimer);
+                hide();
+            }
         });
         svg.addEventListener("focusin", (e) => {
+            if (Date.now() - lastPointerTs < 400) return;
             const g = e.target.closest(".usage-bar-group");
             if (g) showFor(g, 0);
         });

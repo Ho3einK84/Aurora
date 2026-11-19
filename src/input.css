@@ -1107,6 +1107,129 @@ html[dir="rtl"] .tabular-nums {
     width: 100%;
     height: 100%;
   }
+
+  /* Smart Web Push Alerts — header dot, prompt strip & accessible LTR/RTL switch */
+  .alerts-dot {
+    position: absolute;
+    inset-block-start: 0.34rem;
+    inset-inline-end: 0.34rem;
+    width: 0.44rem;
+    height: 0.44rem;
+    border-radius: 9999px;
+    background: var(--color-success);
+    box-shadow: 0 0 0 2px color-mix(in oklch, var(--color-base-200) 92%, transparent);
+    pointer-events: none;
+  }
+  .alerts-btn-active {
+    border-color: color-mix(in oklch, var(--color-primary) 34%, transparent) !important;
+    color: var(--color-primary);
+  }
+  .alerts-prompt {
+    border-color: color-mix(in oklch, var(--color-primary) 24%, color-mix(in oklch, var(--color-base-content) 10%, transparent));
+    background:
+      radial-gradient(60% 120% at 0% 50%, color-mix(in oklch, var(--color-primary) 9%, transparent), transparent 68%),
+      color-mix(in oklch, var(--color-base-200) 76%, transparent);
+  }
+  [data-theme="amoleddark"] .alerts-prompt {
+    background:
+      radial-gradient(60% 120% at 0% 50%, color-mix(in oklch, var(--color-primary) 9%, transparent), transparent 68%),
+      color-mix(in oklch, var(--color-base-200) 86%, #000);
+  }
+  [data-theme="auroralight"] .alerts-prompt {
+    background:
+      radial-gradient(60% 120% at 0% 50%, color-mix(in oklch, var(--color-primary) 8%, transparent), transparent 68%),
+      color-mix(in oklch, white 84%, transparent);
+    border-color: color-mix(in oklch, var(--color-primary) 22%, white 45%);
+  }
+  html[dir="rtl"] .alerts-prompt {
+    background:
+      radial-gradient(60% 120% at 100% 50%, color-mix(in oklch, var(--color-primary) 9%, transparent), transparent 68%),
+      color-mix(in oklch, var(--color-base-200) 76%, transparent);
+  }
+  html[dir="rtl"][data-theme="amoleddark"] .alerts-prompt {
+    background:
+      radial-gradient(60% 120% at 100% 50%, color-mix(in oklch, var(--color-primary) 9%, transparent), transparent 68%),
+      color-mix(in oklch, var(--color-base-200) 86%, #000);
+  }
+  html[dir="rtl"][data-theme="auroralight"] .alerts-prompt {
+    background:
+      radial-gradient(60% 120% at 100% 50%, color-mix(in oklch, var(--color-primary) 8%, transparent), transparent 68%),
+      color-mix(in oklch, white 84%, transparent);
+  }
+  .alerts-prompt-orb {
+    background: color-mix(in oklch, var(--color-primary) 13%, transparent);
+    border: 1px solid color-mix(in oklch, var(--color-primary) 24%, transparent);
+  }
+
+  .aurora-switch {
+    position: relative;
+    display: inline-block;
+    flex-shrink: 0;
+    width: 2.5rem;
+    height: 1.45rem;
+    margin: 0;
+    padding: 0;
+    border: 1px solid color-mix(in oklch, var(--color-base-content) 18%, transparent);
+    border-radius: 9999px;
+    background: color-mix(in oklch, var(--color-base-content) 14%, transparent);
+    appearance: none;
+    -webkit-appearance: none;
+    cursor: pointer;
+    vertical-align: middle;
+    transition: background-color 0.2s ease, border-color 0.2s ease, opacity 0.15s ease;
+  }
+  .aurora-switch::after {
+    content: "";
+    position: absolute;
+    top: 2px;
+    inset-inline-start: 2px;
+    width: 1.075rem;
+    height: 1.075rem;
+    border-radius: 9999px;
+    background: var(--color-base-content);
+    opacity: 0.82;
+    box-shadow: 0 1px 3px oklch(0% 0 0 / 0.28);
+    transition: transform 0.2s cubic-bezier(0.22, 1, 0.36, 1), background-color 0.2s ease, opacity 0.2s ease;
+  }
+  [data-theme="auroralight"] .aurora-switch {
+    background: color-mix(in oklch, var(--color-base-content) 16%, transparent);
+    border-color: color-mix(in oklch, var(--color-base-content) 14%, transparent);
+  }
+  [data-theme="auroralight"] .aurora-switch::after {
+    background: #ffffff;
+    opacity: 1;
+    box-shadow: 0 1px 4px oklch(25% 0.03 240 / 0.26);
+  }
+  .aurora-switch:checked {
+    background: var(--color-primary);
+    border-color: color-mix(in oklch, var(--color-primary) 75%, white 18%);
+  }
+  .aurora-switch:checked::after {
+    background: var(--color-primary-content);
+    opacity: 1;
+    transform: translateX(1.05rem);
+  }
+  html[dir="rtl"] .aurora-switch:checked::after {
+    transform: translateX(-1.05rem);
+  }
+  .aurora-switch:focus-visible {
+    outline: 2px solid color-mix(in oklch, var(--color-primary) 65%, transparent);
+    outline-offset: 2px;
+  }
+  .aurora-switch:disabled {
+    opacity: 0.5;
+    cursor: wait;
+  }
+
+  .alerts-spinner {
+    display: inline-block;
+    width: 0.9rem;
+    height: 0.9rem;
+    border-radius: 9999px;
+    border: 2px solid color-mix(in oklch, currentColor 28%, transparent);
+    border-top-color: currentColor;
+    animation: aurora-spin 0.7s linear infinite;
+  }
 }
 
 @media (max-width: 640px) {
@@ -1240,14 +1363,17 @@ html[dir="rtl"] .tabular-nums {
   .collapsey,
   .collapsey > .collapsey-inner > *,
   .chev,
-  .node-bar > span {
+  .node-bar > span,
+  .aurora-switch,
+  .aurora-switch::after {
     transition: none;
   }
   .online-dot,
   .aurora-skeleton,
   .pop-menu:not([hidden]),
   .toast-pill.toast-in,
-  .usage-readout {
+  .usage-readout,
+  .alerts-spinner {
     animation: none;
   }
 }

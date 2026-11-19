@@ -17,6 +17,7 @@ import { parseLinks, mountConfigs } from "./configs.js";
 import { mountApps } from "./apps.js";
 import { mountUsage } from "./usage.js";
 import { isOvpnLink, isWgLink, isAwgLink, mountVpn } from "./vpn.js";
+import { mountPush } from "./push.js";
 
 /* --- Optional remote apps.json override -----------------------------------
    A default apps list is inlined at build time (window.AURORA_APPS). Point
@@ -78,6 +79,35 @@ function defaultBrand() {
  * @property {string[]} wgLinks - WireGuard URIs (.conf or wireguard://)
  */
 
+function cleanRelativePath(raw) {
+    const s = raw == null ? "" : String(raw).trim();
+    if (!s || s.includes("{{") || /[\u0000-\u001f\u007f]/.test(s)) return "";
+    return /^\/(?!\/)/.test(s) ? s.replace(/\/+$/, "") || "/" : "";
+}
+
+function resolveWebPushConfig(d) {
+    if (window.AURORA_BRAND && window.AURORA_BRAND.alerts === false) {
+        return { key: "", base: "", sw: "", manifest: "" };
+    }
+    const rawKey = (d.webPushKey || "").trim();
+    if (!rawKey || rawKey.includes("{{") || !/^[A-Za-z0-9_-]{40,}$/.test(rawKey)) {
+        return { key: "", base: "", sw: "", manifest: "" };
+    }
+    const rawBase = cleanRelativePath(d.webPushBase);
+    const rawSw = cleanRelativePath(d.webPushSw);
+    const rawManifest = cleanRelativePath(d.webPushManifest);
+    const curPath = (location.pathname || "").replace(/\/+$/, "");
+    const backendSub = rawBase.replace(/\/push$/, "");
+    let prefix = "";
+    if (curPath && backendSub && curPath !== backendSub && curPath.endsWith(backendSub)) {
+        prefix = curPath.slice(0, curPath.length - backendSub.length);
+    }
+    const base = rawBase ? prefix + rawBase : ((curPath || "") + "/push");
+    const sw = rawSw ? prefix + rawSw : (base + "/sw.js");
+    const manifest = rawManifest ? prefix + rawManifest : (base + "/manifest.webmanifest");
+    return { key: rawKey, base, sw, manifest };
+}
+
 function readContext() {
     const d = ($("#aurora-data") || {}).dataset || {};
     let subUrl = (d.subscriptionUrl || "").trim();
@@ -91,6 +121,7 @@ function readContext() {
     // (subscription_profile_title) > the legacy brand_name binding > the
     // <meta name="aurora-brand"> fallback baked into the build.
     const brandName = (d.profileTitle || "").trim() || (d.brandName || "").trim() || defaultBrand();
+    const pushCfg = resolveWebPushConfig(d);
     return {
         username: (d.username || "").trim(),
         brandName,
@@ -119,6 +150,10 @@ function readContext() {
         ovpnLinks: allLinks.filter(isOvpnLink),
         wgLinks: allLinks.filter(isWgLink),
         awgLinks: allLinks.filter(isAwgLink),
+        webPushKey: pushCfg.key,
+        webPushBase: pushCfg.base,
+        webPushSw: pushCfg.sw,
+        webPushManifest: pushCfg.manifest,
     };
 }
 
@@ -148,6 +183,7 @@ let configsView = null;
 let appsView = null;
 let usageView = null;
 let vpnView = null;
+let pushView = null;
 
 const t = (key) => (I18N[lang] && I18N[lang][key]) || I18N.en[key] || key;
 
@@ -192,6 +228,7 @@ function setLang(next, persist) {
     applyI18n();
     renderAllDynamic();
     renderLangMenu();
+    if (persist && pushView) pushView.syncLang(lang);
 }
 
 function renderLangMenu() {
@@ -437,9 +474,46 @@ function renderAnnouncement() {
 
 let manifestUrl = null;
 
-/** Dynamic PWA manifest so "Add to Home Screen" carries the brand + theme. */
+function upsertHeadMeta(name, content) {
+    let el = document.querySelector(`meta[name="${name}"]`);
+    if (!el) {
+        el = document.createElement("meta");
+        el.name = name;
+        document.head.appendChild(el);
+    }
+    if (el.content !== content) el.content = content;
+}
+
+/**
+ * PWA manifest so "Add to Home Screen" carries the brand + theme.
+ * When Rebecca Web Push is enabled (`CTX.webPushKey`), point to the real HTTP
+ * manifest endpoint (required for iOS 16.4+ standalone Web Push); otherwise
+ * keep the self-contained blob: manifest with zero network requests.
+ */
 function installManifest() {
     try {
+        let link = document.querySelector('link[rel="manifest"]');
+        if (!link) {
+            link = document.createElement("link");
+            link.rel = "manifest";
+            document.head.appendChild(link);
+        }
+        if (CTX && CTX.webPushKey && CTX.webPushManifest) {
+            const targetHref = `${CTX.webPushManifest}?path=${encodeURIComponent(location.pathname || "/")}`;
+            if (manifestUrl) {
+                URL.revokeObjectURL(manifestUrl);
+                manifestUrl = null;
+            }
+            if (link.dataset.auroraPushManifest !== targetHref) {
+                link.dataset.auroraPushManifest = targetHref;
+                link.href = targetHref;
+            }
+            upsertHeadMeta("apple-mobile-web-app-capable", "yes");
+            upsertHeadMeta("apple-mobile-web-app-title", CTX.brandName);
+            upsertHeadMeta("apple-mobile-web-app-status-bar-style", "black-translucent");
+            return;
+        }
+        delete link.dataset.auroraPushManifest;
         const bg = themeHex(theme);
         const manifest = {
             name: CTX.brandName,
@@ -452,12 +526,6 @@ function installManifest() {
         const blob = new Blob([JSON.stringify(manifest)], { type: "application/json" });
         if (manifestUrl) URL.revokeObjectURL(manifestUrl);
         manifestUrl = URL.createObjectURL(blob);
-        let link = document.querySelector('link[rel="manifest"]');
-        if (!link) {
-            link = document.createElement("link");
-            link.rel = "manifest";
-            document.head.appendChild(link);
-        }
         link.href = manifestUrl;
     } catch (_) { /* PWA extras are best-effort */ }
 }
@@ -1029,6 +1097,7 @@ function applyUserInfo(u) {
     renderCard();
     renderUserDetails();
     if (usageView) usageView.rerender();
+    if (pushView) pushView.rerender();
 }
 
 function fetchSubInfo(force = false) {
@@ -1095,6 +1164,7 @@ function renderAllDynamic() {
     if (appsView) appsView.rerender();
     if (usageView) usageView.rerender();
     if (vpnView) vpnView.rerender();
+    if (pushView) pushView.rerender();
 }
 
 function renderOnlineBadge() {
@@ -1209,6 +1279,20 @@ async function init() {
         wireOffline();
         wireThemeWatcher();
         startRelativeTimeRefresh();
+
+        try {
+            pushView = mountPush({
+                ctx: CTX,
+                state: () => STATE,
+                t,
+                lang: () => lang,
+                onCloseMenus: () => {
+                    closeLangMenu();
+                    closeThemeMenu();
+                    closeSubFormatMenu();
+                },
+            });
+        } catch (err) { console.error("[aurora] push failed:", err); }
 
         // Kick off non-blocking /info fetch to hydrate on_hold duration, ip_limit,
         // next_plans, lifetime usage, and live traffic/expiry state.

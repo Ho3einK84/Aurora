@@ -31,6 +31,48 @@ const PORT = Number(process.env.PORT || 8787);
 const STATE = process.env.STATE || "active";
 const USAGE = process.env.USAGE || "json";
 const INFO = process.env.INFO || "json";
+const PUSH = process.env.PUSH || "on";
+
+// Valid uncompressed P-256 test VAPID public key (65 bytes, base64url) for local dev preview.
+const MOCK_VAPID_PUBLIC_KEY =
+    "BEl62iUYgUivxIkv69yViEuiBIa-Ib9-SkvMeAtA3LFgDzkrxZJjSgSnfckjBJuBkr3qBUYIHBQFLXYp5Nksh8U";
+
+const MOCK_SW_SCRIPT =
+    "self.addEventListener('install', function () { self.skipWaiting(); });\n" +
+    "self.addEventListener('activate', function (e) { e.waitUntil(self.clients.claim()); });\n" +
+    "self.addEventListener('push', function (e) {\n" +
+    "  var d = {}; try { d = e.data ? e.data.json() : {}; } catch (_) {}\n" +
+    "  e.waitUntil(self.registration.showNotification(d.title || 'Aurora', { body: d.body || '', dir: d.dir, lang: d.lang }));\n" +
+    "});\n";
+
+const mockPushState = {
+    mode: PUSH,
+    subs: new Map(), // endpoint -> { lang, page_url, keys }
+    alerts: { usage_80: true, usage_95: false, expiry_24h: true, limited: true, expired: true },
+    forceTestStatus: 0,
+    forcePrefsStatus: 0,
+};
+
+function readJsonBody(req) {
+    return new Promise((resolve) => {
+        let raw = "";
+        req.on("data", (c) => { raw += c; });
+        req.on("end", () => {
+            try { resolve(raw ? JSON.parse(raw) : {}); } catch (_) { resolve({}); }
+        });
+    });
+}
+
+function pushStatusPayload(endpoint) {
+    const ep = String(endpoint || "").trim();
+    const rec = ep ? mockPushState.subs.get(ep) : null;
+    return {
+        subscribed: Boolean(rec),
+        devices: mockPushState.subs.size,
+        alerts: { ...mockPushState.alerts },
+        lang: (rec && rec.lang) || "en",
+    };
+}
 
 const GB = 1024 ** 3;
 const DAY = 86400;
@@ -254,7 +296,7 @@ const SAMPLE_OVPN = [
     "remote-cert-tls server", "auth-nocache", "verb 3", "auth-user-pass",
 ].join("\n") + "\n";
 
-function ctxFor(state, brand, profileTitle) {
+function ctxFor(state, brand, profileTitle, pushMode) {
     const now = Math.floor(Date.now() / 1000);
     const base = {
         "user.username": "alice_wonder",
@@ -278,6 +320,19 @@ function ctxFor(state, brand, profileTitle) {
         // title" into it.
         subscription_profile_title: profileTitle || "",
     };
+    if (pushMode === "on") {
+        base.web_push_public_key = MOCK_VAPID_PUBLIC_KEY;
+        base.web_push_base_url = "/sub/alice/push";
+        base.web_push_sw_url = "/sub/alice/push/sw.js";
+        base.web_push_manifest_url = "/sub/alice/push/manifest.webmanifest";
+    } else if (pushMode === "off") {
+        // Exact Rebecca PR #228 disabled-toggle context: empty public key, non-empty paths.
+        base.web_push_public_key = "";
+        base.web_push_base_url = "/sub/alice/push";
+        base.web_push_sw_url = "/sub/alice/push/sw.js";
+        base.web_push_manifest_url = "/sub/alice/push/manifest.webmanifest";
+    }
+    // pushMode === "legacy": omit all web_push_* keys (exact pre-PR Rebecca behavior).
     switch (state) {
         case "expired":
             base["user.status"] = "expired";
@@ -424,15 +479,171 @@ createServer(async (req, res) => {
             res.end("[Interface]\nPrivateKey = aGVsbG8td29ybGQ=\nAddress = 10.1.0.2/32\nDNS = 1.1.1.1\nJc = 4\nJmin = 50\nJmax = 1000\nS1 = 15\nS2 = 20\nH1 = 1\nH2 = 2\nH3 = 3\nH4 = 4\n\n[Peer]\nPublicKey = serverAwgPubkey123=\nEndpoint = de.example.com:51821\nAllowedIPs = 0.0.0.0/0\nPersistentKeepalive = 25\n");
             return;
         }
+        if (url.pathname === "/__push_mock" && req.method === "POST") {
+            const cfg = await readJsonBody(req);
+            if (cfg.reset) {
+                mockPushState.subs.clear();
+                mockPushState.alerts = { usage_80: true, usage_95: false, expiry_24h: true, limited: true, expired: true };
+                mockPushState.forceTestStatus = 0;
+                mockPushState.forcePrefsStatus = 0;
+            }
+            if (cfg.mode) mockPushState.mode = cfg.mode;
+            if (cfg.seedEndpoint) {
+                mockPushState.subs.set(cfg.seedEndpoint, { lang: cfg.lang || "en", page_url: "/sub/alice", keys: {} });
+            }
+            if (cfg.forceTestStatus != null) mockPushState.forceTestStatus = Number(cfg.forceTestStatus) || 0;
+            if (cfg.forcePrefsStatus != null) mockPushState.forcePrefsStatus = Number(cfg.forcePrefsStatus) || 0;
+            res.writeHead(200, { "content-type": "application/json; charset=utf-8" });
+            res.end(JSON.stringify({ ok: true, mode: mockPushState.mode, devices: mockPushState.subs.size }));
+            return;
+        }
+        if (url.pathname === "/rebecca-sub-sw.js" || /\/push\/sw\.js$/.test(url.pathname)) {
+            if (mockPushState.mode !== "on") {
+                res.writeHead(mockPushState.mode === "off" ? 403 : 404, { "content-type": "application/json; charset=utf-8" });
+                res.end(JSON.stringify({ detail: mockPushState.mode === "off" ? "subscription web push is disabled" : "Not Found" }));
+                return;
+            }
+            res.writeHead(200, {
+                "content-type": "application/javascript; charset=utf-8",
+                "cache-control": "no-cache",
+                "service-worker-allowed": "/",
+            });
+            res.end(MOCK_SW_SCRIPT);
+            return;
+        }
+        const pushMatch = url.pathname.match(/^(.*)\/push\/(manifest\.webmanifest|config|status|subscribe|preferences|unsubscribe|test)$/);
+        if (pushMatch) {
+            const [, subBase, action] = pushMatch;
+            if (mockPushState.mode !== "on") {
+                if (action === "config" && mockPushState.mode === "off") {
+                    res.writeHead(200, { "content-type": "application/json; charset=utf-8" });
+                    res.end(JSON.stringify({ enabled: false }));
+                    return;
+                }
+                res.writeHead(mockPushState.mode === "off" ? 403 : 404, { "content-type": "application/json; charset=utf-8" });
+                res.end(JSON.stringify({ detail: mockPushState.mode === "off" ? "subscription web push is disabled" : "Not Found" }));
+                return;
+            }
+            if (action === "manifest.webmanifest") {
+                const startURL = url.searchParams.get("path") || subBase || "/";
+                res.writeHead(200, { "content-type": "application/manifest+json; charset=utf-8", "cache-control": "no-cache" });
+                res.end(JSON.stringify({
+                    name: "Aurora",
+                    short_name: "Aurora",
+                    start_url: startURL,
+                    scope: startURL,
+                    display: "standalone",
+                    background_color: "#060913",
+                    theme_color: "#060913",
+                }));
+                return;
+            }
+            if (action === "config") {
+                res.writeHead(200, { "content-type": "application/json; charset=utf-8" });
+                res.end(JSON.stringify({
+                    enabled: true,
+                    public_key: MOCK_VAPID_PUBLIC_KEY,
+                    sw_url: `${subBase}/push/sw.js`,
+                    manifest_url: `${subBase}/push/manifest.webmanifest`,
+                }));
+                return;
+            }
+            const body = await readJsonBody(req);
+            if (action === "status") {
+                res.writeHead(200, { "content-type": "application/json; charset=utf-8" });
+                res.end(JSON.stringify(pushStatusPayload(body.endpoint)));
+                return;
+            }
+            if (action === "subscribe") {
+                const ep = String(body.endpoint || "").trim();
+                if (!ep || !body.keys || !body.keys.p256dh || !body.keys.auth) {
+                    res.writeHead(400, { "content-type": "application/json; charset=utf-8" });
+                    res.end(JSON.stringify({ detail: "invalid push subscription" }));
+                    return;
+                }
+                mockPushState.subs.set(ep, {
+                    lang: body.lang || "en",
+                    page_url: body.page_url || subBase || "/",
+                    keys: body.keys,
+                });
+                if (body.alerts && typeof body.alerts === "object") {
+                    mockPushState.alerts = {
+                        usage_80: Boolean(body.alerts.usage_80),
+                        usage_95: Boolean(body.alerts.usage_95),
+                        expiry_24h: Boolean(body.alerts.expiry_24h),
+                        limited: Boolean(body.alerts.limited),
+                        expired: Boolean(body.alerts.expired),
+                    };
+                }
+                res.writeHead(200, { "content-type": "application/json; charset=utf-8" });
+                res.end(JSON.stringify(pushStatusPayload(ep)));
+                return;
+            }
+            if (action === "preferences") {
+                if (mockPushState.forcePrefsStatus) {
+                    const code = mockPushState.forcePrefsStatus;
+                    res.writeHead(code, { "content-type": "application/json; charset=utf-8" });
+                    res.end(JSON.stringify({ detail: `forced error ${code}` }));
+                    return;
+                }
+                if (mockPushState.subs.size === 0) {
+                    res.writeHead(404, { "content-type": "application/json; charset=utf-8" });
+                    res.end(JSON.stringify({ detail: "push subscription not found" }));
+                    return;
+                }
+                const ep = String(body.endpoint || "").trim();
+                if (ep && body.lang && mockPushState.subs.has(ep)) {
+                    mockPushState.subs.get(ep).lang = body.lang;
+                }
+                if (body.alerts && typeof body.alerts === "object") {
+                    mockPushState.alerts = {
+                        usage_80: Boolean(body.alerts.usage_80),
+                        usage_95: Boolean(body.alerts.usage_95),
+                        expiry_24h: Boolean(body.alerts.expiry_24h),
+                        limited: Boolean(body.alerts.limited),
+                        expired: Boolean(body.alerts.expired),
+                    };
+                }
+                res.writeHead(200, { "content-type": "application/json; charset=utf-8" });
+                res.end(JSON.stringify(pushStatusPayload(ep)));
+                return;
+            }
+            if (action === "unsubscribe") {
+                const ep = String(body.endpoint || "").trim();
+                mockPushState.subs.delete(ep);
+                res.writeHead(200, { "content-type": "application/json; charset=utf-8" });
+                res.end(JSON.stringify(pushStatusPayload("")));
+                return;
+            }
+            if (action === "test") {
+                if (mockPushState.forceTestStatus) {
+                    const code = mockPushState.forceTestStatus;
+                    res.writeHead(code, { "content-type": "application/json; charset=utf-8" });
+                    res.end(JSON.stringify({ detail: `forced error ${code}` }));
+                    return;
+                }
+                const ep = String(body.endpoint || "").trim();
+                if (!ep || !mockPushState.subs.has(ep)) {
+                    res.writeHead(404, { "content-type": "application/json; charset=utf-8" });
+                    res.end(JSON.stringify({ detail: "push subscription not found" }));
+                    return;
+                }
+                res.writeHead(200, { "content-type": "application/json; charset=utf-8" });
+                res.end(JSON.stringify({ sent: true }));
+                return;
+            }
+        }
         const tpl = await readFile(OUT, "utf8");
         const state = url.searchParams.get("state") || STATE;
         const info = url.searchParams.get("info") || INFO;
+        const pushMode = url.searchParams.get("push") || PUSH;
+        mockPushState.mode = pushMode;
         let links = state === "empty" ? [] : SAMPLE_LINKS;
         if (state !== "empty" && info !== "off") links = links.concat(OV_DOWNLOADS(PORT), AWG_DOWNLOADS(PORT));
         res.writeHead(200, { "content-type": "text/html; charset=utf-8" });
         res.end(render(
             tpl,
-            ctxFor(state, url.searchParams.get("brand"), url.searchParams.get("title")),
+            ctxFor(state, url.searchParams.get("brand"), url.searchParams.get("title"), pushMode),
             links
         ));
     } catch (e) {
@@ -440,6 +651,6 @@ createServer(async (req, res) => {
         res.end(String(e));
     }
 }).listen(PORT, () => {
-    console.log(`Aurora preview → http://localhost:${PORT}  (state=${STATE}, usage=${USAGE}, info=${INFO})`);
-    console.log("Try ?state=expired|limited|disabled|on_hold|unlimited|forever|empty · ?lang=fa · ?theme=nord · ?brand=Nimbus · ?title=YourBrand · ?info=empty|off");
+    console.log(`Aurora preview → http://localhost:${PORT}  (state=${STATE}, usage=${USAGE}, info=${INFO}, push=${PUSH})`);
+    console.log("Try ?state=expired|limited|disabled|on_hold|unlimited|forever|empty · ?lang=fa · ?theme=nord · ?brand=Nimbus · ?title=YourBrand · ?info=empty|off · ?push=on|off|legacy");
 });

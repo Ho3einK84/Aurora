@@ -85,6 +85,10 @@ const ALLOWED_DIRECTIVES = new Set([
     "{{ user.online_at }}",
     "{{ user.created_at }}",
     "{{ user.service_name }}",
+    "{{ web_push_public_key }}",
+    "{{ web_push_base_url }}",
+    "{{ web_push_sw_url }}",
+    "{{ web_push_manifest_url }}",
     "{{ link }}",
     "{% for link in links %}",
     "{% endfor %}",
@@ -215,7 +219,7 @@ const fontCss = [
 /* ------------- Phosphor icons → CSS mask data-URIs (used glyphs only) ----- */
 
 const jsSources = ["src/app.js", "src/ui.js", "src/i18n.js", "src/format.js", "src/store.js",
-    "src/configs.js", "src/apps.js", "src/usage.js", "src/vpn.js"]
+    "src/configs.js", "src/apps.js", "src/usage.js", "src/vpn.js", "src/push.js"]
     .map((p) => readFileSync(r(p), "utf8")).join("\n");
 
 const usedIcons = [...new Set(

@@ -621,7 +621,7 @@ export function mountPush({ ctx, state, t, lang, onCloseMenus }) {
             confirmedAlerts = { ...alerts };
             toast(t("alerts_enabled_toast"));
         } catch (err) {
-            console.error("[aurora] web push subscribe failed:", err);
+            console.error("[rebecca-sub] web push subscribe failed:", err);
             toast(t("alerts_err_generic"), "error");
         } finally {
             busyAction = "";

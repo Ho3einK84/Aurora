@@ -26,10 +26,10 @@ import { mountPush } from "./push.js";
 const AURORA_APPS_REMOTE_URL = "";
 
 const THEMES = [
-    { id: "auroradark", label: "%brand% Dark", swatch: "linear-gradient(135deg,#0d1522,#2ad0e6,#2de0ba)", hex: "#080f1b" },
-    { id: "amoleddark", label: "Amoled Dark", swatch: "linear-gradient(135deg,#000000,#38bdf8,#64748b)", hex: "#000000" },
-    { id: "auroralight", label: "%brand% Light", swatch: "linear-gradient(135deg,#e0f2fe,#0891b2,#3b82f6)", hex: "#eef3f8" },
     { id: "rebecca", label: "Rebecca", swatch: "linear-gradient(135deg,#111111,#242424 48%,#2563eb)", hex: "#101010" },
+    { id: "auroralight", label: "Light", swatch: "linear-gradient(135deg,#e0f2fe,#0891b2,#3b82f6)", hex: "#eef3f8" },
+    { id: "auroradark", label: "Midnight", swatch: "linear-gradient(135deg,#0d1522,#2ad0e6,#2de0ba)", hex: "#080f1b" },
+    { id: "amoleddark", label: "AMOLED Dark", swatch: "linear-gradient(135deg,#000000,#38bdf8,#64748b)", hex: "#000000" },
 ];
 
 /* ------------------------------------------------------------ data island */
@@ -51,7 +51,7 @@ function defaultBrand() {
     const winBrand = window.AURORA_BRAND && window.AURORA_BRAND.name;
     if (winBrand && typeof winBrand === "string" && winBrand.trim()) return winBrand.trim();
     const meta = document.querySelector('meta[name="aurora-brand"]');
-    return (meta && meta.content.trim()) || "Aurora";
+    return (meta && meta.content.trim()) || "Rebecca";
 }
 
 /**
@@ -175,7 +175,7 @@ function deriveState(ctx) {
 /* ------------------------------------------------------------------ state */
 
 let lang = "en";
-let theme = "auroradark";
+let theme = "rebecca";
 let CTX = null;
 let STATE = "active";
 let cardAnimated = false;
@@ -297,11 +297,11 @@ function handleMenuKeydown(e, list, closeFn) {
 
 function themeHex(id) {
     const found = THEMES.find((th) => th.id === id);
-    return (found && found.hex) || "#080f1b";
+    return (found && found.hex) || "#101010";
 }
 
 function setTheme(id, persist) {
-    theme = THEMES.some((th) => th.id === id) ? id : "auroradark";
+    theme = THEMES.some((th) => th.id === id) ? id : "rebecca";
     document.documentElement.setAttribute("data-theme", theme);
     if (persist) storeSet("aurora_theme", theme);
     renderThemeMenu();
@@ -386,7 +386,7 @@ function resolvePrefs() {
     const metaLang = (document.querySelector('meta[name="aurora-default-lang"]') || {}).content;
     const metaTheme = (document.querySelector('meta[name="aurora-default-theme"]') || {}).content;
     const defLang = brand.defaultLang || brand.lang || metaLang || document.documentElement.getAttribute("lang") || "en";
-    const defTheme = brand.defaultTheme || brand.theme || metaTheme || document.documentElement.getAttribute("data-theme") || "auroradark";
+    const defTheme = brand.defaultTheme || brand.theme || metaTheme || document.documentElement.getAttribute("data-theme") || "rebecca";
 
     const qLang = params.get("lang");
     const sLang = storeGet("aurora_lang");
@@ -1292,7 +1292,7 @@ async function init() {
                     closeSubFormatMenu();
                 },
             });
-        } catch (err) { console.error("[aurora] push failed:", err); }
+        } catch (err) { console.error("[rebecca-sub] push failed:", err); }
 
         // Kick off non-blocking /info fetch to hydrate on_hold duration, ip_limit,
         // next_plans, lifetime usage, and live traffic/expiry state.
@@ -1329,7 +1329,7 @@ async function init() {
                 lang: () => lang,
                 openQr,
             });
-        } catch (err) { console.error("[aurora] configs failed:", err); }
+        } catch (err) { console.error("[rebecca-sub] configs failed:", err); }
 
         // Lazy-mount usage dashboard when it scrolls near the viewport.
         const usageCard = $("#usage-card");
@@ -1338,7 +1338,7 @@ async function init() {
             try {
                 usageView = mountUsage({ ctx: CTX, state: () => STATE, t, lang: () => lang });
                 usageView.start();
-            } catch (err) { console.error("[aurora] usage failed:", err); }
+            } catch (err) { console.error("[rebecca-sub] usage failed:", err); }
         };
         const usageSentinel = $("#usage-sentinel");
         if ("IntersectionObserver" in window && usageSentinel) {
@@ -1363,7 +1363,7 @@ async function init() {
                     lang: () => lang,
                 });
                 vpnView.start();
-            } catch (err) { console.error("[aurora] vpn failed:", err); }
+            } catch (err) { console.error("[rebecca-sub] vpn failed:", err); }
         };
         const vpnSentinel = $("#vpn-sentinel");
         if ("IntersectionObserver" in window && vpnSentinel) {
@@ -1376,7 +1376,7 @@ async function init() {
         loadAppsCatalogue().then((apps) => {
             try {
                 appsView = mountApps({ apps, subUrl: CTX.subUrl, username: CTX.username, t });
-            } catch (err) { console.error("[aurora] apps failed:", err); }
+            } catch (err) { console.error("[rebecca-sub] apps failed:", err); }
         });
 
         requestAnimationFrame(() => {
@@ -1384,7 +1384,7 @@ async function init() {
             hideSplash();
         });
     } catch (err) {
-        try { console.error("[aurora] init failed:", err); } catch (_) { /* ignore */ }
+        try { console.error("[rebecca-sub] init failed:", err); } catch (_) { /* ignore */ }
         showErrorBanner();
         hideSplash();
     }

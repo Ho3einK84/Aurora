@@ -343,13 +343,13 @@ export function generateGreCli(item) {
     const mtu = item.mtu ? String(item.mtu).trim() : "1476";
     const ttl = item.ttl ? String(item.ttl).trim() : "64";
     const linux = [
-        `sudo ip tunnel add gre-aurora mode gre remote ${server} ttl ${ttl}`,
-        `sudo ip addr add ${clientIp} dev gre-aurora`,
-        `sudo ip link set gre-aurora mtu ${mtu} up`,
+        `sudo ip tunnel add gre-rebecca mode gre remote ${server} ttl ${ttl}`,
+        `sudo ip addr add ${clientIp} dev gre-rebecca`,
+        `sudo ip link set gre-rebecca mtu ${mtu} up`,
     ].join(" && ");
     const mikrotik = [
-        `/interface gre add name="gre-aurora" remote-address=${server} mtu=${mtu} !keepalive`,
-        `/ip address add address=${clientIp} interface="gre-aurora"`,
+        `/interface gre add name="gre-rebecca" remote-address=${server} mtu=${mtu} !keepalive`,
+        `/ip address add address=${clientIp} interface="gre-rebecca"`,
     ].join(" ; ");
     return { linux, mikrotik };
 }

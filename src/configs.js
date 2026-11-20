@@ -647,7 +647,7 @@ export function mountConfigs(deps) {
         }
     });
 
-    const sanitizeFilename = (name) => String(name || "").replace(/[/\\?%*:|"<>]+/g, "_").trim() || "aurora";
+    const sanitizeFilename = (name) => String(name || "").replace(/[/\\?%*:|"<>]+/g, "_").trim() || "rebecca";
 
     $("#config-export").addEventListener("click", () => {
         if (!rows.length) return;

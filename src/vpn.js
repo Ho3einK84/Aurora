@@ -821,7 +821,7 @@ export function mountVpn(deps) {
                 const pbk = generatePbkFile(items);
                 if (pbk) {
                     const fname = safeFileName(
-                        `${ctx.brandName || "aurora"}_${tab}_all`,
+                        `${ctx.brandName || "rebecca"}_${tab}_all`,
                         "windows_vpn",
                         ".pbk"
                     );

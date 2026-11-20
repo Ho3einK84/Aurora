@@ -1,24 +1,23 @@
 <!DOCTYPE html>
-<html lang="en" dir="ltr" data-theme="auroradark">
+<html lang="en" dir="ltr" data-theme="rebecca">
 
 <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
     <meta name="color-scheme" content="dark light" />
     <meta name="robots" content="noindex, nofollow" />
-    <meta name="theme-color" content="#080f1b" />
-    <title>Aurora</title>
+    <meta name="theme-color" content="#101010" />
+    <title>Rebecca</title>
 
     <!--
-      Default brand name. The panel's "Subscription profile title" setting
-      (subscription_profile_title binding, data island below) wins when
+      Rebecca default subscription template. The panel's "Subscription profile title"
+      setting (subscription_profile_title binding, data island below) wins when
       present, then the legacy brand_name binding; when both are empty this
-      meta is the fallback shown in the splash, header, title and PWA
-      manifest. To rebrand an already-built dist/index.html without
-      rebuilding:  sed -i 's/\bAurora\b/YourBrand/g' index.html
+      meta (and window.AURORA_BRAND) is the fallback shown in the splash,
+      header, title and PWA manifest.
     -->
-    <meta name="aurora-brand" content="Aurora" />
-    <meta name="aurora-default-theme" content="auroradark" />
+    <meta name="aurora-brand" content="Rebecca" />
+    <meta name="aurora-default-theme" content="rebecca" />
     <meta name="aurora-default-lang" content="en" />
     <meta name="aurora-server-breakdown" content="true" />
 
@@ -32,11 +31,11 @@
             try {
                 var doc = document.documentElement;
                 var q = new URLSearchParams(location.search);
-                var themes = ["auroradark", "amoleddark", "auroralight", "rebecca"];
+                var themes = ["rebecca", "auroralight", "auroradark", "amoleddark"];
                 var metaTheme = (document.querySelector('meta[name="aurora-default-theme"]') || {}).content;
                 var brandTheme = (window.AURORA_BRAND && (window.AURORA_BRAND.defaultTheme || window.AURORA_BRAND.theme)) || "";
-                var defTheme = brandTheme || metaTheme || doc.getAttribute("data-theme") || "auroradark";
-                if (themes.indexOf(defTheme) < 0) defTheme = "auroradark";
+                var defTheme = brandTheme || metaTheme || doc.getAttribute("data-theme") || "rebecca";
+                if (themes.indexOf(defTheme) < 0) defTheme = "rebecca";
 
                 var t = q.get("theme");
                 if (themes.indexOf(t) < 0) {
@@ -88,7 +87,7 @@
     <div id="aurora-loader">
         <div class="flex flex-col items-center gap-4">
             <div class="aurora-spinner"></div>
-            <p id="splash-brand" class="text-lg font-semibold tracking-tight text-base-content">Aurora</p>
+            <p id="splash-brand" class="text-lg font-semibold tracking-tight text-base-content">Rebecca</p>
         </div>
     </div>
     <script>
@@ -187,16 +186,15 @@
         <!-- ============================ TOP BAR ============================ -->
         <header class="reveal relative z-50 mb-4 flex items-center justify-between gap-2.5 sm:mb-6 sm:gap-3">
             <div class="flex min-w-0 items-center gap-2.5">
-                <!-- Default aurora emblem or custom brand logo when configured -->
+                <!-- Default Rebecca emblem or custom brand logo when configured -->
                 <div id="brand-logo" class="brand-orb grid h-10 w-10 shrink-0 place-items-center overflow-hidden rounded-full sm:h-11 sm:w-11">
-                    <svg class="h-5 w-5 text-primary" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-                        <path d="M4 15C6.5 9.5 9.5 8.5 12 12C14.5 15.5 17.5 14 20 8.5" stroke="currentColor" stroke-width="1.85" stroke-linecap="round" stroke-linejoin="round" />
-                        <path d="M5 17.5C7.5 13.5 10 12.5 12.5 15C14.8 17.3 17.5 16 19.5 12" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round" opacity="0.55" />
+                    <svg class="h-[22px] w-[22px] text-base-content sm:h-6 sm:w-6" viewBox="0 0 3113 3113" fill="currentColor" aria-hidden="true">
+                        <path fill-rule="evenodd" d="M325 0L373 -1L389 5L463 80L562 168L640 231L747 308L857 376L873 389L884 392L942 429L1022 471L1054 493L1202 566L1204 570L1213 571L1240 588L1258 593L1331 629L1340 630L1349 638L1479 697L1512 720L1533 729L1535 734L1545 735L1549 743L1557 743L1572 754L1929 753L2093 765L2245 797L2247 801L2294 815L2358 844L2398 865L2445 898L2523 976L2563 1029L2604 1097L2614 1125L2618 1127L2623 1147L2632 1161L2646 1213L2650 1215L2672 1339L2673 1491L2651 1646L2636 1701L2637 1710L2632 1715L2632 1727L2627 1732L2626 1743L2621 1739L2600 1686L2576 1642L2564 1622L2524 1578L2494 1550L2481 1545L2467 1533L2460 1533L2458 1528L2451 1529L2449 1524L2439 1524L2427 1515L2408 1511L2404 1506L2373 1501L2371 1428L2362 1341L2344 1262L2312 1193L2294 1167L2249 1122L2205 1093L2204 1089L2188 1085L2186 1080L2156 1070L2155 1066L2147 1067L2096 1048L2011 1036L1921 1030L1813 1032L1813 1040L1825 1063L1826 1073L1830 1075L1831 1086L1835 1089L1849 1132L1848 1141L1853 1143L1881 1270L1894 1392L1898 1554L1907 1638L1911 1642L1916 1679L1921 1683L1934 1726L1940 1731L1944 1743L1950 1747L2090 1619L2166 1567L2215 1545L2252 1537L2303 1533L2339 1535L2400 1553L2440 1578L2492 1629L2518 1662L2518 1667L2527 1673L2547 1705L2573 1735L2644 1782L2719 1843L2731 1854L2730 1859L2726 1854L2624 1854L2596 1859L2589 1864L2577 1863L2539 1886L2532 1886L2483 1928L2457 1960L2442 1972L2437 1984L2419 2004L2383 2062L2355 2117L2291 2221L2265 2253L2261 2264L2230 2307L2172 2376L2156 2388L2132 2420L2065 2487L2040 2507L2033 2506L2026 2518L2001 2531L1994 2538L1988 2538L1962 2558L1920 2575L1906 2585L1887 2588L1885 2593L1841 2607L1832 2607L1830 2611L1815 2611L1813 2615L1795 2620L1761 2624L1735 2633L1714 2634L1689 2643L1674 2643L1672 2647L1656 2647L1654 2652L1641 2652L1622 2661L1611 2661L1610 2665L1586 2670L1585 2674L1575 2674L1564 2682L1544 2688L1541 2693L1534 2692L1533 2697L1526 2697L1493 2719L1485 2719L1477 2729L1456 2740L1439 2760L1429 2764L1405 2788L1364 2843L1346 2876L1342 2892L1336 2895L1305 2980L1300 2981L1294 2999L1272 3039L1255 3059L1250 3071L1220 3101L1201 3113L608 3113L748 2962L764 2949L920 2772L1001 2678L1117 2532L1194 2405L1219 2325L1221 2243L1215 2211L1194 2161L1151 2104L1073 2038L905 1912L809 1829L755 1771L697 1699L647 1622L628 1583L630 1580L797 1585L847 1590L847 1587L798 1569L735 1533L733 1528L707 1514L653 1472L600 1424L535 1352L475 1270L425 1186L389 1108L383 1093L386 1087L396 1087L684 1158L753 1173L753 1170L674 1134L580 1076L474 991L427 940L366 857L311 755L270 650L239 527L286 543L291 548L583 675L593 683L642 703L651 710L749 751L711 727L672 695L663 693L564 611L496 538L458 492L427 441L392 372L388 370L362 307L340 228L331 179L324 100L325 0ZM2362 1691L2336 1707L2332 1725L2337 1750L2360 1770L2386 1770L2399 1766L2413 1749L2416 1734L2413 1716L2404 1700L2394 1691L2370 1686L2362 1691ZM2292 2306L2297 2307L2415 2510L2436 2537L2451 2568L2489 2625L2491 2636L2512 2665L2609 2826L2658 2891L2709 2945L2751 2981L2777 2998L2784 2998L2807 3014L2865 3036L2865 3039L2888 3042L2898 3048L2909 3048L2911 3052L2947 3057L2953 3065L2950 3069L2951 3113L2519 3113L2456 3087L2453 3082L2395 3047L2328 2990L2303 2961L2243 2878L2144 2701L2059 2568L2062 2560L2069 2559L2136 2501L2174 2460L2226 2400L2292 2306Z"/>
                     </svg>
                 </div>
                 <div class="min-w-0 leading-tight">
                     <div class="flex items-center gap-2">
-                        <p id="brand-name" dir="auto" class="truncate text-lg font-semibold tracking-tight text-base-content sm:text-xl">Aurora</p>
+                        <p id="brand-name" dir="auto" class="truncate text-lg font-semibold tracking-tight text-base-content sm:text-xl">Rebecca</p>
                         <span id="online-badge" hidden
                             class="badge badge-sm gap-1 border border-success/25 bg-success/15 font-medium text-success">
                             <span class="online-dot"></span>
@@ -759,7 +757,7 @@
         </div>
     </main>
 
-    <!-- Aurora application logic is inlined here at build time. -->
+    <!-- Rebecca subscription page logic is inlined here at build time. -->
     <!--AURORA_INLINE_JS-->
 </body>
 

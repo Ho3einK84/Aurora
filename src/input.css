@@ -1,10 +1,10 @@
-@import "tailwindcss";
+@import "tailwindcss" source(none);
 @source "../src/**/*.{html,js}";
 
 /* DaisyUI v5 — themes we ship, and ONLY the component CSS the page actually
    uses (the default emits every component, ~30KB of dead weight here). */
 @plugin "daisyui" {
-  themes: auroradark --default --prefersdark, auroralight, amoleddark, rebecca;
+  themes: rebecca --default --prefersdark, auroralight, auroradark, amoleddark;
   include: properties, rootcolor, rootscrollgutter, rootscrolllock, scrollbar, svg,
     badge, button, card, checkbox, link, modal;
 }
@@ -16,8 +16,8 @@
 ---------------------------------------------------------------------------- */
 @plugin "daisyui/theme" {
   name: "auroradark";
-  default: true;
-  prefersdark: true;
+  default: false;
+  prefersdark: false;
   color-scheme: dark;
 
   --color-base-100: oklch(14.5% 0.032 248);
@@ -147,8 +147,8 @@
 ---------------------------------------------------------------------------- */
 @plugin "daisyui/theme" {
   name: "rebecca";
-  default: false;
-  prefersdark: false;
+  default: true;
+  prefersdark: true;
   color-scheme: dark;
 
   --color-base-100: oklch(17.76% 0 0);

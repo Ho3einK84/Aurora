@@ -42,7 +42,7 @@ const MOCK_SW_SCRIPT =
     "self.addEventListener('activate', function (e) { e.waitUntil(self.clients.claim()); });\n" +
     "self.addEventListener('push', function (e) {\n" +
     "  var d = {}; try { d = e.data ? e.data.json() : {}; } catch (_) {}\n" +
-    "  e.waitUntil(self.registration.showNotification(d.title || 'Aurora', { body: d.body || '', dir: d.dir, lang: d.lang }));\n" +
+    "  e.waitUntil(self.registration.showNotification(d.title || 'Rebecca', { body: d.body || '', dir: d.dir, lang: d.lang }));\n" +
     "});\n";
 
 const mockPushState = {
@@ -78,24 +78,24 @@ const GB = 1024 ** 3;
 const DAY = 86400;
 
 const SAMPLE_LINKS = [
-    "vless://11111111-2222-3333-4444-555555555555@example.com:443?type=ws&security=tls&path=%2Faurora#Aurora%20Germany%20%F0%9F%87%A9%F0%9F%87%AA",
-    "vmess://eyJ2IjoiMiIsInBzIjoiQXVyb3JhIEZpbmxhbmQg8J+Hq/Cfh64iLCJhZGQiOiJleGFtcGxlLmNvbSIsInBvcnQiOiI0NDMifQ==",
-    "trojan://password123@example.com:443?security=tls&type=grpc#Aurora%20Netherlands",
-    "ss://YWVzLTI1Ni1nY206cGFzc3dvcmQ@example.com:8388#Aurora%20France",
+    "vless://11111111-2222-3333-4444-555555555555@example.com:443?type=ws&security=tls&path=%2Frebecca#Rebecca%20Germany%20%F0%9F%87%A9%F0%9F%87%AA",
+    "vmess://eyJ2IjoiMiIsInBzIjoiUmViZWNjYSBGaW5sYW5kIPCfh6vwn4euIiwiYWRkIjoiZXhhbXBsZS5jb20iLCJwb3J0IjoiNDQzIn0=",
+    "trojan://password123@example.com:443?security=tls&type=grpc#Rebecca%20Netherlands",
+    "ss://YWVzLTI1Ni1nY206cGFzc3dvcmQ@example.com:8388#Rebecca%20France",
     "vless://99999999-8888-7777-6666-555555555555@example.de:8443?security=reality#Frankfurt%20DE%20%F0%9F%87%A9%F0%9F%87%AA",
-    "ssh://alice:s3cr3t-ssh-pass@de.example.com:22#Aurora%20Germany%20%F0%9F%87%A9%F0%9F%87%AA%20SSH",
-    "awg://aGVsbG8td29ybGQ=@de.example.com:51821?address=10.0.1.2%2F32&publickey=serverAwgPubkey123%3D#Aurora%20Germany%20%F0%9F%87%A9%F0%9F%87%AA%20AWG",
-    "tg://proxy?server=tg.example.com&port=443&secret=ee112233445566778899aabbccddeeff11676f6f676c652e636f6d#Aurora%20Telegram%20Proxy",
+    "ssh://alice:s3cr3t-ssh-pass@de.example.com:22#Rebecca%20Germany%20%F0%9F%87%A9%F0%9F%87%AA%20SSH",
+    "awg://aGVsbG8td29ybGQ=@de.example.com:51821?address=10.0.1.2%2F32&publickey=serverAwgPubkey123%3D#Rebecca%20Germany%20%F0%9F%87%A9%F0%9F%87%AA%20AWG",
+    "tg://proxy?server=tg.example.com&port=443&secret=ee112233445566778899aabbccddeeff11676f6f676c652e636f6d#Rebecca%20Telegram%20Proxy",
 ];
 
 // Rebecca dev appends profile download links to the links list.
 const OV_DOWNLOADS = (port) => [
-    `http://localhost:${port}/sub/alice/ov/Aurora-Germany-OV.ovpn`,
-    `http://localhost:${port}/sub/alice/ov/Aurora-Finland-OV.ovpn`,
+    `http://localhost:${port}/sub/alice/ov/Rebecca-Germany-OV.ovpn`,
+    `http://localhost:${port}/sub/alice/ov/Rebecca-Finland-OV.ovpn`,
 ];
 
 const AWG_DOWNLOADS = (port) => [
-    `http://localhost:${port}/sub/alice/awg/Aurora-Germany-AWG.conf`,
+    `http://localhost:${port}/sub/alice/awg/Rebecca-Germany-AWG.conf`,
 ];
 
 /**
@@ -117,10 +117,10 @@ function sampleInfo(port) {
         openvpn: { downloads: OV_DOWNLOADS(port) },
         l2tp: [
             {
-                host_tag: "Aurora-Germany-L2TP",
-                host_name: "Aurora Germany 🇩🇪 L2TP",
+                host_tag: "Rebecca-Germany-L2TP",
+                host_name: "Rebecca Germany 🇩🇪 L2TP",
                 inbound_tag: "l2tp-de",
-                remark: "Aurora Germany 🇩🇪 L2TP",
+                remark: "Rebecca Germany 🇩🇪 L2TP",
                 server: "de.example.com",
                 address: "de.example.com",
                 port: 1701,
@@ -129,13 +129,13 @@ function sampleInfo(port) {
                 tunnel_port: 1702,
                 username: "alice_wonder",
                 password: "s3cr3t-l2tp-pass",
-                ipsec_psk: "aurora-shared-key",
+                ipsec_psk: "rebecca-shared-key",
             },
             {
-                host_tag: "Aurora-Finland-L2TP",
-                host_name: "Aurora Finland 🇫🇮 L2TP",
+                host_tag: "Rebecca-Finland-L2TP",
+                host_name: "Rebecca Finland 🇫🇮 L2TP",
                 inbound_tag: "l2tp-fi",
-                remark: "Aurora Finland 🇫🇮 L2TP",
+                remark: "Rebecca Finland 🇫🇮 L2TP",
                 server: "fi.example.com",
                 address: "fi.example.com",
                 port: 1701,
@@ -144,15 +144,15 @@ function sampleInfo(port) {
                 tunnel_port: 1702,
                 username: "alice_wonder",
                 password: "s3cr3t-l2tp-pass",
-                ipsec_psk: "aurora-shared-key",
+                ipsec_psk: "rebecca-shared-key",
             },
         ],
         pptp: [
             {
-                host_tag: "Aurora-Germany-PPTP",
-                host_name: "Aurora Germany 🇩🇪 PPTP",
+                host_tag: "Rebecca-Germany-PPTP",
+                host_name: "Rebecca Germany 🇩🇪 PPTP",
                 inbound_tag: "pptp-de",
-                remark: "Aurora Germany 🇩🇪 PPTP",
+                remark: "Rebecca Germany 🇩🇪 PPTP",
                 server: "de.example.com",
                 address: "de.example.com",
                 port: 1723,
@@ -161,19 +161,19 @@ function sampleInfo(port) {
             },
         ],
         wireguard: {
-            downloads: [`http://localhost:${port}/sub/alice/wg/Aurora-Germany-WG.conf`],
+            downloads: [`http://localhost:${port}/sub/alice/wg/Rebecca-Germany-WG.conf`],
             links: [
-                "wireguard://aGVsbG8td29ybGQ=@de.example.com:51820?address=10.0.0.2%2F32&publickey=serverPubkey123%3D#Aurora%20Germany%20%F0%9F%87%A9%F0%9F%87%AA%20WG",
+                "wireguard://aGVsbG8td29ybGQ=@de.example.com:51820?address=10.0.0.2%2F32&publickey=serverPubkey123%3D#Rebecca%20Germany%20%F0%9F%87%A9%F0%9F%87%AA%20WG",
             ],
             profiles: [
                 {
-                    host_tag: "Aurora-Germany-WG",
-                    host_name: "Aurora Germany 🇩🇪 WG",
+                    host_tag: "Rebecca-Germany-WG",
+                    host_name: "Rebecca Germany 🇩🇪 WG",
                     inbound_tag: "wg-de",
-                    remark: "Aurora Germany 🇩🇪 WireGuard",
-                    filename: "Aurora-Germany-WG.conf",
-                    download_url: `http://localhost:${port}/sub/alice/wg/Aurora-Germany-WG.conf`,
-                    link: "wireguard://aGVsbG8td29ybGQ=@de.example.com:51820?address=10.0.0.2%2F32&publickey=serverPubkey123%3D#Aurora%20Germany%20%F0%9F%87%A9%F0%9F%87%AA%20WG",
+                    remark: "Rebecca Germany 🇩🇪 WireGuard",
+                    filename: "Rebecca-Germany-WG.conf",
+                    download_url: `http://localhost:${port}/sub/alice/wg/Rebecca-Germany-WG.conf`,
+                    link: "wireguard://aGVsbG8td29ybGQ=@de.example.com:51820?address=10.0.0.2%2F32&publickey=serverPubkey123%3D#Rebecca%20Germany%20%F0%9F%87%A9%F0%9F%87%AA%20WG",
                     body: "[Interface]\nPrivateKey = aGVsbG8td29ybGQ=\nAddress = 10.0.0.2/32\nDNS = 1.1.1.1\n\n[Peer]\nPublicKey = serverPubkey123=\nEndpoint = de.example.com:51820\nAllowedIPs = 0.0.0.0/0",
                     server: "de.example.com",
                     address: "de.example.com",
@@ -186,10 +186,10 @@ function sampleInfo(port) {
         },
         ikev2: [
             {
-                host_tag: "Aurora-Germany-IKEv2",
-                host_name: "Aurora Germany 🇩🇪 IKEv2",
+                host_tag: "Rebecca-Germany-IKEv2",
+                host_name: "Rebecca Germany 🇩🇪 IKEv2",
                 inbound_tag: "ikev2-de",
-                remark: "Aurora Germany 🇩🇪 IKEv2",
+                remark: "Rebecca Germany 🇩🇪 IKEv2",
                 server: "de.example.com",
                 address: "de.example.com",
                 port: 500,
@@ -200,10 +200,10 @@ function sampleInfo(port) {
                 dns: ["1.1.1.1", "8.8.8.8"],
             },
             {
-                host_tag: "Aurora-Finland-IKEv2-Cert",
-                host_name: "Aurora Finland 🇫🇮 IKEv2 (Cert)",
+                host_tag: "Rebecca-Finland-IKEv2-Cert",
+                host_name: "Rebecca Finland 🇫🇮 IKEv2 (Cert)",
                 inbound_tag: "ikev2-fi-cert",
-                remark: "Aurora Finland 🇫🇮 IKEv2 (Cert)",
+                remark: "Rebecca Finland 🇫🇮 IKEv2 (Cert)",
                 server: "fi.example.com",
                 address: "fi.example.com",
                 port: 500,
@@ -214,10 +214,10 @@ function sampleInfo(port) {
         ],
         anyconnect: [
             {
-                host_tag: "Aurora-Germany-AnyConnect",
-                host_name: "Aurora Germany 🇩🇪 AnyConnect",
+                host_tag: "Rebecca-Germany-AnyConnect",
+                host_name: "Rebecca Germany 🇩🇪 AnyConnect",
                 inbound_tag: "anyconnect-de",
-                remark: "Aurora Germany 🇩🇪 AnyConnect",
+                remark: "Rebecca Germany 🇩🇪 AnyConnect",
                 server: "de.example.com",
                 address: "de.example.com",
                 port: 443,
@@ -231,17 +231,17 @@ function sampleInfo(port) {
         amneziawg: {
             downloads: AWG_DOWNLOADS(port),
             links: [
-                "awg://aGVsbG8td29ybGQ=@de.example.com:51821?address=10.0.1.2%2F32&publickey=serverAwgPubkey123%3D#Aurora%20Germany%20%F0%9F%87%A9%F0%9F%87%AA%20AWG",
+                "awg://aGVsbG8td29ybGQ=@de.example.com:51821?address=10.0.1.2%2F32&publickey=serverAwgPubkey123%3D#Rebecca%20Germany%20%F0%9F%87%A9%F0%9F%87%AA%20AWG",
             ],
             profiles: [
                 {
-                    host_tag: "Aurora-Germany-AWG",
-                    host_name: "Aurora Germany 🇩🇪 AWG",
+                    host_tag: "Rebecca-Germany-AWG",
+                    host_name: "Rebecca Germany 🇩🇪 AWG",
                     inbound_tag: "awg-de",
-                    remark: "Aurora Germany 🇩🇪 AmneziaWG",
-                    filename: "Aurora-Germany-AWG.conf",
-                    download_url: `http://localhost:${port}/sub/alice/awg/Aurora-Germany-AWG.conf`,
-                    link: "awg://aGVsbG8td29ybGQ=@de.example.com:51821?address=10.0.1.2%2F32&publickey=serverAwgPubkey123%3D#Aurora%20Germany%20%F0%9F%87%A9%F0%9F%87%AA%20AWG",
+                    remark: "Rebecca Germany 🇩🇪 AmneziaWG",
+                    filename: "Rebecca-Germany-AWG.conf",
+                    download_url: `http://localhost:${port}/sub/alice/awg/Rebecca-Germany-AWG.conf`,
+                    link: "awg://aGVsbG8td29ybGQ=@de.example.com:51821?address=10.0.1.2%2F32&publickey=serverAwgPubkey123%3D#Rebecca%20Germany%20%F0%9F%87%A9%F0%9F%87%AA%20AWG",
                     body: "[Interface]\nPrivateKey = aGVsbG8td29ybGQ=\nAddress = 10.0.1.2/32\nDNS = 1.1.1.1\nJc = 4\nJmin = 50\nJmax = 1000\nS1 = 15\nS2 = 20\nH1 = 1\nH2 = 2\nH3 = 3\nH4 = 4\n\n[Peer]\nPublicKey = serverAwgPubkey123=\nEndpoint = de.example.com:51821\nAllowedIPs = 0.0.0.0/0\nPersistentKeepalive = 25",
                     server: "de.example.com",
                     address: "de.example.com",
@@ -254,10 +254,10 @@ function sampleInfo(port) {
         },
         sstp: [
             {
-                host_tag: "Aurora-Germany-SSTP",
-                host_name: "Aurora Germany 🇩🇪 SSTP",
+                host_tag: "Rebecca-Germany-SSTP",
+                host_name: "Rebecca Germany 🇩🇪 SSTP",
                 inbound_tag: "sstp-de",
-                remark: "Aurora Germany 🇩🇪 SSTP",
+                remark: "Rebecca Germany 🇩🇪 SSTP",
                 server: "de.example.com",
                 address: "de.example.com",
                 port: 444,
@@ -271,10 +271,10 @@ function sampleInfo(port) {
         ],
         gre: [
             {
-                host_tag: "Aurora-Germany-GRE",
-                host_name: "Aurora Germany 🇩🇪 GRE",
+                host_tag: "Rebecca-Germany-GRE",
+                host_name: "Rebecca Germany 🇩🇪 GRE",
                 inbound_tag: "gre-de",
-                remark: "Aurora Germany 🇩🇪 GRE Tunnel",
+                remark: "Rebecca Germany 🇩🇪 GRE Tunnel",
                 server: "de.example.com",
                 address: "de.example.com",
                 port: 0,
@@ -309,7 +309,7 @@ function ctxFor(state, brand, profileTitle, pushMode) {
         "user.online_count": "3",
         "user.online_at": new Date(Date.now() - 2 * 60_000).toISOString(),
         "user.created_at": new Date(Date.now() - 240 * 86400_000).toISOString(),
-        "user.service_name": "Nebula 50GB",
+        "user.service_name": "Pro 50GB",
         remaining_days: "18",
         "user.subscription_url": `http://localhost:${PORT}/sub/alice`,
         usage_url: `/usage`,
@@ -528,8 +528,8 @@ createServer(async (req, res) => {
                 const startURL = url.searchParams.get("path") || subBase || "/";
                 res.writeHead(200, { "content-type": "application/manifest+json; charset=utf-8", "cache-control": "no-cache" });
                 res.end(JSON.stringify({
-                    name: "Aurora",
-                    short_name: "Aurora",
+                    name: "Rebecca",
+                    short_name: "Rebecca",
                     start_url: startURL,
                     scope: startURL,
                     display: "standalone",
@@ -651,6 +651,6 @@ createServer(async (req, res) => {
         res.end(String(e));
     }
 }).listen(PORT, () => {
-    console.log(`Aurora preview → http://localhost:${PORT}  (state=${STATE}, usage=${USAGE}, info=${INFO}, push=${PUSH})`);
+    console.log(`Rebecca default template preview → http://localhost:${PORT}  (state=${STATE}, usage=${USAGE}, info=${INFO}, push=${PUSH})`);
     console.log("Try ?state=expired|limited|disabled|on_hold|unlimited|forever|empty · ?lang=fa · ?theme=rebecca · ?brand=Nimbus · ?title=YourBrand · ?info=empty|off · ?push=on|off|legacy");
 });

@@ -8,7 +8,7 @@
 
      node scripts/serve.mjs                      active user on :8787
      STATE=expired node scripts/serve.mjs        other states
-     open http://localhost:8787/?state=limited&lang=fa&theme=nord&brand=Nimbus
+     open http://localhost:8787/?state=limited&lang=fa&theme=rebecca&brand=Nimbus
 
    States: active | limited | expired | disabled | on_hold | unlimited | forever | empty
    The /usage route serves a sample 30-day history (USAGE=json|html|empty)
@@ -652,5 +652,5 @@ createServer(async (req, res) => {
     }
 }).listen(PORT, () => {
     console.log(`Aurora preview → http://localhost:${PORT}  (state=${STATE}, usage=${USAGE}, info=${INFO}, push=${PUSH})`);
-    console.log("Try ?state=expired|limited|disabled|on_hold|unlimited|forever|empty · ?lang=fa · ?theme=nord · ?brand=Nimbus · ?title=YourBrand · ?info=empty|off · ?push=on|off|legacy");
+    console.log("Try ?state=expired|limited|disabled|on_hold|unlimited|forever|empty · ?lang=fa · ?theme=rebecca · ?brand=Nimbus · ?title=YourBrand · ?info=empty|off · ?push=on|off|legacy");
 });

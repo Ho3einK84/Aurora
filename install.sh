@@ -157,7 +157,7 @@ print_banner() {
 
   log_blank
   hr
-  log_line "${C_MAGENTA}${C_BOLD}   🌌 Aurora v4.3.0 — Subscription Template for Rebecca${C_RESET}"
+  log_line "${C_MAGENTA}${C_BOLD}   🌌 Aurora v4.3.1 — Subscription Template for Rebecca${C_RESET}"
   log_line "${C_DIM}   Installer v${SCRIPT_VERSION} · Single-File · Zero External Requests${C_RESET}"
   hr
   if [[ $IS_INSTALLED -eq 1 ]]; then
@@ -287,7 +287,7 @@ elif support_url:
 
 if default_lang in ("en", "fa", "ru", "zh"):
     brand_data["defaultLang"] = default_lang
-if default_theme in ("auroradark", "amoleddark", "auroralight", "nord"):
+if default_theme in ("auroradark", "amoleddark", "auroralight", "rebecca"):
     brand_data["defaultTheme"] = default_theme
 
 if logo_url == "-" or logo_url.lower() == "none":
@@ -319,7 +319,7 @@ if brand_name:
     content = re.sub(r'(id="splash-brand"[^>]*>)[^<]+(</p>)', lambda m: f"{m.group(1)}{esc}{m.group(2)}", content)
     content = re.sub(r'(id="brand-name"[^>]*>)[^<]+(</p>)', lambda m: f"{m.group(1)}{esc}{m.group(2)}", content)
 
-if default_theme in ("auroradark", "amoleddark", "auroralight", "nord"):
+if default_theme in ("auroradark", "amoleddark", "auroralight", "rebecca"):
     content = re.sub(r'(<meta\s+name="aurora-default-theme"\s+content=")[^"]*(")', rf"\g<1>{default_theme}\g<2>", content)
     content = re.sub(r'(<html\b[^>]*\s+data-theme=")[^"]*(")', rf"\g<1>{default_theme}\g<2>", content)
 
@@ -403,14 +403,14 @@ prompt_branding_wizard() {
   esac
 
   log_blank
-  log_line "  ${C_BOLD}Default Theme:${C_RESET} 1) Aurora Dark  2) Amoled Dark  3) Aurora Light  4) Nord"
+  log_line "  ${C_BOLD}Default Theme:${C_RESET} 1) Aurora Dark  2) Amoled Dark  3) Aurora Light  4) Rebecca"
   read_input "Theme (1-4 or name)" theme_input "$CUR_THEME"
   local default_theme="$CUR_THEME"
   case "$theme_input" in
     1|auroradark|dark) default_theme="auroradark" ;;
     2|amoled*|AMOLED*) default_theme="amoleddark" ;;
     3|auroralight|light*) default_theme="auroralight" ;;
-    4|nord*|NORD*) default_theme="nord" ;;
+    4|rebecca*|REBECCA*) default_theme="rebecca" ;;
   esac
 
   log_blank
@@ -512,7 +512,7 @@ main() {
         log_line "  -b, --brand <name>        Set brand name"
         log_line "  -s, --support <url>       Set Telegram/support URL ('-' to clear)"
         log_line "  -l, --lang <code>         Set default language (en, fa, ru, zh)"
-        log_line "  -m, --theme <theme>       Set default theme (auroradark, amoleddark, auroralight, nord)"
+        log_line "  -m, --theme <theme>       Set default theme (auroradark, amoleddark, auroralight, rebecca)"
         log_line "      --logo <url>          Set header logo image URL ('-' to clear)"
         log_line "      --announce <text>     Set announcement banner text ('-' to clear)"
         log_line "      --server-breakdown <0|1>  Enable (1) or disable (0) usage by server breakdown"

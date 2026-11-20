@@ -32,7 +32,7 @@
             try {
                 var doc = document.documentElement;
                 var q = new URLSearchParams(location.search);
-                var themes = ["auroradark", "amoleddark", "auroralight", "nord"];
+                var themes = ["auroradark", "amoleddark", "auroralight", "rebecca"];
                 var metaTheme = (document.querySelector('meta[name="aurora-default-theme"]') || {}).content;
                 var brandTheme = (window.AURORA_BRAND && (window.AURORA_BRAND.defaultTheme || window.AURORA_BRAND.theme)) || "";
                 var defTheme = brandTheme || metaTheme || doc.getAttribute("data-theme") || "auroradark";
@@ -75,7 +75,7 @@
     </script>
 
     <!--
-      Fully self-contained: CSS, web fonts (Inter variable + Arad), Phosphor
+      Fully self-contained: CSS, web fonts (Inter variable + Dastkhat NoEn variable), Phosphor
       icons, the app bundle and the lazy QR module are ALL inlined at build
       time. The page makes no external requests, so it renders fully even
       where CDNs are blocked.

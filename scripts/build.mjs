@@ -8,7 +8,7 @@
      • bundles the QR module SEPARATELY — embedded as an inert base64 blob and
        only decoded/imported the first time a QR modal opens
      • inlines the built Tailwind v4 + DaisyUI v5 CSS
-     • inlines web fonts: Inter variable (latin) + Arad 400/700/800, base64
+     • inlines web fonts: Inter variable (latin) + Dastkhat NoEn variable (farsi), base64
      • inlines the Phosphor icons actually used, as CSS mask data-URIs
      • inlines apps.json as a plain (hand-editable) JSON literal
 
@@ -205,15 +205,13 @@ const fontFace = (family, weight, file) => {
         `font-display:swap;src:url(data:font/woff2;base64,${b64}) format('woff2')}`;
 };
 
-// Inter ships as ONE variable file covering wght 100–900 (~48KB vs ~120KB of
-// static cuts). Arad (farsi) ships the four weights used across the UI so
-// medium (500), semibold (600) and bold (700) headings render faithfully.
+// Inter ships as ONE variable file covering wght 100–900 (~47KB vs ~120KB of
+// static cuts). Dastkhat NoEn ships as ONE variable file covering wght 100–900
+// (~92KB, SIL OFL 1.1) with Latin letters stripped so English tokens inside
+// RTL views cleanly fall back to Inter.
 const fontCss = [
     fontFace("Inter", "100 900", "node_modules/@fontsource-variable/inter/files/inter-latin-wght-normal.woff2"),
-    fontFace("Arad", 400, "assets/fonts/Arad-Regular.woff2"),
-    fontFace("Arad", 500, "assets/fonts/Arad-Medium.woff2"),
-    fontFace("Arad", 600, "assets/fonts/Arad-SemiBold.woff2"),
-    fontFace("Arad", 700, "assets/fonts/Arad-Bold.woff2"),
+    fontFace("Dastkhat NoEn", "100 900", "assets/fonts/DastkhatNoEn-Variable.woff2"),
 ].join("\n");
 
 /* ------------- Phosphor icons → CSS mask data-URIs (used glyphs only) ----- */

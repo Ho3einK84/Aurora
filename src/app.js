@@ -29,7 +29,7 @@ const THEMES = [
     { id: "auroradark", label: "%brand% Dark", swatch: "linear-gradient(135deg,#0d1522,#2ad0e6,#2de0ba)", hex: "#080f1b" },
     { id: "amoleddark", label: "Amoled Dark", swatch: "linear-gradient(135deg,#000000,#38bdf8,#64748b)", hex: "#000000" },
     { id: "auroralight", label: "%brand% Light", swatch: "linear-gradient(135deg,#e0f2fe,#0891b2,#3b82f6)", hex: "#eef3f8" },
-    { id: "nord", label: "Nord", swatch: "linear-gradient(135deg,#2e3440,#88c0d0,#81a1c1)", hex: "#212732" },
+    { id: "rebecca", label: "Rebecca", swatch: "linear-gradient(135deg,#111111,#242424 48%,#2563eb)", hex: "#101010" },
 ];
 
 /* ------------------------------------------------------------ data island */
@@ -938,7 +938,7 @@ function wireOffline() {
 
 /* ---- system preference watchers ---- */
 
-/** Watch for OS color-scheme changes and follow automatically (unless user picked or brand pinned AMOLED/Nord). */
+/** Watch for OS color-scheme changes and follow automatically (unless user picked or brand pinned AMOLED/Rebecca). */
 function wireThemeWatcher() {
     if (typeof matchMedia !== "function") return;
     try {
@@ -947,7 +947,7 @@ function wireThemeWatcher() {
             const brand = window.AURORA_BRAND || {};
             const metaTheme = (document.querySelector('meta[name="aurora-default-theme"]') || {}).content || "";
             const def = brand.defaultTheme || brand.theme || metaTheme;
-            if (def === "amoleddark" || def === "nord") return;
+            if (def === "amoleddark" || def === "rebecca") return;
             setTheme(e.matches ? "auroralight" : "auroradark", false);
             renderAllDynamic();
         });

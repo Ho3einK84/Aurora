@@ -37,7 +37,16 @@ export function fmtBytes(bytes, lang) {
     const units = lang === "fa" ? UNITS_FA : UNITS_EN;
     let i = 0;
     while (b >= 1024 && i < units.length - 1) { b /= 1024; i++; }
-    const value = i === 0 ? String(Math.round(b)) : b.toFixed(b >= 100 ? 0 : b >= 10 ? 1 : 2);
+    let dec = i === 0 ? 0 : b >= 100 ? 0 : b >= 10 ? 1 : 2;
+    let rounded = Number(b.toFixed(dec));
+    if (rounded >= 1024 && i < units.length - 1) {
+        b /= 1024;
+        i++;
+        dec = b >= 100 ? 0 : b >= 10 ? 1 : 2;
+        rounded = Number(b.toFixed(dec));
+    }
+    dec = i === 0 ? 0 : rounded >= 100 ? 0 : rounded >= 10 ? 1 : 2;
+    const value = b.toFixed(dec);
     return { value, unit: units[i], num: parseFloat(value) };
 }
 
@@ -92,6 +101,76 @@ function safeDecodeURIComponent(s) {
     catch (_) { return String(s); }
 }
 
+/**
+ * Split a proxy/tunnel URI into scheme, userinfo, host, port, pathname, and query
+ * WITHOUT feeding raw unencoded slashes/plus signs inside base64 keys into `new URL()`,
+ * which would prematurely terminate the authority before `@`.
+ */
+export function parseProxyUriParts(raw) {
+    const s = String(raw || "").trim();
+    const m = /^([a-z][a-z0-9+.-]*):\/\/(.*)$/i.exec(s);
+    if (!m) return null;
+    const scheme = m[1].toLowerCase();
+    let rest = m[2];
+
+    let fragment = "";
+    const hashIdx = rest.indexOf("#");
+    if (hashIdx >= 0) {
+        fragment = rest.slice(hashIdx + 1);
+        rest = rest.slice(0, hashIdx);
+    }
+
+    let query = "";
+    const qIdx = rest.indexOf("?");
+    if (qIdx >= 0) {
+        query = rest.slice(qIdx + 1);
+        rest = rest.slice(0, qIdx);
+    }
+
+    const params = new URLSearchParams(query);
+    const getParam = (name) => {
+        const direct = params.get(name);
+        if (direct !== null && direct !== "") return direct;
+        const target = name.toLowerCase();
+        for (const [k, v] of params.entries()) {
+            if (k.toLowerCase() === target && v !== "") return v;
+        }
+        return "";
+    };
+
+    const authMatch = /^(.*)@(\[[0-9a-fA-F:.]+\]|[^/:@\s]+)(?::(\d+))?(\/[^@]*)?$/.exec(rest);
+    if (authMatch) {
+        return {
+            scheme,
+            hasAt: true,
+            userinfo: authMatch[1],
+            host: authMatch[2] || "",
+            port: authMatch[3] || "",
+            pathname: authMatch[4] || "",
+            query,
+            fragment,
+            rest,
+            params,
+            getParam,
+        };
+    }
+
+    const hostMatch = /^(\[[0-9a-fA-F:.]+\]|[^/:@\s]+)(?::(\d+))?(\/.*)?$/.exec(rest);
+    return {
+        scheme,
+        hasAt: false,
+        userinfo: "",
+        host: hostMatch ? (hostMatch[1] || "") : "",
+        port: hostMatch ? (hostMatch[2] || "") : "",
+        pathname: hostMatch ? (hostMatch[3] || "") : "",
+        query,
+        fragment,
+        rest,
+        params,
+        getParam,
+    };
+}
+
 const TRANSPORT_MAP = {
     tcp: "TCP", ws: "WS", websocket: "WS", grpc: "gRPC", gun: "gRPC",
     xhttp: "XHTTP", splithttp: "XHTTP", httpupgrade: "HTTPUpgrade",
@@ -108,28 +187,20 @@ export function generateWgConf(raw) {
     if (!/^(?:wireguard|amneziawg|awg):\/\//i.test(s)) return null;
 
     try {
-        const u = new URL(s.replace(/^(?:amneziawg|awg):\/\//i, "wireguard://"));
-        const p = u.searchParams;
-        const getParam = (name) => {
-            const val = p.get(name);
-            if (val !== null && val !== "") return val;
-            const target = name.toLowerCase();
-            for (const [k, v] of p.entries()) {
-                if (k.toLowerCase() === target) return v;
-            }
-            return "";
-        };
+        const parts = parseProxyUriParts(s);
+        if (!parts) return null;
+        const { getParam } = parts;
 
-        const privateKey = (safeDecodeURIComponent(u.username) || getParam("privatekey")).trim();
+        const privateKey = (safeDecodeURIComponent(parts.userinfo) || getParam("privatekey")).trim();
         const publicKey = getParam("publickey").trim();
         const address = getParam("address").trim() || getParam("ip").trim();
         if (!privateKey && !publicKey) return null;
 
-        let host = u.hostname;
+        let host = parts.host;
         if (host && host.includes(":") && !host.startsWith("[")) host = `[${host}]`;
         let endpoint = getParam("endpoint").trim();
         if (!endpoint && host) {
-            endpoint = u.port ? `${host}:${u.port}` : host;
+            endpoint = parts.port ? `${host}:${parts.port}` : host;
         }
 
         const lines = ["[Interface]"];
@@ -241,20 +312,19 @@ export function parseConfigMeta(uri) {
     }
 
     try {
-        // Normalize custom scheme to http:// for standard URL parsing
-        const normUrl = new URL("http://" + raw.slice(schemeMatch[0].length));
-        const p = normUrl.searchParams;
-        const getP = (k) => p.get(k) || p.get(k.toLowerCase()) || "";
+        const parts = parseProxyUriParts(raw);
+        if (!parts) return null;
+        const getP = parts.getParam;
 
-        let server = normUrl.hostname || "";
-        let port = normUrl.port || "";
-        let id = safeDecodeURIComponent(normUrl.username || "");
-        const pass = safeDecodeURIComponent(normUrl.password || "");
+        let server = parts.host || "";
+        let port = parts.port || "";
+        let id = "";
 
-        // Shadowsocks base64 userinfo or full host:port (handles both SIP002 and legacy ss://BASE64)
-        if (scheme === "ss" && !port && (!id || !server.includes("."))) {
+        // Shadowsocks SIP002 (`ss://userinfo@host:port`) and legacy (`ss://BASE64`)
+        if (scheme === "ss" && !parts.hasAt) {
             try {
-                const decoded = b64ToUtf8(raw.replace(/^ss:\/\//i, "").split("#")[0].split("?")[0]);
+                const b64Payload = parts.rest.replace(/\/+$/, "");
+                const decoded = b64ToUtf8(b64Payload);
                 const atIdx = decoded.lastIndexOf("@");
                 if (atIdx > 0) {
                     id = decoded.slice(0, atIdx);
@@ -265,16 +335,31 @@ export function parseConfigMeta(uri) {
                         port = hp.slice(colon + 1);
                     } else {
                         server = hp;
+                        port = "";
                     }
                 }
             } catch (_) { /* keep parsed */ }
-        } else if (scheme === "ss" && id && !pass && !id.includes(":")) {
-            try {
-                const decUser = b64ToUtf8(id);
-                if (decUser.includes(":")) id = decUser;
-            } catch (_) { /* keep raw */ }
-        } else if (pass) {
-            id = `${id}:${pass}`;
+        } else if (scheme === "ss" && parts.userinfo) {
+            const decRaw = safeDecodeURIComponent(parts.userinfo);
+            if (!decRaw.includes(":")) {
+                try {
+                    const decB64 = b64ToUtf8(decRaw);
+                    id = decB64.includes(":") ? decB64 : decRaw;
+                } catch (_) {
+                    id = decRaw;
+                }
+            } else {
+                id = decRaw;
+            }
+        } else if (parts.userinfo) {
+            const colonIdx = parts.userinfo.indexOf(":");
+            if (colonIdx >= 0) {
+                const u = safeDecodeURIComponent(parts.userinfo.slice(0, colonIdx));
+                const pw = safeDecodeURIComponent(parts.userinfo.slice(colonIdx + 1));
+                id = pw ? `${u}:${pw}` : u;
+            } else {
+                id = safeDecodeURIComponent(parts.userinfo);
+            }
         }
 
         const rawType = (getP("type") || getP("net") || (
@@ -295,7 +380,7 @@ export function parseConfigMeta(uri) {
 
         const sni = getP("sni") || getP("peer") || "";
         const host = getP("host") || getP("obfsParam") || "";
-        const path = getP("path") || getP("serviceName") || "";
+        const path = getP("path") || getP("serviceName") || (parts.pathname && parts.pathname !== "/" ? parts.pathname : "");
         const flow = getP("flow") || "";
         const fp = getP("fp") || "";
         const alpn = getP("alpn") || "";
@@ -370,12 +455,14 @@ export function downloadTextFile(text, filename, mimeType = "application/x-wireg
 /** Sanitize file name for downloading configurations. */
 export function safeFileName(name, fallback = "config", ext = ".conf") {
     let clean = String(name || fallback)
-        .replace(/[\\/:*?"<>|]+/g, "-")
+        .replace(/[\u0000-\u001f\u007f\\/:*?"<>|]+/g, "-")
         .replace(/\s+/g, "-")
-        .replace(/^-+|-+$/g, "")
+        .replace(/^[.-]+|[-.]+$/g, "")
         .trim();
     if (!clean) clean = fallback;
-    const re = new RegExp(`\\${ext}$`, "i");
+    if (!ext) return clean;
+    const escExt = ext.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    const re = new RegExp(`${escExt}$`, "i");
     return re.test(clean) ? clean : `${clean}${ext}`;
 }
 

@@ -41,16 +41,19 @@ $base = rtrim($config['panel_url'], '/');
 $scriptDir = rtrim(str_replace('\\', '/', dirname($_SERVER['SCRIPT_NAME'] ?? '')), '/');
 $requestUri = $_SERVER['REQUEST_URI'] ?? '/';
 $forwardPath = $requestUri;
-if ($scriptDir !== '' && $scriptDir !== '/' && strpos($forwardPath, $scriptDir) === 0) {
-    $forwardPath = substr($forwardPath, strlen($scriptDir));
-    if ($forwardPath === '' || $forwardPath[0] !== '/') {
-        $forwardPath = '/' . $forwardPath;
+if ($scriptDir !== '' && $scriptDir !== '/') {
+    $nextChar = substr($forwardPath, strlen($scriptDir), 1);
+    if (strpos($forwardPath, $scriptDir) === 0 && ($nextChar === '' || $nextChar === '/' || $nextChar === '?')) {
+        $forwardPath = substr($forwardPath, strlen($scriptDir));
+        if ($forwardPath === '' || $forwardPath[0] === '?') {
+            $forwardPath = '/' . $forwardPath;
+        }
     }
 }
 $targetUrl = $base . $forwardPath;
 
 if (!filter_var($targetUrl, FILTER_VALIDATE_URL)) {
-    abort(500, 'Invalid target panel URL. Check panel_url in config.php.');
+    abort(500, 'Invalid proxy configuration. Check panel_url in config.php.');
 }
 
 $ch = curl_init();
@@ -70,6 +73,7 @@ curl_setopt_array($ch, [
     CURLOPT_SSL_VERIFYPEER => $verify,
     CURLOPT_SSL_VERIFYHOST => $verify ? 2 : 0,
     CURLOPT_HEADER => false,
+    CURLOPT_ENCODING => '', // negotiate & decode upstream compression cleanly
 ]);
 
 /* ---------------------------------------------------------- forward body */
@@ -106,7 +110,7 @@ foreach ($clientHeaders as $name => $value) {
     if (in_array($lower, HOP_BY_HOP, true)) {
         continue;
     }
-    if (in_array($lower, ['host', 'content-length', 'expect'], true)) {
+    if (in_array($lower, ['host', 'content-length', 'accept-encoding', 'expect'], true)) {
         continue;
     }
     $forwardHeaders[] = "$name: $value";
@@ -123,7 +127,19 @@ if (isset($_SERVER['HTTP_X_REAL_IP'])) {
     $forwardHeaders[] = 'X-Real-IP: ' . $_SERVER['HTTP_X_REAL_IP'];
 }
 
-$proto = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? 'https' : 'http';
+$proto = 'http';
+if (!empty($_SERVER['HTTPS']) && strtolower((string) $_SERVER['HTTPS']) !== 'off') {
+    $proto = 'https';
+} elseif (!empty($_SERVER['HTTP_X_FORWARDED_PROTO'])) {
+    $firstProto = strtolower(trim(explode(',', (string) $_SERVER['HTTP_X_FORWARDED_PROTO'])[0]));
+    if ($firstProto === 'https') {
+        $proto = 'https';
+    }
+} elseif (!empty($_SERVER['HTTP_CF_VISITOR']) && strpos((string) $_SERVER['HTTP_CF_VISITOR'], '"https"') !== false) {
+    $proto = 'https';
+} elseif (!empty($_SERVER['REQUEST_SCHEME']) && strtolower((string) $_SERVER['REQUEST_SCHEME']) === 'https') {
+    $proto = 'https';
+}
 $forwardHeaders[] = 'X-Forwarded-Proto: ' . $proto;
 $forwardHeaders[] = 'X-Forwarded-Host: ' . ($_SERVER['HTTP_HOST'] ?? '');
 
@@ -133,7 +149,15 @@ curl_setopt($ch, CURLOPT_HTTPHEADER, $forwardHeaders);
 
 $responseHeaders = [];
 curl_setopt($ch, CURLOPT_HEADERFUNCTION, function ($curl, $headerLine) use (&$responseHeaders) {
-    $responseHeaders[] = $headerLine;
+    $trimmed = rtrim($headerLine, "\r\n");
+    if (preg_match('/^HTTP\/\d(?:\.\d)?\s+\d/', $trimmed)) {
+        // Discard intermediate status header blocks (e.g. 100 Continue).
+        $responseHeaders = [];
+        return strlen($headerLine);
+    }
+    if ($trimmed !== '') {
+        $responseHeaders[] = $trimmed;
+    }
     return strlen($headerLine);
 });
 
@@ -146,7 +170,9 @@ $errno = curl_errno($ch);
 curl_close($ch);
 
 if ($errno) {
-    abort(500, "Proxy error ($errno): $error");
+    // Log detailed cURL diagnostics server-side; never expose the real backend panel host/IP to visitors.
+    error_log("Aurora hosting proxy cURL error ($errno): $error");
+    abort(502, 'Upstream service is temporarily unavailable. Please try again shortly.');
 }
 
 http_response_code($statusCode);
@@ -156,13 +182,6 @@ http_response_code($statusCode);
 $incomingHost = $_SERVER['HTTP_HOST'] ?? '';
 
 foreach ($responseHeaders as $headerLine) {
-    $headerLine = rtrim($headerLine, "\r\n");
-
-    // cURL includes the status line in headers; skip it because we already set one.
-    if ($headerLine === '' || preg_match('/^HTTP\/\d(?:\.\d)?\s+\d/', $headerLine)) {
-        continue;
-    }
-
     $colon = strpos($headerLine, ':');
     if ($colon === false) {
         continue;
@@ -172,7 +191,7 @@ foreach ($responseHeaders as $headerLine) {
     $value = ltrim(substr($headerLine, $colon + 1));
     $lower = strtolower($name);
 
-    if (in_array($lower, HOP_BY_HOP, true)) {
+    if (in_array($lower, HOP_BY_HOP, true) || in_array($lower, ['content-length', 'content-encoding'], true)) {
         continue;
     }
 

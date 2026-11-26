@@ -30,7 +30,7 @@ export function parseLinks(rawText) {
         .split(/\r?\n/)
         .map((s) => decodeHtmlEntities(s.trim()))
         .filter((s) => {
-            if (!s || !/^[a-z][a-z0-9+.-]*:/i.test(s)) return false;
+            if (!s || s.includes("{{") || s.includes("{%") || !/^[a-z][a-z0-9+.-]*:/i.test(s)) return false;
             const scheme = s.slice(0, s.indexOf(":")).toLowerCase();
             return scheme !== "javascript" && scheme !== "data" && scheme !== "vbscript";
         })
@@ -123,10 +123,13 @@ const COUNTRIES = {
 // Name/alias needles → code, longest first so "Iran" can't shadow "Ireland".
 const COUNTRY_NEEDLES = (() => {
     const extra = {
-        "united states": "US", usa: "US", america: "US",
-        "united kingdom": "GB", uk: "GB", england: "GB", britain: "GB",
+        "united states": "US", unitedstates: "US", usa: "US", america: "US",
+        "united kingdom": "GB", unitedkingdom: "GB", uk: "GB", england: "GB", britain: "GB",
         holland: "NL", deutschland: "DE", "türkiye": "TR", turkiye: "TR",
-        "south korea": "KR", korea: "KR", "hong kong": "HK", emirates: "AE", uae: "AE",
+        "south korea": "KR", southkorea: "KR", korea: "KR",
+        "hong kong": "HK", hongkong: "HK",
+        "saudi arabia": "SA", saudiarabia: "SA",
+        emirates: "AE", uae: "AE",
     };
     const map = new Map();
     for (const [code, name] of Object.entries(COUNTRIES)) map.set(name.toLowerCase(), code);
@@ -134,27 +137,49 @@ const COUNTRY_NEEDLES = (() => {
     return [...map.entries()].sort((a, b) => b[0].length - a[0].length);
 })();
 
+// Unambiguous uppercase 2-letter server country tokens (excludes common English words & protocol codes like IN, IT, IS, NO, WS, SS, TR, WG).
+const SAFE_ISO_RE = /(?:^|[^A-Za-z0-9])(DE|NL|FI|US|UK|GB|FR|SE|DK|CH|CA|AU|JP|SG|KR|HK|TW|IR|AE|QA|SA|RU|UA|PL|RO|CZ|ES|PT|BR|KZ|AZ|GE|LT|LV|EE|IE)(?=$|[^A-Za-z0-9])/;
+
 function codeFromFlag(str) {
-    const cps = Array.from(String(str))
-        .map((c) => c.codePointAt(0))
-        .filter((cp) => cp >= 0x1f1e6 && cp <= 0x1f1ff);
-    if (cps.length < 2) return null;
-    return String.fromCharCode(cps[0] - 0x1f1e6 + 65) + String.fromCharCode(cps[1] - 0x1f1e6 + 65);
+    const m = /([\u{1F1E6}-\u{1F1FF}])([\u{1F1E6}-\u{1F1FF}])/u.exec(String(str || ""));
+    if (!m) return null;
+    const cp0 = m[1].codePointAt(0);
+    const cp1 = m[2].codePointAt(0);
+    return String.fromCharCode(cp0 - 0x1f1e6 + 65) + String.fromCharCode(cp1 - 0x1f1e6 + 65);
 }
 
 const flagOf = (code) =>
     code.replace(/[A-Z]/g, (c) => String.fromCodePoint(0x1f1e6 + c.charCodeAt(0) - 65));
 
-/** Detect the server country from a remark: flag emoji first, then name/alias. */
+/** Normalize fancy mathematical Unicode, BiDi marks, Persian/Arabic digits & Yeh/Kaf for search. */
+export function normSearch(str) {
+    return String(str || "")
+        .normalize("NFKC")
+        .replace(/[\u200b-\u200f\u202a-\u202e\u2066-\u2069\ufe0e\ufe0f]/g, "")
+        .toLowerCase()
+        .replace(/[۰-۹]/g, (d) => "۰۱۲۳۴۵۶۷۸۹".indexOf(d))
+        .replace(/[٠-٩]/g, (d) => "٠١٢٣٤٥٦٧٨٩".indexOf(d))
+        .replace(/ي/g, "ی")
+        .replace(/ك/g, "ک");
+}
+
+/** Detect the server country from a remark: flag emoji first, then name/alias, then safe uppercase ISO code. */
 export function countryOf(label) {
-    const fromFlag = codeFromFlag(label);
+    const raw = String(label || "");
+    const fromFlag = codeFromFlag(raw);
     if (fromFlag) return { code: fromFlag, name: COUNTRIES[fromFlag] || fromFlag, flag: flagOf(fromFlag) };
-    const low = String(label).toLowerCase();
+    const norm = raw.normalize("NFKC");
+    const low = norm.toLowerCase();
     for (const [needle, code] of COUNTRY_NEEDLES) {
         const esc = needle.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
         if (new RegExp("(^|[^a-z])" + esc + "([^a-z]|$)", "i").test(low)) {
             return { code, name: COUNTRIES[code] || code, flag: flagOf(code) };
         }
+    }
+    const isoMatch = SAFE_ISO_RE.exec(norm);
+    if (isoMatch) {
+        const code = isoMatch[1] === "UK" ? "GB" : isoMatch[1];
+        return { code, name: COUNTRIES[code] || code, flag: flagOf(code) };
     }
     return null;
 }
@@ -178,14 +203,18 @@ export function mountConfigs(deps) {
             links.push(link);
         }
     });
-    const rows = links.map((link, i) => ({
-        link,
-        i,
-        name: configLabel(link) || `${t("config")} ${i + 1}`,
-        badge: protocolBadge(link),
-        proto: protocolOf(link),
-        meta: parseConfigMeta(link),
-    }));
+    const rows = links.map((link, i) => {
+        const name = configLabel(link) || `${t("config")} ${i + 1}`;
+        return {
+            link,
+            i,
+            name,
+            country: countryOf(name),
+            badge: protocolBadge(link),
+            proto: protocolOf(link),
+            meta: parseConfigMeta(link),
+        };
+    });
 
     let search = "";
     let activeProto = "all";
@@ -255,7 +284,9 @@ export function mountConfigs(deps) {
         if (copyBtn) {
             copyBtn.addEventListener("click", async (e) => {
                 if (!activeModalRow) return;
-                if (await copyText(activeModalRow.link)) flashCopied(e.currentTarget, t);
+                const btn = e.currentTarget;
+                if (await copyText(activeModalRow.link)) flashCopied(btn, t);
+                else toast(t("copy_failed"), "warn");
             });
         }
         if (qrBtn) {
@@ -309,6 +340,8 @@ export function mountConfigs(deps) {
                 if (await copyText(btn.getAttribute("data-cfg-copy"))) {
                     toast(t("copied"));
                     flashCopyIcon(btn);
+                } else {
+                    toast(t("copy_failed"), "warn");
                 }
             });
         });
@@ -321,24 +354,27 @@ export function mountConfigs(deps) {
         if (!cfgModal.open) cfgModal.showModal();
     }
 
-    function normSearch(str) {
-        return String(str || "")
-            .toLowerCase()
-            .replace(/[۰-۹]/g, (d) => "۰۱۲۳۴۵۶۷۸۹".indexOf(d))
-            .replace(/[٠-٩]/g, (d) => "٠١٢٣٤٥٦٧٨٩".indexOf(d))
-            .replace(/ي/g, "ی")
-            .replace(/ك/g, "ک");
-    }
-
     const filtered = () => {
         const q = normSearch(search.trim());
+        const curLang = lang();
         return rows
             .filter((r) => activeProto === "all" || r.proto === activeProto)
-            .filter((r) => !q ||
-                normSearch(r.name).includes(q) ||
-                normSearch(r.proto).includes(q) ||
-                normSearch(r.meta && r.meta.summary).includes(q) ||
-                normSearch(r.link).includes(q))
+            .filter((r) => {
+                if (!q) return true;
+                if (
+                    normSearch(r.name).includes(q) ||
+                    normSearch(r.proto).includes(q) ||
+                    normSearch(r.meta && r.meta.summary).includes(q) ||
+                    normSearch(r.link).includes(q)
+                ) {
+                    return true;
+                }
+                if (r.country) {
+                    if (normSearch(r.country.name).includes(q)) return true;
+                    if (normSearch(locCountry(r.country.code, r.country.name, curLang)).includes(q)) return true;
+                }
+                return false;
+            })
             .sort((a, b) => {
                 const pa = isPinned(a) ? 0 : 1;
                 const pb = isPinned(b) ? 0 : 1;
@@ -435,6 +471,8 @@ export function mountConfigs(deps) {
             if (await copyText(r.link)) {
                 flashCopyIcon(btn);
                 toast(t("copied"));
+            } else {
+                toast(t("copy_failed"), "warn");
             }
         });
         const shareBtn = el.querySelector('[data-act="share"]');
@@ -451,22 +489,12 @@ export function mountConfigs(deps) {
             dlBtn.addEventListener("click", (e) => {
                 e.stopPropagation();
                 const fallbackName = /\/awg\/|\bawg\b|amnezia/i.test(r.link) ? "amneziawg" : "wireguard";
-                if (/^https?:\/\//i.test(r.link) && /\.conf(?:[?#]|$)/i.test(r.link)) {
-                    const a = document.createElement("a");
-                    a.href = r.link;
-                    a.download = safeFileName(r.name, fallbackName, ".conf");
-                    document.body.appendChild(a);
-                    a.click();
-                    document.body.removeChild(a);
-                    toast(t("export_done"));
-                    return;
-                }
                 const confText = generateWgConf(r.link);
                 if (confText) {
                     downloadTextFile(confText, safeFileName(r.name, fallbackName, ".conf"));
                     toast(t("export_done"));
                 } else {
-                    toast(t("qr_error"));
+                    toast(t("qr_error"), "error");
                 }
             });
         }
@@ -526,7 +554,7 @@ export function mountConfigs(deps) {
         if (grouped) {
             const groups = new Map();
             visible.forEach((r) => {
-                const c = countryOf(r.name);
+                const c = r.country;
                 const key = c ? c.code : "_other";
                 if (!groups.has(key)) {
                     const dispName = c ? locCountry(c.code, c.name, lang()) : t("country_other");
@@ -640,64 +668,63 @@ export function mountConfigs(deps) {
 
     $("#copy-selected").addEventListener("click", async (e) => {
         if (!selected.size) return;
+        const btn = e.currentTarget;
         const list = rows.filter((r) => selected.has(r.link)).map((r) => r.link);
         if (await copyText(list.join("\n"))) {
-            flashCopied(e.currentTarget, t);
+            flashCopied(btn, t);
             toast(t("copied"));
+        } else {
+            toast(t("copy_failed"), "warn");
         }
     });
 
-    const sanitizeFilename = (name) => String(name || "").replace(/[/\\?%*:|"<>]+/g, "_").trim() || "rebecca";
-
     $("#config-export").addEventListener("click", () => {
         if (!rows.length) return;
-        const blob = new Blob([links.join("\n") + "\n"], { type: "text/plain;charset=utf-8" });
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement("a");
-        a.href = url;
-        a.download = `${sanitizeFilename(deps.username)}-configs.txt`;
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
-        setTimeout(() => URL.revokeObjectURL(url), 1000);
+        const fname = safeFileName(`${deps.username || "rebecca"}-configs`, "rebecca-configs", ".txt");
+        downloadTextFile(links.join("\n") + "\n", fname, "text/plain;charset=utf-8");
         toast(t("export_done"));
     });
 
     $("#config-export-json").addEventListener("click", () => {
         if (!rows.length) return;
         const data = rows.map((r) => ({ name: r.name, protocol: r.proto, link: r.link }));
-        const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json;charset=utf-8" });
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement("a");
-        a.href = url;
-        a.download = `${sanitizeFilename(deps.username)}-configs.json`;
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
-        setTimeout(() => URL.revokeObjectURL(url), 1000);
+        const fname = safeFileName(`${deps.username || "rebecca"}-configs`, "rebecca-configs", ".json");
+        downloadTextFile(JSON.stringify(data, null, 2), fname, "application/json;charset=utf-8");
         toast(t("export_done"));
     });
 
-    // Keyboard navigation: ↑/↓ move, Enter copies, Space opens the QR.
+    // Keyboard navigation: ↑/↓ move across rows, Enter inspects (or toggles selection), Space opens QR (or toggles), C copies.
     listEl.addEventListener("keydown", (e) => {
         const items = $$(".cfg-row", listEl);
         if (!items.length) return;
-        const idx = items.indexOf(document.activeElement);
+        const curRow = e.target && e.target.closest ? e.target.closest(".cfg-row") : null;
+        const idx = curRow ? items.indexOf(curRow) : -1;
         if (e.key === "ArrowDown") {
             e.preventDefault();
             items[idx < 0 ? 0 : Math.min(items.length - 1, idx + 1)].focus();
         } else if (e.key === "ArrowUp") {
             e.preventDefault();
             items[idx <= 0 ? 0 : idx - 1].focus();
-        } else if (idx >= 0 && (e.key === "Enter" || e.key === " ")) {
-            e.preventDefault();
-            const link = document.activeElement.dataset.link;
+        } else if (idx >= 0 && document.activeElement === curRow) {
+            const link = curRow.dataset.link;
             const row = rows.find((r) => r.link === link);
             if (!row) return;
-            if (e.key === "Enter") {
-                copyText(link).then((ok) => { if (ok) toast(t("copied")); });
-            } else {
-                openQr(row.name, link);
+            if (e.key === "Enter" || e.key === " ") {
+                e.preventDefault();
+                if (selecting) {
+                    const cb = curRow.querySelector("input[type=checkbox]");
+                    if (cb) {
+                        cb.checked = !cb.checked;
+                        cb.dispatchEvent(new Event("change"));
+                    }
+                } else if (e.key === "Enter") {
+                    openCfgModal(row);
+                } else {
+                    openQr(row.name, link);
+                }
+            } else if (!e.ctrlKey && !e.metaKey && !e.altKey && e.key.toLowerCase() === "c") {
+                e.preventDefault();
+                copyText(link).then((ok) => toast(t(ok ? "copied" : "copy_failed"), ok ? "success" : "warn"));
             }
         }
     });
@@ -705,7 +732,9 @@ export function mountConfigs(deps) {
     // Bulk buttons live in app.js scope but need row state → expose them here.
     $("#copy-all").addEventListener("click", async (e) => {
         if (!links.length) return;
-        if (await copyText(links.join("\n"))) flashCopied(e.currentTarget, t);
+        const btn = e.currentTarget;
+        if (await copyText(links.join("\n"))) flashCopied(btn, t);
+        else toast(t("copy_failed"), "warn");
     });
 
     // Ctrl/Cmd+Shift+C copies everything from anywhere on the page.
@@ -713,7 +742,7 @@ export function mountConfigs(deps) {
         if ((e.ctrlKey || e.metaKey) && e.shiftKey && e.key.toLowerCase() === "c") {
             if (!links.length) return;
             e.preventDefault();
-            copyText(links.join("\n")).then((ok) => { if (ok) toast(t("copied")); });
+            copyText(links.join("\n")).then((ok) => toast(t(ok ? "copied" : "copy_failed"), ok ? "success" : "warn"));
         }
     });
 
@@ -728,6 +757,7 @@ export function mountConfigs(deps) {
         // Refresh generated fallback labels for the new language.
         rows.forEach((r) => {
             r.name = configLabel(r.link) || `${t("config")} ${r.i + 1}`;
+            r.country = countryOf(r.name);
         });
         renderFilters();
         renderList();

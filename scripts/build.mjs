@@ -25,7 +25,7 @@
      node scripts/build.mjs --guard-only   re-run the guard on dist/index.html
    =========================================================================== */
 
-import { readFileSync, writeFileSync, mkdirSync, existsSync, cpSync } from "node:fs";
+import { readFileSync, writeFileSync, mkdirSync, existsSync, cpSync, readdirSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import * as esbuild from "esbuild";
@@ -171,7 +171,7 @@ if (!existsSync(r("build/app.css"))) {
 }
 const css = readFileSync(r("build/app.css"), "utf8");
 
-for (const marker of ["<!--AURORA_INLINE_CSS-->", "<!--AURORA_INLINE_JS-->"]) {
+for (const marker of ["<!--AURORA_INLINE_BRAND-->", "<!--AURORA_INLINE_CSS-->", "<!--AURORA_INLINE_JS-->"]) {
     const count = html.split(marker).length - 1;
     if (count !== 1) throw new Error(`Expected exactly one "${marker}" in src/index.html, found ${count}.`);
 }
@@ -216,9 +216,11 @@ const fontCss = [
 
 /* ------------- Phosphor icons → CSS mask data-URIs (used glyphs only) ----- */
 
-const jsSources = ["src/app.js", "src/ui.js", "src/i18n.js", "src/format.js", "src/store.js",
-    "src/configs.js", "src/apps.js", "src/usage.js", "src/vpn.js", "src/push.js"]
-    .map((p) => readFileSync(r(p), "utf8")).join("\n");
+const jsSources = readdirSync(r("src"))
+    .filter((f) => f.endsWith(".js"))
+    .sort()
+    .map((f) => readFileSync(r("src/" + f), "utf8"))
+    .join("\n");
 
 const usedIcons = [...new Set(
     (html + "\n" + jsSources).match(/ph-[a-z0-9]+(?:-[a-z0-9]+)*/g) || []
@@ -227,6 +229,7 @@ const usedIcons = [...new Set(
 const svgToDataUri = (svg) =>
     "data:image/svg+xml," + svg
         .replace(/\s*\n\s*/g, " ")
+        .replace(/%/g, "%25")
         .replace(/"/g, "'")
         .replace(/</g, "%3C")
         .replace(/>/g, "%3E")
@@ -273,7 +276,7 @@ const iranFlagCss =
  */
 const neutralizeCss = (s) => s.replace(/\{\{|\}\}|\{%|%\}|\{#|#\}/g, (m) => m[0] + " " + m[1]);
 
-const styleTag = `<style>\n${neutralizeCss(css)}\n${fontCss}\n${iconBase}\n${iconRules}\n${iranFlagCss}\n</style>`;
+const styleTag = `<style>\n${neutralizeCss([css, fontCss, iconBase, iconRules, iranFlagCss].join("\n"))}\n</style>`;
 
 const b64 = (s) => Buffer.from(s, "utf8").toString("base64");
 const appB64 = b64(appJs);
@@ -292,8 +295,9 @@ if (/<\/script/i.test(appsLiteral)) {
     throw new Error("apps.json contains </script> — refusing to inline it.");
 }
 
-// Brand name: inline as a plain JSON literal so self-hosters can rebrand
-// directly in dist/index.html without a rebuild (edit window.AURORA_BRAND).
+// Brand name: inline as a plain JSON literal inside <head> BEFORE the blocking
+// pref resolver so editing window.AURORA_BRAND in dist/index.html takes effect
+// before first paint with zero theme/RTL flash.
 const brandLiteral = brandJson.trim();
 if (/\{\{|\{%|\{#/.test(brandLiteral)) {
     throw new Error("brand.json contains a template-directive sequence — refusing to inline it.");
@@ -301,6 +305,8 @@ if (/\{\{|\{%|\{#/.test(brandLiteral)) {
 if (/<\/script/i.test(brandLiteral)) {
     throw new Error("brand.json contains </script> — refusing to inline it.");
 }
+
+const brandTag = `<script>window.AURORA_BRAND = ${brandLiteral};</script>`;
 
 const loaderScript =
     "(function(){var b=document.getElementById('aurora-app').textContent;" +
@@ -312,39 +318,38 @@ const loaderScript =
 
 const scriptTag =
     `<script>window.AURORA_APPS = ${appsLiteral};</script>\n` +
-    `<script>window.AURORA_BRAND = ${brandLiteral};</script>\n` +
     `<script id="aurora-app" type="application/octet-stream">${appB64}</script>\n` +
     `<script id="aurora-qr" type="application/octet-stream">${qrB64}</script>\n` +
     `<script>${loaderScript}</script>`;
 
 // Substitute the brand name from brand.json into static HTML elements
 // (title, meta, splash, header) so the built file has zero "Aurora" in
-// user-visible places. The JS fallback "Aurora" stays base64-encoded and
-// is never seen; runtime defaultBrand() reads window.AURORA_BRAND first.
+// user-visible places. Use function replacers so "$" in brand names is safe.
 const escBrand = (s) => String(s || "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
 const bn = escBrand(brandName);
 let processedHtml = html
-    .replace(/<title>[^<]+<\/title>/, `<title>${bn}</title>`)
-    .replace(/(<meta\s+name="aurora-brand"\s+content=")[^"]*(")/, `$1${bn}$2`)
-    .replace(/(id="splash-brand"[^>]*>)[^<]+(<\/p>)/, `$1${bn}$2`)
-    .replace(/(id="brand-name"[^>]*>)[^<]+(<\/p>)/, `$1${bn}$2`);
+    .replace(/<title>[^<]+<\/title>/, () => `<title>${bn}</title>`)
+    .replace(/(<meta\s+name="aurora-brand"\s+content=")[^"]*(")/, (_, a, b) => `${a}${bn}${b}`)
+    .replace(/(id="splash-brand"[^>]*>)[^<]+(<\/p>)/, (_, a, b) => `${a}${bn}${b}`)
+    .replace(/(id="brand-name"[^>]*>)[^<]+(<\/p>)/, (_, a, b) => `${a}${bn}${b}`);
 
 if (brand.defaultTheme) {
     const th = escBrand(brand.defaultTheme);
     processedHtml = processedHtml
-        .replace(/(<meta\s+name="aurora-default-theme"\s+content=")[^"]*(")/, `$1${th}$2`)
-        .replace(/(<html\b[^>]*\s+data-theme=")[^"]*(")/, `$1${th}$2`);
+        .replace(/(<meta\s+name="aurora-default-theme"\s+content=")[^"]*(")/, (_, a, b) => `${a}${th}${b}`)
+        .replace(/(<html\b[^>]*\s+data-theme=")[^"]*(")/, (_, a, b) => `${a}${th}${b}`);
 }
 if (brand.defaultLang) {
     const lg = escBrand(brand.defaultLang);
     const dir = lg === "fa" ? "rtl" : "ltr";
     processedHtml = processedHtml
-        .replace(/(<meta\s+name="aurora-default-lang"\s+content=")[^"]*(")/, `$1${lg}$2`)
-        .replace(/(<html\b[^>]*\s+lang=")[^"]*(")/, `$1${lg}$2`)
-        .replace(/(<html\b[^>]*\s+dir=")[^"]*(")/, `$1${dir}$2`);
+        .replace(/(<meta\s+name="aurora-default-lang"\s+content=")[^"]*(")/, (_, a, b) => `${a}${lg}${b}`)
+        .replace(/(<html\b[^>]*\s+lang=")[^"]*(")/, (_, a, b) => `${a}${lg}${b}`)
+        .replace(/(<html\b[^>]*\s+dir=")[^"]*(")/, (_, a, b) => `${a}${dir}${b}`);
 }
 
 let out = processedHtml
+    .replace("<!--AURORA_INLINE_BRAND-->", () => brandTag)
     .replace("<!--AURORA_INLINE_CSS-->", () => styleTag)
     .replace("<!--AURORA_INLINE_JS-->", () => scriptTag);
 

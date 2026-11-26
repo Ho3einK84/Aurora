@@ -5,7 +5,7 @@
 # ==============================================================================
 set -euo pipefail
 
-readonly SCRIPT_VERSION="2.1.0"
+readonly SCRIPT_VERSION="2.1.1"
 readonly DEFAULT_TARGET_DIR="/var/lib/rebecca/templates/subscription"
 readonly DEFAULT_TARGET_FILE="${DEFAULT_TARGET_DIR}/index.html"
 readonly RELEASE_URL="https://github.com/Ho3einK84/Aurora/releases/latest/download/index.html"
@@ -68,6 +68,7 @@ CUR_THEME="auroradark"
 CUR_LOGO=""
 CUR_ANNOUNCE=""
 CUR_SERVER_BREAKDOWN="1"
+CUR_BRAND_RAW=""
 IS_INSTALLED=0
 
 detect_current_config() {
@@ -80,6 +81,7 @@ detect_current_config() {
   CUR_LOGO=""
   CUR_ANNOUNCE=""
   CUR_SERVER_BREAKDOWN="1"
+  CUR_BRAND_RAW=""
 
   if [[ ! -f "$target_file" ]]; then
     return 0
@@ -87,27 +89,27 @@ detect_current_config() {
 
   local parsed
   parsed="$(TARGET_FILE="$target_file" python3 - <<'PYEOF' 2>/dev/null || true
-import os, re, json
+import os, re, json, base64
 
 path = os.environ.get("TARGET_FILE", "")
 with open(path, "r", encoding="utf-8", errors="ignore") as f:
     text = f.read()
 
-m = re.search(r"window\.AURORA_BRAND\s*=\s*(\{.*?\});", text)
+m = re.search(r"window\.AURORA_BRAND\s*=\s*", text)
 if not m:
     raise SystemExit(0)
 
-data = json.loads(m.group(1))
+dec = json.JSONDecoder()
+data, _ = dec.raw_decode(text, m.end())
+if not isinstance(data, dict):
+    raise SystemExit(0)
+
 def clean(v):
     return str(v or "").replace("\n", " ").replace("\r", "").strip()
 
-print("INSTALLED=1")
-print("BRAND=" + clean(data.get("name") or "Aurora"))
-print("SUPPORT=" + clean(data.get("supportUrl") or ""))
-print("LANG=" + clean(data.get("defaultLang") or data.get("lang") or "en"))
-print("THEME=" + clean(data.get("defaultTheme") or data.get("theme") or "auroradark"))
-print("LOGO=" + clean(data.get("logo") or ""))
-print("ANNOUNCE=" + clean(data.get("announcement") or ""))
+def enc(v):
+    return base64.b64encode(str(v).encode("utf-8")).decode("ascii")
+
 sb = data.get("serverBreakdown")
 if sb is None:
     sb = data.get("showServerUsage")
@@ -117,20 +119,33 @@ if sb is None:
         sb = False
     else:
         sb = True
-print("SERVER_BREAKDOWN=" + ("1" if sb else "0"))
+
+print("INSTALLED:1")
+print("BRAND_B64:" + enc(clean(data.get("name") or "Aurora")))
+print("SUPPORT_B64:" + enc(clean(data.get("supportUrl") or "")))
+print("LANG_B64:" + enc(clean(data.get("defaultLang") or data.get("lang") or "en")))
+print("THEME_B64:" + enc(clean(data.get("defaultTheme") or data.get("theme") or "auroradark")))
+print("LOGO_B64:" + enc(clean(data.get("logo") or "")))
+print("ANNOUNCE_B64:" + enc(clean(data.get("announcement") or "")))
+print("RAW_JSON_B64:" + enc(json.dumps(data, ensure_ascii=False)))
+print("SERVER_BREAKDOWN:" + ("1" if sb else "0"))
 PYEOF
 )"
 
+  local b64_dec
+  b64_dec() { python3 -c 'import sys,base64; s=sys.argv[1]; s+="="*((4-len(s)%4)%4); sys.stdout.write(base64.b64decode(s).decode("utf-8"))' "$1" 2>/dev/null || true; }
+
   if [[ -n "$parsed" ]]; then
-    while IFS='=' read -r k v; do
+    while IFS=':' read -r k v; do
       case "$k" in
         INSTALLED)        IS_INSTALLED="$v" ;;
-        BRAND)            CUR_BRAND="${v:-Aurora}" ;;
-        SUPPORT)          CUR_SUPPORT="$v" ;;
-        LANG)             CUR_LANG="${v:-en}" ;;
-        THEME)            CUR_THEME="${v:-auroradark}" ;;
-        LOGO)             CUR_LOGO="$v" ;;
-        ANNOUNCE)         CUR_ANNOUNCE="$v" ;;
+        BRAND_B64)        CUR_BRAND="$(b64_dec "$v")"; CUR_BRAND="${CUR_BRAND:-Aurora}" ;;
+        SUPPORT_B64)      CUR_SUPPORT="$(b64_dec "$v")" ;;
+        LANG_B64)         CUR_LANG="$(b64_dec "$v")"; CUR_LANG="${CUR_LANG:-en}" ;;
+        THEME_B64)        CUR_THEME="$(b64_dec "$v")"; CUR_THEME="${CUR_THEME:-auroradark}" ;;
+        LOGO_B64)         CUR_LOGO="$(b64_dec "$v")" ;;
+        ANNOUNCE_B64)     CUR_ANNOUNCE="$(b64_dec "$v")" ;;
+        RAW_JSON_B64)     CUR_BRAND_RAW="$(b64_dec "$v")" ;;
         SERVER_BREAKDOWN) CUR_SERVER_BREAKDOWN="${v:-1}" ;;
       esac
     done <<< "$parsed"
@@ -157,7 +172,7 @@ print_banner() {
 
   log_blank
   hr
-  log_line "${C_MAGENTA}${C_BOLD}   🌌 Aurora v4.3.1 — Subscription Template for Rebecca${C_RESET}"
+  log_line "${C_MAGENTA}${C_BOLD}   🌌 Aurora v4.3.2 — Subscription Template for Rebecca${C_RESET}"
   log_line "${C_DIM}   Installer v${SCRIPT_VERSION} · Single-File · Zero External Requests${C_RESET}"
   hr
   if [[ $IS_INSTALLED -eq 1 ]]; then
@@ -242,6 +257,7 @@ patch_branding() {
   local logo_url=${6:-}
   local announce_text=${7:-}
   local server_breakdown=${8:-}
+  local seed_brand_json=${9:-}
 
   if [[ ! -f "$target_file" ]]; then
     err "Template file not found: $target_file"
@@ -255,6 +271,7 @@ patch_branding() {
   LOGO_URL="$logo_url" \
   ANNOUNCE_TEXT="$announce_text" \
   SERVER_BREAKDOWN="$server_breakdown" \
+  SEED_BRAND_JSON="$seed_brand_json" \
   python3 - <<'PYEOF'
 import os, re, json, html
 
@@ -266,15 +283,30 @@ default_theme = os.environ.get("DEFAULT_THEME", "").strip().lower()
 logo_url = os.environ.get("LOGO_URL", "").strip()
 announce_text = os.environ.get("ANNOUNCE_TEXT", "").strip()
 server_breakdown = os.environ.get("SERVER_BREAKDOWN", "").strip().lower()
+seed_brand_json = os.environ.get("SEED_BRAND_JSON", "").strip()
 
 with open(target, "r", encoding="utf-8") as f:
     content = f.read()
 
+dec = json.JSONDecoder()
 brand_data = {}
-m = re.search(r"window\.AURORA_BRAND\s*=\s*(\{.*?\});", content)
+m = re.search(r"window\.AURORA_BRAND\s*=\s*", content)
+span_end = -1
 if m:
     try:
-        brand_data = json.loads(m.group(1))
+        parsed_cur, end_idx = dec.raw_decode(content, m.end())
+        if isinstance(parsed_cur, dict):
+            brand_data.update(parsed_cur)
+        semi = re.match(r"\s*;", content[end_idx:])
+        span_end = end_idx + (semi.end() if semi else 0)
+    except Exception:
+        span_end = -1
+
+if seed_brand_json:
+    try:
+        seed_obj = json.loads(seed_brand_json)
+        if isinstance(seed_obj, dict):
+            brand_data.update(seed_obj)
     except Exception:
         pass
 
@@ -306,11 +338,12 @@ elif server_breakdown in ("1", "true", "yes", "on", "enable", "enabled"):
     brand_data["serverBreakdown"] = True
 
 brand_json = json.dumps(brand_data, ensure_ascii=False).replace("</", "<\\/")
-content = re.sub(
-    r"window\.AURORA_BRAND\s*=\s*\{.*?\};",
-    lambda _: f"window.AURORA_BRAND = {brand_json};",
-    content,
-)
+for bad in ("{{", "{%", "{#"):
+    if bad in brand_json:
+        brand_json = brand_json.replace(bad, bad[0] + "\\u200b" + bad[1])
+
+if m and span_end > m.start():
+    content = content[:m.start()] + f"window.AURORA_BRAND = {brand_json};" + content[span_end:]
 
 if brand_name:
     esc = html.escape(brand_name, quote=True)
@@ -320,24 +353,24 @@ if brand_name:
     content = re.sub(r'(id="brand-name"[^>]*>)[^<]+(</p>)', lambda m: f"{m.group(1)}{esc}{m.group(2)}", content)
 
 if default_theme in ("auroradark", "amoleddark", "auroralight", "rebecca"):
-    content = re.sub(r'(<meta\s+name="aurora-default-theme"\s+content=")[^"]*(")', rf"\g<1>{default_theme}\g<2>", content)
-    content = re.sub(r'(<html\b[^>]*\s+data-theme=")[^"]*(")', rf"\g<1>{default_theme}\g<2>", content)
+    content = re.sub(r'(<meta\s+name="aurora-default-theme"\s+content=")[^"]*(")', lambda m: f"{m.group(1)}{default_theme}{m.group(2)}", content)
+    content = re.sub(r'(<html\b[^>]*\s+data-theme=")[^"]*(")', lambda m: f"{m.group(1)}{default_theme}{m.group(2)}", content)
 
 if default_lang in ("en", "fa", "ru", "zh"):
     direction = "rtl" if default_lang == "fa" else "ltr"
-    content = re.sub(r'(<meta\s+name="aurora-default-lang"\s+content=")[^"]*(")', rf"\g<1>{default_lang}\g<2>", content)
-    content = re.sub(r'(<html\b[^>]*\s+lang=")[^"]*(")', rf"\g<1>{default_lang}\g<2>", content)
-    content = re.sub(r'(<html\b[^>]*\s+dir=")[^"]*(")', rf"\g<1>{direction}\g<2>", content)
+    content = re.sub(r'(<meta\s+name="aurora-default-lang"\s+content=")[^"]*(")', lambda m: f"{m.group(1)}{default_lang}{m.group(2)}", content)
+    content = re.sub(r'(<html\b[^>]*\s+lang=")[^"]*(")', lambda m: f"{m.group(1)}{default_lang}{m.group(2)}", content)
+    content = re.sub(r'(<html\b[^>]*\s+dir=")[^"]*(")', lambda m: f"{m.group(1)}{direction}{m.group(2)}", content)
 
 sb_state = brand_data.get("serverBreakdown")
 if sb_state is not None:
     sb_val = "false" if sb_state is False else "true"
     if re.search(r'<meta\s+name="aurora-server-breakdown"', content):
-        content = re.sub(r'(<meta\s+name="aurora-server-breakdown"\s+content=")[^"]*(")', rf"\g<1>{sb_val}\g<2>", content)
+        content = re.sub(r'(<meta\s+name="aurora-server-breakdown"\s+content=")[^"]*(")', lambda m: f"{m.group(1)}{sb_val}{m.group(2)}", content)
     else:
         content = re.sub(
             r'(<meta\s+name="aurora-default-lang"[^>]*>)',
-            rf'\g<1>\n    <meta name="aurora-server-breakdown" content="{sb_val}" />',
+            lambda m: f'{m.group(1)}\n    <meta name="aurora-server-breakdown" content="{sb_val}" />',
             content
         )
 
@@ -438,11 +471,12 @@ quick_install_or_update() {
   local saved_logo="$CUR_LOGO"
   local saved_announce="$CUR_ANNOUNCE"
   local saved_sb="$CUR_SERVER_BREAKDOWN"
+  local saved_raw="$CUR_BRAND_RAW"
 
   download_template "$target_file"
 
   if [[ $prev_installed -eq 1 ]]; then
-    patch_branding "$target_file" "$saved_brand" "$saved_support" "$saved_lang" "$saved_theme" "$saved_logo" "$saved_announce" "$saved_sb"
+    patch_branding "$target_file" "$saved_brand" "$saved_support" "$saved_lang" "$saved_theme" "$saved_logo" "$saved_announce" "$saved_sb" "$saved_raw"
     info "Preserved existing branding (${saved_brand}, ${saved_lang}, ${saved_theme}, nodes: $([[ "$saved_sb" == "0" ]] && echo disabled || echo enabled))."
   fi
   restart_rebecca
@@ -461,10 +495,11 @@ interactive_install() {
   local saved_logo="$CUR_LOGO"
   local saved_announce="$CUR_ANNOUNCE"
   local saved_sb="$CUR_SERVER_BREAKDOWN"
+  local saved_raw="$CUR_BRAND_RAW"
 
   download_template "$target_file"
   if [[ $prev_installed -eq 1 ]]; then
-    patch_branding "$target_file" "$saved_brand" "$saved_support" "$saved_lang" "$saved_theme" "$saved_logo" "$saved_announce" "$saved_sb"
+    patch_branding "$target_file" "$saved_brand" "$saved_support" "$saved_lang" "$saved_theme" "$saved_logo" "$saved_announce" "$saved_sb" "$saved_raw"
   fi
 
   prompt_branding_wizard "$target_file"
@@ -544,10 +579,11 @@ main() {
     local b_logo="${cli_logo:-$CUR_LOGO}"
     local b_announce="${cli_announce:-$CUR_ANNOUNCE}"
     local b_sb="${cli_server_breakdown:-$CUR_SERVER_BREAKDOWN}"
+    local saved_raw="$CUR_BRAND_RAW"
 
     download_template "$cli_target"
     if [[ $prev_installed -eq 1 || -n "$cli_brand" || -n "$cli_support" || -n "$cli_lang" || -n "$cli_theme" || -n "$cli_logo" || -n "$cli_announce" || -n "$cli_server_breakdown" ]]; then
-      patch_branding "$cli_target" "$b_name" "$b_support" "$b_lang" "$b_theme" "$b_logo" "$b_announce" "$b_sb"
+      patch_branding "$cli_target" "$b_name" "$b_support" "$b_lang" "$b_theme" "$b_logo" "$b_announce" "$b_sb" "$saved_raw"
     fi
     if [[ $cli_restart -eq 1 ]]; then
       restart_rebecca

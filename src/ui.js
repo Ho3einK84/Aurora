@@ -59,8 +59,9 @@ export function toast(message, tone = "success") {
     if (!toastDialogListener) {
         toastDialogListener = true;
         document.addEventListener("close", (e) => {
-            if (e.target && e.target.tagName === "DIALOG" && toastHome && el.parentElement === e.target) {
-                toastHome.appendChild(el);
+            if (e.target && e.target.tagName === "DIALOG" && el.parentElement === e.target) {
+                const nextHost = document.querySelector("dialog[open]") || toastHome;
+                if (nextHost) nextHost.appendChild(el);
             }
         }, true);
     }
@@ -72,11 +73,13 @@ export function toast(message, tone = "success") {
     if (textEl) textEl.textContent = message;
     else el.textContent = message;
     if (iconEl) {
-        iconEl.className = tone === "error" || tone === "warn"
-            ? "ph ph-warning-circle shrink-0 text-base text-warning"
-            : tone === "info"
-                ? "ph ph-info shrink-0 text-base text-info"
-                : "ph ph-check-circle shrink-0 text-base text-success";
+        iconEl.className = tone === "error"
+            ? "ph ph-warning-circle shrink-0 text-base text-error"
+            : tone === "warn"
+                ? "ph ph-warning-circle shrink-0 text-base text-warning"
+                : tone === "info"
+                    ? "ph ph-info shrink-0 text-base text-info"
+                    : "ph ph-check-circle shrink-0 text-base text-success";
     }
     el.hidden = false;
     el.classList.remove("toast-in");

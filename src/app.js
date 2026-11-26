@@ -34,13 +34,49 @@ const THEMES = [
 
 /* ------------------------------------------------------------ data island */
 
-function safeHref(raw, { allowRelative = false, schemes = ["https:", "http:"] } = {}) {
+function cleanBinding(raw) {
     const s = raw == null ? "" : String(raw).trim();
+    if (!s || /\{\{[\s\S]*?\}\}|\{%[\s\S]*?%\}/.test(s)) return "";
+    return s;
+}
+
+function safeHref(raw, { allowRelative = false, schemes = ["https:", "http:"] } = {}) {
+    const s = cleanBinding(raw);
     if (!s || /[\u0000-\u001f\u007f]/.test(s)) return "";
     if (allowRelative && /^\/(?!\/)/.test(s)) return s;
     try {
         const u = new URL(s);
         return schemes.includes(u.protocol.toLowerCase()) ? s : "";
+    } catch (_) {
+        return "";
+    }
+}
+
+/**
+ * Validate support/renewal links and reject empty panel placeholders such as
+ * Rebecca's bare `"https://t.me/"` when no support handle is configured, so
+ * custom `window.AURORA_BRAND.supportUrl` can cleanly take over.
+ */
+function safeSupportHref(raw) {
+    const href = safeHref(raw, { allowRelative: true, schemes: ["https:", "http:", "tg:", "mailto:"] });
+    if (!href) return "";
+    if (href.startsWith("/")) return href;
+    try {
+        const u = new URL(href);
+        const proto = u.protocol.toLowerCase();
+        if (proto === "mailto:") {
+            return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(u.pathname) ? href : "";
+        }
+        if (proto === "tg:") {
+            const dom = (u.searchParams.get("domain") || u.searchParams.get("to") || u.searchParams.get("invite") || "").trim();
+            return dom || (u.hostname && u.pathname.length > 1) ? href : "";
+        }
+        const host = u.hostname.toLowerCase().replace(/^www\./, "");
+        if (host === "t.me" || host === "telegram.me" || host === "telegram.dog") {
+            const seg = u.pathname.replace(/^\/+|\/+$/g, "");
+            if (!seg || seg === "+" || seg.toLowerCase() === "joinchat") return "";
+        }
+        return href;
     } catch (_) {
         return "";
     }
@@ -54,54 +90,45 @@ function defaultBrand() {
     return (meta && meta.content.trim()) || "Rebecca";
 }
 
-/**
- * @typedef {Object} AuroraContext
- * @property {string} username
- * @property {string} brandName
- * @property {string} serviceName
- * @property {number} onlineCount
- * @property {string} onlineAt - ISO date or unix seconds
- * @property {string} createdAt - ISO date or unix seconds
- * @property {string} status - active|limited|expired|disabled|on_hold
- * @property {string} statusClass
- * @property {number} usedTraffic - bytes
- * @property {number} dataLimit - bytes (0 = unlimited)
- * @property {string|undefined} limitRaw - raw pongo2 value
- * @property {string} resetStrategy - no_reset|day|week|month|year
- * @property {number} expire - unix seconds (0 = never)
- * @property {string|undefined} expireRaw - raw pongo2 value
- * @property {number} remainingDays
- * @property {string} subUrl
- * @property {string} usageUrl
- * @property {string} supportUrl
- * @property {string[]} links - proxy config URIs (no .ovpn)
- * @property {string[]} ovpnLinks - .ovpn download URLs
- * @property {string[]} wgLinks - WireGuard URIs (.conf or wireguard://)
- */
-
 function cleanRelativePath(raw) {
-    const s = raw == null ? "" : String(raw).trim();
-    if (!s || s.includes("{{") || /[\u0000-\u001f\u007f]/.test(s)) return "";
+    const s = cleanBinding(raw);
+    if (!s || /[\u0000-\u001f\u007f]/.test(s)) return "";
     return /^\/(?!\/)/.test(s) ? s.replace(/\/+$/, "") || "/" : "";
 }
 
-function resolveWebPushConfig(d) {
+/**
+ * Detect subdirectory reverse-proxy prefix (e.g. `/subscription` in cPanel shared hosting)
+ * when `location.pathname` wraps the panel's canonical `/sub/<token>` path.
+ */
+function detectProxyPrefix(d) {
+    const curPath = (location.pathname || "").replace(/\/+$/, "");
+    if (!curPath) return "";
+    const candidates = [
+        cleanRelativePath(d.subscriptionUrl),
+        cleanRelativePath(d.webPushBase).replace(/\/push$/, ""),
+        cleanRelativePath(d.usageUrl).replace(/\/usage(?:\?.*)?$/, ""),
+    ].filter((p) => p && p !== "/");
+
+    for (const backendSub of candidates) {
+        if (curPath !== backendSub && curPath.endsWith(backendSub)) {
+            return curPath.slice(0, curPath.length - backendSub.length);
+        }
+    }
+    return "";
+}
+
+function resolveWebPushConfig(d, prefix = "") {
     if (window.AURORA_BRAND && window.AURORA_BRAND.alerts === false) {
         return { key: "", base: "", sw: "", manifest: "" };
     }
-    const rawKey = (d.webPushKey || "").trim();
-    if (!rawKey || rawKey.includes("{{") || !/^[A-Za-z0-9_-]{40,}$/.test(rawKey)) {
+    const rawKey = cleanBinding(d.webPushKey);
+    if (!rawKey || !/^[A-Za-z0-9_-]{40,}$/.test(rawKey)) {
         return { key: "", base: "", sw: "", manifest: "" };
     }
     const rawBase = cleanRelativePath(d.webPushBase);
     const rawSw = cleanRelativePath(d.webPushSw);
     const rawManifest = cleanRelativePath(d.webPushManifest);
     const curPath = (location.pathname || "").replace(/\/+$/, "");
-    const backendSub = rawBase.replace(/\/push$/, "");
-    let prefix = "";
-    if (curPath && backendSub && curPath !== backendSub && curPath.endsWith(backendSub)) {
-        prefix = curPath.slice(0, curPath.length - backendSub.length);
-    }
     const base = rawBase ? prefix + rawBase : ((curPath || "") + "/push");
     const sw = rawSw ? prefix + rawSw : (base + "/sw.js");
     const manifest = rawManifest ? prefix + rawManifest : (base + "/manifest.webmanifest");
@@ -110,42 +137,56 @@ function resolveWebPushConfig(d) {
 
 function readContext() {
     const d = ($("#aurora-data") || {}).dataset || {};
-    let subUrl = (d.subscriptionUrl || "").trim();
-    if (!/^https?:\/\//i.test(subUrl)) {
-        subUrl = location.origin + location.pathname.replace(/\/$/, "");
+    const prefix = detectProxyPrefix(d);
+    const rawSub = cleanBinding(d.subscriptionUrl);
+    let subUrl = "";
+    if (/^https?:\/\//i.test(rawSub)) {
+        subUrl = rawSub.replace(/\/+$/, "");
+    } else if (/^\/(?!\/)/.test(rawSub)) {
+        subUrl = location.origin + prefix + rawSub.replace(/\/+$/, "");
+    } else {
+        subUrl = location.origin + (location.pathname || "").replace(/\/+$/, "");
     }
+
+    let usageUrl = safeHref(d.usageUrl, { allowRelative: true, schemes: ["https:", "http:"] });
+    if (usageUrl && prefix && usageUrl.startsWith("/") && !usageUrl.startsWith(prefix + "/")) {
+        usageUrl = prefix + usageUrl;
+    }
+
     // Rebecca (dev) appends OpenVPN `.ovpn` profile download URLs to the links
     // list — split those out of the proxy-config rows and into the VPN card.
     const allLinks = parseLinks(($("#aurora-links") || {}).textContent);
     // Brand text priority: the panel's "Subscription profile title" setting
     // (subscription_profile_title) > the legacy brand_name binding > the
     // <meta name="aurora-brand"> fallback baked into the build.
-    const brandName = (d.profileTitle || "").trim() || (d.brandName || "").trim() || defaultBrand();
-    const pushCfg = resolveWebPushConfig(d);
+    const brandName = cleanBinding(d.profileTitle) || cleanBinding(d.brandName) || defaultBrand();
+    const pushCfg = resolveWebPushConfig(d, prefix);
+    const rawLimit = cleanBinding(d.limit);
+    const rawExpire = cleanBinding(d.expire);
     return {
-        username: (d.username || "").trim(),
+        username: cleanBinding(d.username),
         brandName,
-        serviceName: (d.serviceName || "").trim(),
-        onlineCount: num(d.onlineCount),
-        onlineAt: (d.onlineAt || "").trim(),
-        createdAt: (d.createdAt || "").trim(),
-        status: (d.status || "").trim().toLowerCase(),
-        statusClass: (d.statusClass || "").trim().toLowerCase(),
-        usedTraffic: num(d.used),
-        lifetimeUsed: num(d.lifetimeUsed),
-        dataLimit: num(d.limit),
-        limitRaw: d.limit,
-        resetStrategy: (d.resetStrategy || "").trim().toLowerCase(),
-        expire: num(d.expire),
-        expireRaw: d.expire,
-        onHoldDuration: num(d.onHoldDuration),
-        ipLimit: num(d.ipLimit),
+        serviceName: cleanBinding(d.serviceName),
+        onlineCount: num(cleanBinding(d.onlineCount)),
+        onlineAt: cleanBinding(d.onlineAt),
+        createdAt: cleanBinding(d.createdAt),
+        status: cleanBinding(d.status).toLowerCase(),
+        statusClass: cleanBinding(d.statusClass).toLowerCase(),
+        usedTraffic: num(cleanBinding(d.used)),
+        lifetimeUsed: num(cleanBinding(d.lifetimeUsed)),
+        dataLimit: num(rawLimit),
+        limitRaw: rawLimit,
+        resetStrategy: cleanBinding(d.resetStrategy).toLowerCase(),
+        expire: num(rawExpire),
+        expireRaw: rawExpire,
+        onHoldDuration: num(cleanBinding(d.onHoldDuration)),
+        ipLimit: num(cleanBinding(d.ipLimit)),
         nextPlans: [],
-        remainingDays: Math.max(0, num(d.remainingDays)),
+        remainingDays: Math.max(0, num(cleanBinding(d.remainingDays))),
         subUrl,
-        usageUrl: safeHref(d.usageUrl, { allowRelative: true, schemes: ["https:", "http:"] }),
-        supportUrl: safeHref(d.supportUrl, { allowRelative: true, schemes: ["https:", "http:", "tg:", "mailto:"] })
-            || safeHref(window.AURORA_BRAND && window.AURORA_BRAND.supportUrl, { allowRelative: true, schemes: ["https:", "http:", "tg:", "mailto:"] }),
+        usageUrl,
+        supportUrl: safeSupportHref(d.supportUrl)
+            || safeSupportHref(window.AURORA_BRAND && window.AURORA_BRAND.supportUrl),
         links: allLinks.filter((l) => !isOvpnLink(l) && !(/\.conf(?:[?#]|$)/i.test(l) && /^https?:\/\//i.test(l))),
         ovpnLinks: allLinks.filter(isOvpnLink),
         wgLinks: allLinks.filter(isWgLink),
@@ -684,7 +725,7 @@ function renderCard() {
     const timeUnit = $("#ring-time-unit");
     const expireCell = $("#stat-expire");
     const expireRel = $("#stat-expire-rel");
-    if (STATE === "on_hold" && neverExpire) {
+    if (STATE === "on_hold") {
         const holdDays = CTX.onHoldDuration > 0
             ? Math.max(1, Math.round(CTX.onHoldDuration / 86400))
             : Math.round(CTX.remainingDays);
@@ -897,7 +938,9 @@ async function openQr(title, text) {
 function wireQrModal() {
     $("#qr-close").addEventListener("click", () => $("#qr-modal").close());
     $("#qr-copy").addEventListener("click", async (e) => {
-        if (await copyText(qrCurrentText)) flashCopied(e.currentTarget, t);
+        const btn = e.currentTarget;
+        if (await copyText(qrCurrentText)) flashCopied(btn, t);
+        else toast(t("copy_failed"), "warn");
     });
 }
 
@@ -963,12 +1006,18 @@ function startRelativeTimeRefresh() {
             STATE = nextState;
             renderCard();
             if (usageView) usageView.rerender();
+            if (pushView) pushView.rerender();
             return;
         }
         const neverExpire = !hasValue(CTX.expireRaw);
         if (!neverExpire && STATE !== "on_hold") {
-            const rel = $("#stat-expire-rel");
-            if (rel) rel.textContent = fmtRelative(new Date(CTX.expire * 1000), lang);
+            const remSec = Math.max(0, CTX.expire - Date.now() / 1000);
+            if (remSec < 4 * 86400) {
+                renderCard();
+            } else {
+                const rel = $("#stat-expire-rel");
+                if (rel) rel.textContent = fmtRelative(new Date(CTX.expire * 1000), lang);
+            }
         }
         const online = parsePanelDate(CTX.onlineAt);
         if (online) {
@@ -1002,7 +1051,7 @@ const SUB_FORMATS = [
     { id: "v2ray", label: "V2Ray (Base64)", suffix: "/v2ray" },
     { id: "v2ray-json", label: "Xray / V2Ray JSON", suffix: "/v2ray-json" },
     { id: "clash-meta", label: "Clash Meta (Mihomo)", suffix: "/clash-meta" },
-    { id: "sing-box", label: "Sing-box", suffix: "/sing-box" },
+    { id: "sing-box", label: "Sing-box", suffix: "/sing-box", xhttpSensitive: true },
     { id: "passwall", label: "OpenWrt PassWall", suffix: "/passwall" },
 ];
 
@@ -1010,11 +1059,22 @@ function renderSubFormatMenu() {
     const list = $("#sub-format-list");
     if (!list || !CTX) return;
     const base = CTX.subUrl.replace(/\/+$/, "");
-    list.innerHTML = SUB_FORMATS.map((f) => {
+    const hasXhttp = Array.isArray(CTX.links) && CTX.links.some((l) => /[?&](?:type|net)=(?:xhttp|splithttp)\b/i.test(l));
+    const formats = CTX.wgLinks && CTX.wgLinks.length > 0
+        ? [...SUB_FORMATS, { id: "wireguard", label: "WireGuard", suffix: "/wireguard" }]
+        : SUB_FORMATS;
+
+    list.innerHTML = formats.map((f) => {
         const label = f.labelKey ? t(f.labelKey) : f.label;
         const url = base + f.suffix;
+        const warn = f.xhttpSensitive && hasXhttp ? t("fmt_xhttp_warn") : "";
         return `<div class="sub-tile row-hover flex items-center gap-2 rounded-xl px-3 py-2.5">` +
-            `<span class="min-w-0 flex-1 truncate text-start text-sm font-medium"><span dir="auto">${escapeHtml(label)}</span></span>` +
+            `<div class="min-w-0 flex-1 text-start">` +
+            `<p class="truncate text-sm font-medium"><span dir="auto">${escapeHtml(label)}</span></p>` +
+            (warn
+                ? `<p class="mt-0.5 flex items-center gap-1 truncate text-[11px] text-warning"><i class="ph ph-warning-circle shrink-0 text-xs"></i><span>${escapeHtml(warn)}</span></p>`
+                : "") +
+            `</div>` +
             `<button type="button" data-fmt-copy="${escapeAttr(url)}" class="btn btn-ghost btn-xs btn-square rounded-lg" aria-label="${escapeAttr(t("copy"))}" title="${escapeAttr(t("copy"))}">` +
             `<i class="ph ph-copy text-base"></i></button>` +
             `<button type="button" data-fmt-qr="${escapeAttr(url)}" data-fmt-title="${escapeAttr(label)}" ` +
@@ -1028,6 +1088,8 @@ function renderSubFormatMenu() {
             if (await copyText(btn.getAttribute("data-fmt-copy"))) {
                 toast(t("copied"));
                 flashCopyIcon(btn);
+            } else {
+                toast(t("copy_failed"), "warn");
             }
         });
     });
@@ -1074,11 +1136,14 @@ function applyUserInfo(u) {
         CTX.resetStrategy = String(u.data_limit_reset_strategy).trim().toLowerCase();
     }
     if (u.expire !== undefined) {
-        CTX.expireRaw = u.expire != null && u.expire > 0 ? String(u.expire) : "";
-        CTX.expire = num(u.expire);
-        CTX.remainingDays = CTX.expire > 0
-            ? Math.max(0, Math.ceil((CTX.expire - Date.now() / 1000) / 86400))
-            : 0;
+        const nextExpire = num(u.expire);
+        CTX.expireRaw = nextExpire > 0 ? String(nextExpire) : "";
+        CTX.expire = nextExpire;
+        if (nextExpire > 0) {
+            CTX.remainingDays = Math.max(0, Math.ceil((nextExpire - Date.now() / 1000) / 86400));
+        } else if (u.status !== "on_hold" && CTX.status !== "on_hold") {
+            CTX.remainingDays = 0;
+        }
     }
     if (u.status) {
         CTX.status = String(u.status).trim().toLowerCase();
@@ -1301,7 +1366,9 @@ async function init() {
 
         // Header copy-sub + sub-QR act on the subscription URL.
         $("#copy-sub").addEventListener("click", async (e) => {
-            if (await copyText(CTX.subUrl)) flashCopied(e.currentTarget, t);
+            const btn = e.currentTarget;
+            if (await copyText(CTX.subUrl)) flashCopied(btn, t);
+            else toast(t("copy_failed"), "warn");
         });
         $("#sub-qr").addEventListener("click", () => openQr(t("subscription"), CTX.subUrl));
 

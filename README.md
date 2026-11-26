@@ -5,7 +5,7 @@
 Matte carbon UI · usage dashboard · EN/FA/RU/ZH + RTL · opt-in Web Push · Tailwind v4 + DaisyUI v5 + vanilla JS
 
 > [!NOTE]
-> This **`rebecca-edition`** branch is the source for Rebecca panel's bundled **Default Subscription Page Template** ([`templates/subscription/index.html`](https://github.com/rebeccapanel/Rebecca/blob/dev/templates/subscription/index.html) in `rebeccapanel/Rebecca`), built from **Aurora v4.3.1**.
+> This **`rebecca-edition`** branch is the source for Rebecca panel's bundled **Default Subscription Page Template** ([`templates/subscription/index.html`](https://github.com/rebeccapanel/Rebecca/blob/dev/templates/subscription/index.html) in `rebeccapanel/Rebecca`), built from **Aurora v4.3.2**.
 >
 > Looking for the standalone white-label **Aurora** edition (with `Aurora Dark` as default and the one-line installer)? Switch to the [`main`](https://github.com/Ho3einK84/Aurora/tree/main) branch.
 

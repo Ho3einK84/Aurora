@@ -53,11 +53,27 @@ hr() {
 }
 
 check_prereqs() {
-  if [[ "${EUID:-$(id -u)}" -ne 0 ]]; then
-    err "This installer must be run as root (use sudo)."
-  fi
   command -v curl >/dev/null 2>&1 || command -v wget >/dev/null 2>&1 || err "curl or wget is required (apt install -y curl)."
   command -v python3 >/dev/null 2>&1 || err "python3 is required (apt install -y python3)."
+}
+
+require_root_if_needed() {
+  local target_file=${1:-$DEFAULT_TARGET_FILE}
+  local need_restart=${2:-0}
+  if [[ "${EUID:-$(id -u)}" -eq 0 || "${AURORA_ALLOW_NON_ROOT:-0}" == "1" ]]; then
+    return 0
+  fi
+  if [[ "$need_restart" -eq 1 ]]; then
+    err "Restarting Rebecca service requires root (use sudo)."
+  fi
+  local check_dir
+  check_dir="$(dirname "$target_file")"
+  while [[ ! -e "$check_dir" && "$check_dir" != "/" && "$check_dir" != "." ]]; do
+    check_dir="$(dirname "$check_dir")"
+  done
+  if [[ ! -w "$check_dir" ]] || [[ -e "$target_file" && ! -w "$target_file" ]]; then
+    err "This installer must be run as root to write ${target_file} (use sudo)."
+  fi
 }
 
 # Read current branding fields from an installed Aurora index.html (if present)
@@ -564,11 +580,13 @@ main() {
   done
 
   if [[ $cli_restore -eq 1 ]]; then
+    require_root_if_needed "$cli_target" 1
     restore_backup "$cli_target"
     exit 0
   fi
 
   if [[ $auto -eq 1 || -n "$cli_brand" || -n "$cli_support" || -n "$cli_lang" || -n "$cli_theme" || -n "$cli_logo" || -n "$cli_announce" || -n "$cli_server_breakdown" ]]; then
+    require_root_if_needed "$cli_target" "$cli_restart"
     print_banner "$cli_target"
     detect_current_config "$cli_target"
     local prev_installed=$IS_INSTALLED
@@ -592,6 +610,9 @@ main() {
     exit 0
   fi
 
+  if [[ "${EUID:-$(id -u)}" -ne 0 && "${AURORA_ALLOW_NON_ROOT:-0}" != "1" ]]; then
+    err "Interactive installation must be run as root (use sudo)."
+  fi
   print_banner "$cli_target"
   log_line "  ${C_CYAN}1)${C_RESET} Quick Install / Update ${C_DIM}(keeps existing branding)${C_RESET}"
   log_line "  ${C_CYAN}2)${C_RESET} Install + Customize ${C_DIM}(brand, language, theme, logo, banner, breakdown)${C_RESET}"

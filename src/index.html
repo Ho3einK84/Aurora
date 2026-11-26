@@ -21,6 +21,7 @@
     <meta name="aurora-default-theme" content="auroradark" />
     <meta name="aurora-default-lang" content="en" />
     <meta name="aurora-server-breakdown" content="true" />
+    <!--AURORA_INLINE_BRAND-->
 
     <!--
       Blocking pref resolver: apply the saved/queried theme and language BEFORE
@@ -32,19 +33,36 @@
             try {
                 var doc = document.documentElement;
                 var q = new URLSearchParams(location.search);
+                var readPref = function (k) {
+                    try {
+                        var v = localStorage.getItem(k);
+                        if (v !== null) return v;
+                    } catch (e) {}
+                    try {
+                        var m = document.cookie.match(new RegExp("(?:^|; )" + k + "=([^;]*)"));
+                        return m ? decodeURIComponent(m[1]) : null;
+                    } catch (e) { return null; }
+                };
                 var themes = ["auroradark", "amoleddark", "auroralight", "rebecca"];
+                var hexes = { auroradark: "#080f1b", amoleddark: "#000000", auroralight: "#eef3f8", rebecca: "#101010" };
                 var metaTheme = (document.querySelector('meta[name="aurora-default-theme"]') || {}).content;
                 var brandTheme = (window.AURORA_BRAND && (window.AURORA_BRAND.defaultTheme || window.AURORA_BRAND.theme)) || "";
                 var defTheme = brandTheme || metaTheme || doc.getAttribute("data-theme") || "auroradark";
-                if (themes.indexOf(defTheme) < 0) defTheme = "auroradark";
 
                 var t = q.get("theme");
+                if (themes.indexOf(t) < 0) t = readPref("aurora_theme");
                 if (themes.indexOf(t) < 0) {
-                    t = null;
-                    try { t = localStorage.getItem("aurora_theme"); } catch (e) { t = null; }
+                    if (themes.indexOf(defTheme) >= 0) {
+                        t = defTheme;
+                    } else if (window.matchMedia && window.matchMedia("(prefers-color-scheme: light)").matches) {
+                        t = "auroralight";
+                    } else {
+                        t = "auroradark";
+                    }
                 }
-                if (themes.indexOf(t) < 0) t = defTheme;
-                if (themes.indexOf(t) >= 0) doc.setAttribute("data-theme", t);
+                doc.setAttribute("data-theme", t);
+                var tc = document.querySelector('meta[name="theme-color"]');
+                if (tc && hexes[t]) tc.setAttribute("content", hexes[t]);
 
                 var langs = ["en", "fa", "ru", "zh"];
                 var metaLang = (document.querySelector('meta[name="aurora-default-lang"]') || {}).content;
@@ -53,10 +71,7 @@
                 if (langs.indexOf(defLang) < 0) defLang = "en";
 
                 var l = q.get("lang");
-                if (langs.indexOf(l) < 0) {
-                    l = null;
-                    try { l = localStorage.getItem("aurora_lang"); } catch (e) { l = null; }
-                }
+                if (langs.indexOf(l) < 0) l = readPref("aurora_lang");
                 if (langs.indexOf(l) < 0) {
                     if (defLang && defLang !== "en") {
                         l = defLang;

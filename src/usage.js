@@ -70,18 +70,25 @@ function parseUsageFromHtml(html) {
     return null;
 }
 
-const dateOf = (r) => {
+export const dateOf = (r) => {
     const raw = r && (r.date || r.hour || r.time || r.timestamp || r.day || r.t);
     if (raw == null) return new Date(NaN);
     if (typeof raw === "number") return new Date(raw < 1e12 ? raw * 1000 : raw);
-    if (/^\d+$/.test(String(raw).trim())) {
-        const n = Number(raw);
+    const s = String(raw).trim();
+    if (/^\d+$/.test(s)) {
+        const n = Number(s);
         return new Date(n < 1e12 ? n * 1000 : n);
     }
-    return new Date(raw);
+    // Date-only ISO strings ("YYYY-MM-DD") parse as UTC midnight by default,
+    // which shifts every bar back a day in UTC-negative timezones. Anchor at local noon.
+    const ymd = /^(\d{4})-(\d{2})-(\d{2})$/.exec(s);
+    if (ymd) {
+        return new Date(Number(ymd[1]), Number(ymd[2]) - 1, Number(ymd[3]), 12, 0, 0);
+    }
+    return new Date(s);
 };
 
-function usageValOf(r) {
+export function usageValOf(r) {
     if (r == null) return 0;
     const direct = r.used_traffic != null ? r.used_traffic
         : r.used != null ? r.used
@@ -91,6 +98,37 @@ function usageValOf(r) {
     if (direct != null) return num(direct);
     if (r.uplink != null || r.downlink != null) return num(r.uplink) + num(r.downlink);
     return 0;
+}
+
+/**
+ * Strip leading zero-traffic days that predate account creation (`createdAtRaw`)
+ * so daily averages and 7-day depletion forecasts aren't diluted by Rebecca's
+ * 90-day zero-padded history window on newly created accounts.
+ */
+export function trimPreCreationZeros(rows, createdAtRaw) {
+    if (!Array.isArray(rows) || !rows.length || !createdAtRaw) return rows || [];
+    const raw = String(createdAtRaw).trim();
+    if (!raw) return rows;
+    let cd = null;
+    if (/^\d+$/.test(raw)) {
+        const sec = num(raw);
+        if (sec > 0) cd = new Date(sec < 1e12 ? sec * 1000 : sec);
+    } else {
+        cd = new Date(raw.endsWith("Z") || /[+-]\d{2}:?\d{2}$/.test(raw) ? raw : raw + "Z");
+    }
+    if (!cd || isNaN(cd.getTime())) return rows;
+    const createdDayStart = new Date(cd.getFullYear(), cd.getMonth(), cd.getDate()).getTime();
+    let firstIdx = 0;
+    while (firstIdx < rows.length - 1) {
+        if (usageValOf(rows[firstIdx]) > 0) break;
+        const rd = dateOf(rows[firstIdx]);
+        if (!isNaN(rd.getTime())) {
+            const rowDayStart = new Date(rd.getFullYear(), rd.getMonth(), rd.getDate()).getTime();
+            if (rowDayStart >= createdDayStart) break;
+        }
+        firstIdx++;
+    }
+    return firstIdx > 0 ? rows.slice(firstIdx) : rows;
 }
 
 /* --------------------------------------------------------------- module */
@@ -122,16 +160,36 @@ export function mountUsage(deps) {
         try {
             // Request 90 days of history so the 90D range tab is populated (Rebecca defaults to 30 days).
             const startIso = new Date(Date.now() - 90 * 86400 * 1000).toISOString();
-            const sep = ctx.usageUrl.includes("?") ? "&" : "?";
-            const fetchUrl = /[?&]start=/i.test(ctx.usageUrl)
-                ? ctx.usageUrl
-                : `${ctx.usageUrl}${sep}start=${encodeURIComponent(startIso)}`;
-            const res = await fetch(fetchUrl, {
-                cache: "no-store",
-                credentials: "same-origin",
-                headers: { Accept: "application/json" },
-            });
-            if (!res.ok) throw new Error("usage HTTP " + res.status);
+            const withStart = (baseUrl) => {
+                const sep = baseUrl.includes("?") ? "&" : "?";
+                return /[?&]start=/i.test(baseUrl)
+                    ? baseUrl
+                    : `${baseUrl}${sep}start=${encodeURIComponent(startIso)}`;
+            };
+            const primaryUrl = withStart(ctx.usageUrl);
+            let candidates = [primaryUrl];
+            try {
+                if (/^https?:$/i.test(location.protocol) && new URL(primaryUrl, location.href).origin !== location.origin) {
+                    const localUsage = (location.origin + location.pathname).replace(/\/+$/, "") + "/usage";
+                    candidates = [withStart(localUsage), primaryUrl];
+                }
+            } catch (_) {}
+
+            let res = null;
+            for (const fetchUrl of candidates) {
+                try {
+                    const attempt = await fetch(fetchUrl, {
+                        cache: "no-store",
+                        credentials: "same-origin",
+                        headers: { Accept: "application/json" },
+                    });
+                    if (attempt.ok) {
+                        res = attempt;
+                        break;
+                    }
+                } catch (_) {}
+            }
+            if (!res) throw new Error("usage fetch failed");
             const ctype = (res.headers.get("content-type") || "").toLowerCase();
             const body = await res.text();
             let arr = null;
@@ -222,15 +280,16 @@ export function mountUsage(deps) {
             setHidden(box, true);
             return;
         }
-        const avgBytes = totalBytes / rows.length;
+        const activeRows = isHourly ? rows : trimPreCreationZeros(rows, ctx.createdAt);
+        const avgBytes = totalBytes / Math.max(1, activeRows.length);
         const peakBytes = Math.max(0, ...rows.map(usageValOf));
         const items = [
             [t("total"), fmtBytesStr(totalBytes, lang())],
         ];
-        if (!isHourly && rows.length > 1) {
+        if (!isHourly && activeRows.length > 1) {
             items.push([t("usage_avg_day"), fmtBytesStr(avgBytes, lang())]);
         }
-        if (peakBytes > 0 && rows.length > 1) {
+        if (peakBytes > 0 && activeRows.length > 1) {
             items.push([t("usage_peak_day"), fmtBytesStr(peakBytes, lang())]);
         }
         box.className = `sub-tile grid divide-x divide-base-content/10 rtl:divide-x-reverse rounded-xl py-2.5 text-center sm:py-3 ${
@@ -261,7 +320,10 @@ export function mountUsage(deps) {
         const period = $("#usage-period");
         const isHourly = rangeDays === 1 && hourly && hourly.length > 0;
         const source = isHourly ? hourly : history;
-        if (!source || !source.length) {
+        const hasAnyUsage =
+            (Array.isArray(history) && history.some((r) => usageValOf(r) > 0)) ||
+            (Array.isArray(hourly) && hourly.some((r) => usageValOf(r) > 0));
+        if (!source || !source.length || !hasAnyUsage) {
             chart.innerHTML = `<p class="py-5 text-center text-sm text-base-content/55">${escapeHtml(t("usage_empty"))}</p>`;
             chart.setAttribute("aria-label", t("usage_empty"));
             period.textContent = "";
@@ -462,11 +524,12 @@ export function mountUsage(deps) {
             setHidden(box, true);
             return;
         }
-        const recent = history.slice().sort((a, b) => {
+        const sorted = history.slice().sort((a, b) => {
             const ta = dateOf(a).getTime();
             const tb = dateOf(b).getTime();
             return (isNaN(ta) ? 0 : ta) - (isNaN(tb) ? 0 : tb);
-        }).slice(-7);
+        });
+        const recent = trimPreCreationZeros(sorted, ctx.createdAt).slice(-7);
         const avg = recent.reduce((s, r) => s + usageValOf(r), 0) / (recent.length || 1);
         if (avg <= 0) {
             setHidden(box, true);

@@ -221,23 +221,33 @@ export function mountPush({ ctx, state, t, lang, onCloseMenus }) {
 
     async function findExistingRegistration() {
         if (!("serviceWorker" in navigator)) return null;
+        const expectedScopes = new Set();
         try {
-            const direct = await navigator.serviceWorker.getRegistration(subScope);
-            if (direct) return direct;
-        } catch (_) {}
-        try {
-            const fallback = await navigator.serviceWorker.getRegistration(pushBase + "/");
-            if (fallback) return fallback;
+            expectedScopes.add(new URL(subScope, location.href).href);
+            expectedScopes.add(new URL(subScope.replace(/\/+$/, "") + "/", location.href).href);
+            expectedScopes.add(new URL(pushBase + "/", location.href).href);
         } catch (_) {}
         try {
             if (typeof navigator.serviceWorker.getRegistrations === "function") {
                 const targetHref = new URL(swUrl, location.href).href;
                 const regs = await navigator.serviceWorker.getRegistrations();
                 for (const reg of regs) {
+                    if (expectedScopes.has(reg.scope)) return reg;
                     const worker = reg.active || reg.waiting || reg.installing;
-                    if (worker && worker.scriptURL === targetHref) return reg;
+                    if (worker && worker.scriptURL === targetHref && reg.scope.startsWith(new URL(subScope, location.href).href)) {
+                        return reg;
+                    }
                 }
+                return null;
             }
+        } catch (_) {}
+        try {
+            const direct = await navigator.serviceWorker.getRegistration(subScope);
+            if (direct && (!expectedScopes.size || expectedScopes.has(direct.scope))) return direct;
+        } catch (_) {}
+        try {
+            const fallback = await navigator.serviceWorker.getRegistration(pushBase + "/");
+            if (fallback && (!expectedScopes.size || expectedScopes.has(fallback.scope))) return fallback;
         } catch (_) {}
         return null;
     }
@@ -426,6 +436,7 @@ export function mountPush({ ctx, state, t, lang, onCloseMenus }) {
             if (copyBtn) {
                 copyBtn.addEventListener("click", async () => {
                     if (await copyText(location.href)) toast(t("copied"));
+                    else toast(t("copy_failed"), "warn");
                 });
             }
             return;
@@ -533,9 +544,13 @@ export function mountPush({ ctx, state, t, lang, onCloseMenus }) {
             if (res.data.subscribed) {
                 subscribed = true;
             } else {
-                // Server pruned or revoked this subscription — clean up stale local registration.
+                // Server pruned or revoked this subscription — clean up stale local registration
+                // ONLY if this registration is dedicated to this subscription's scope (not shared root "/").
                 subscribed = false;
-                try { await sub.unsubscribe(); } catch (_) {}
+                const rootHref = new URL("/", location.href).href;
+                if (subScope !== "/" && reg.scope !== rootHref) {
+                    try { await sub.unsubscribe(); } catch (_) {}
+                }
                 currentSub = null;
             }
             syncHeaderAndPrompt();
@@ -767,11 +782,18 @@ export function mountPush({ ctx, state, t, lang, onCloseMenus }) {
 
     function syncLang(nextLang) {
         if (serverDisabled || !subscribed || !currentSub || !nextLang) return;
-        // Fire-and-forget language sync so future background push notifications use the chosen language.
-        postPush("preferences", {
-            endpoint: currentSub.endpoint,
-            lang: nextLang,
-        }).catch(() => {});
+        // Serialize through prefsQueue with current confirmedAlerts so language sync never
+        // races with toggle updates or resets omitted alert booleans on strict servers.
+        prefsQueue = prefsQueue.then(async () => {
+            if (serverDisabled || !subscribed || !currentSub) return;
+            try {
+                await postPush("preferences", {
+                    endpoint: currentSub.endpoint,
+                    lang: nextLang,
+                    alerts: { ...confirmedAlerts },
+                });
+            } catch (_) {}
+        });
     }
 
     function openModal() {

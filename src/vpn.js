@@ -76,15 +76,20 @@ export function isWgLink(uri) {
     }
 }
 
-/** Human label for an .ovpn download URL — the decoded file name sans suffix. */
-export function ovpnLabel(url) {
+/** Human label for a profile download URL — the decoded file name sans `.ovpn` / `.conf` suffix. */
+export function profileLabel(url, fallback = "OpenVPN") {
     try {
         const path = new URL(url, "http://x").pathname;
-        const file = (path.split("/").pop() || "").replace(/\.ovpn$/i, "");
+        const file = (path.split("/").pop() || "").replace(/\.(?:ovpn|conf)$/i, "");
         const name = decodeURIComponent(file).trim();
         if (name) return name;
     } catch (_) { /* fall through */ }
-    return "OpenVPN";
+    return fallback;
+}
+
+/** Human label for an .ovpn download URL — the decoded file name sans suffix. */
+export function ovpnLabel(url) {
+    return profileLabel(url, "OpenVPN");
 }
 
 const clean = (v) => (typeof v === "string" ? v.trim() : "");
@@ -182,14 +187,25 @@ function normWg(row) {
     return item.downloadUrl || item.link || item.body || item.server ? item : null;
 }
 
-function mergeProfiles(list) {
+function normProfileKey(s) {
+    return String(s || "")
+        .normalize("NFKC")
+        .replace(/[\u{1F1E6}-\u{1F1FF}]/gu, "")
+        .replace(/[^a-zA-Z0-9\u0080-\uffff]+/g, "")
+        .toLowerCase();
+}
+
+export function mergeProfiles(list) {
     const out = [];
     for (const item of list) {
         if (!item) continue;
         const key = (item.name || "").trim().toLowerCase() || item.link || item.downloadUrl;
+        const slug = normProfileKey(item.name);
         const cur = out.find((c) => {
             const cKey = (c.name || "").trim().toLowerCase() || c.link || c.downloadUrl;
-            if (cKey !== key) return false;
+            const cSlug = normProfileKey(c.name);
+            const nameMatch = cKey === key || (slug && slug === cSlug);
+            if (!nameMatch) return false;
             if (c.link && item.link && c.link !== item.link) return false;
             if (c.downloadUrl && item.downloadUrl && c.downloadUrl !== item.downloadUrl) return false;
             if (c.server && item.server && c.server !== item.server) return false;
@@ -198,6 +214,10 @@ function mergeProfiles(list) {
         if (!cur) {
             out.push({ ...item });
         } else {
+            // Prefer the richer display name (e.g. one with spaces/flags over a hyphenated filename).
+            if (item.name && item.name.includes(" ") && (!cur.name || !cur.name.includes(" "))) {
+                cur.name = item.name;
+            }
             if (!cur.downloadUrl && item.downloadUrl) cur.downloadUrl = item.downloadUrl;
             if (!cur.link && item.link) cur.link = item.link;
             if (!cur.body && item.body) cur.body = item.body;
@@ -241,14 +261,14 @@ export function mountVpn(deps) {
         if (/^wireguard:\/\//i.test(link)) return normWg({ link, remark: configLabel(link) });
         return normWg({
             download_url: link,
-            remark: ovpnLabel(link).replace(/\.conf$/i, ""),
+            remark: profileLabel(link, "WireGuard"),
         });
     }).filter(Boolean));
     let awg = mergeProfiles((deps.awgLinks || []).map((link) => {
         if (/^(?:amneziawg|awg):\/\//i.test(link)) return normAwg({ link, remark: configLabel(link) });
         return normAwg({
             download_url: link,
-            remark: ovpnLabel(link).replace(/\.conf$/i, ""),
+            remark: profileLabel(link, "AmneziaWG"),
         });
     }).filter(Boolean));
     let sstp = [];
@@ -285,8 +305,8 @@ export function mountVpn(deps) {
             if (Array.isArray(wgSource.profiles) && wgSource.profiles.length) {
                 wg = mergeProfiles(wgSource.profiles.map(normWg).filter(Boolean));
                 touched = true;
-            } else if (!wg.length) {
-                // Fallback: synthesise minimal entries from downloads/links.
+            } else {
+                // Fallback: synthesise minimal entries from downloads/links and merge with island entries.
                 const wgDl = Array.isArray(wgSource.downloads) ? wgSource.downloads : [];
                 const wgLinks = Array.isArray(wgSource.links) ? wgSource.links : [];
                 const fallback = [];
@@ -295,11 +315,11 @@ export function mountVpn(deps) {
                     const item = normWg({
                         download_url: wgDl[i],
                         link: wgLinks[i],
-                        remark: wgDl[i] ? ovpnLabel(wgDl[i]).replace(/\.ovpn$/i, "").replace(/\.conf$/i, "") : (wgLinks[i] ? configLabel(wgLinks[i]) : ""),
+                        remark: wgLinks[i] ? configLabel(wgLinks[i]) : (wgDl[i] ? profileLabel(wgDl[i], "WireGuard") : ""),
                     });
                     if (item) fallback.push(item);
                 }
-                if (fallback.length) { wg = mergeProfiles(fallback); touched = true; }
+                if (fallback.length) { wg = mergeProfiles([...wg, ...fallback]); touched = true; }
             }
         }
         // AmneziaWG: prefer structured profiles; fall back to downloads/links arrays.
@@ -308,7 +328,7 @@ export function mountVpn(deps) {
             if (Array.isArray(awgSource.profiles) && awgSource.profiles.length) {
                 awg = mergeProfiles(awgSource.profiles.map(normAwg).filter(Boolean));
                 touched = true;
-            } else if (!awg.length) {
+            } else {
                 const awgDl = Array.isArray(awgSource.downloads) ? awgSource.downloads : [];
                 const awgLinks = Array.isArray(awgSource.links) ? awgSource.links : [];
                 const fallback = [];
@@ -317,11 +337,11 @@ export function mountVpn(deps) {
                     const item = normAwg({
                         download_url: awgDl[i],
                         link: awgLinks[i],
-                        remark: awgDl[i] ? ovpnLabel(awgDl[i]).replace(/\.conf$/i, "") : (awgLinks[i] ? configLabel(awgLinks[i]) : ""),
+                        remark: awgLinks[i] ? configLabel(awgLinks[i]) : (awgDl[i] ? profileLabel(awgDl[i], "AmneziaWG") : ""),
                     });
                     if (item) fallback.push(item);
                 }
-                if (fallback.length) { awg = mergeProfiles(fallback); touched = true; }
+                if (fallback.length) { awg = mergeProfiles([...awg, ...fallback]); touched = true; }
             }
         }
         if (Array.isArray(data.sstp)) {
@@ -740,6 +760,8 @@ export function mountVpn(deps) {
                 if (await copyText(btn.getAttribute("data-copy"))) {
                     toast(t("copied"));
                     flashCopyIcon(btn);
+                } else {
+                    toast(t("copy_failed"), "warn");
                 }
             });
         });
@@ -753,7 +775,7 @@ export function mountVpn(deps) {
                     downloadTextFile(conf, safeFileName(profile.name, "wireguard", ".conf"));
                     toast(t("export_done"));
                 } else {
-                    toast(t("qr_error"));
+                    toast(t("qr_error"), "error");
                 }
             });
         });
@@ -767,7 +789,7 @@ export function mountVpn(deps) {
                     downloadTextFile(conf, safeFileName(profile.name, "amneziawg", ".conf"));
                     toast(t("export_done"));
                 } else {
-                    toast(t("qr_error"));
+                    toast(t("qr_error"), "error");
                 }
             });
         });

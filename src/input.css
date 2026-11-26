@@ -1,4 +1,4 @@
-@import "tailwindcss";
+@import "tailwindcss" source(none);
 @source "../src/**/*.{html,js}";
 
 /* DaisyUI v5 — themes we ship, and ONLY the component CSS the page actually

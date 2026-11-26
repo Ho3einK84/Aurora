@@ -181,6 +181,8 @@ export const I18N = {
         alerts_err_disabled_server: "Alerts are currently disabled by the provider.",
         alerts_err_delivery: "Could not deliver the test notification. Please try again.",
         alerts_err_generic: "Could not update alert settings. Please try again.",
+        copy_failed: "Could not copy — check browser permissions",
+        fmt_xhttp_warn: "Not compatible with XHTTP configs",
     },
     fa: {
         dir: "rtl",
@@ -358,6 +360,8 @@ export const I18N = {
         alerts_err_disabled_server: "این قابلیت در حال حاضر توسط ارائه‌دهنده غیرفعال شده است.",
         alerts_err_delivery: "ارسال اعلان آزمایشی ناموفق بود. لطفاً دوباره تلاش کنید.",
         alerts_err_generic: "ذخیره تنظیمات هشدار ناموفق بود. لطفاً دوباره تلاش کنید.",
+        copy_failed: "کپی انجام نشد — دسترسی مرورگر را بررسی کنید",
+        fmt_xhttp_warn: "ناسازگار با کانفیگ‌های XHTTP",
     },
     ru: {
         dir: "ltr",
@@ -535,6 +539,8 @@ export const I18N = {
         alerts_err_disabled_server: "Уведомления отключены провайдером.",
         alerts_err_delivery: "Не удалось доставить тестовое уведомление. Попробуйте позже.",
         alerts_err_generic: "Не удалось обновить настройки уведомлений.",
+        copy_failed: "Не удалось скопировать — проверьте разрешения",
+        fmt_xhttp_warn: "Несовместимо с XHTTP",
     },
     zh: {
         dir: "ltr",
@@ -712,6 +718,8 @@ export const I18N = {
         alerts_err_disabled_server: "服务提供商当前已关闭通知功能。",
         alerts_err_delivery: "测试通知发送失败，请稍后重试。",
         alerts_err_generic: "更新通知设置失败，请重试。",
+        copy_failed: "复制失败 — 请检查浏览器权限",
+        fmt_xhttp_warn: "不兼容 XHTTP 配置",
     },
 };
 
@@ -819,7 +827,7 @@ const RT_UNITS = [
     },
     {
         ms: 3_600_000,
-        en: ["hr", "hr"], fa: "ساعت", ru: ["ч", "ч", "ч"], zh: "小时",
+        en: ["hr", "hrs"], fa: "ساعت", ru: ["ч", "ч", "ч"], zh: "小时",
     },
     {
         ms: 86_400_000,
@@ -855,12 +863,19 @@ export function fmtRelative(date, lang, opts) {
         return lang === "fa" ? "همین الان" : lang === "ru" ? "только что" : lang === "zh" ? "刚刚" : "just now";
     }
 
-    // Walk through the unit table and pick the largest unit that fits.
-    let unit = RT_UNITS[RT_UNITS.length - 1];
+    // Walk through the unit table and pick the largest unit that fits,
+    // promoting to the next unit when rounding hits the next unit threshold (e.g. 24 hrs -> 1 day).
+    let unitIdx = RT_UNITS.length - 1;
     for (let i = 0; i < RT_UNITS.length - 1; i++) {
-        if (abs < RT_UNITS[i + 1].ms) { unit = RT_UNITS[i]; break; }
+        if (abs < RT_UNITS[i + 1].ms) { unitIdx = i; break; }
     }
-    const value = Math.max(1, (!past && unit.ms >= 3_600_000) ? Math.round(abs / unit.ms) : Math.floor(abs / unit.ms));
+    let unit = RT_UNITS[unitIdx];
+    let value = Math.max(1, (!past && unit.ms >= 3_600_000) ? Math.round(abs / unit.ms) : Math.floor(abs / unit.ms));
+    while (unitIdx < RT_UNITS.length - 1 && value * unit.ms >= RT_UNITS[unitIdx + 1].ms) {
+        unitIdx++;
+        unit = RT_UNITS[unitIdx];
+        value = Math.max(1, Math.round(abs / unit.ms));
+    }
     let word;
     const candidate = unit[lang] != null ? unit[lang] : unit.en;
     if (Array.isArray(candidate)) {

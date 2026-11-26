@@ -35,6 +35,9 @@ jobs:
       - name: Verify pongo2 directive guard
         run: npm run guard
 
+      - name: Run automated tests
+        run: npm test
+
       - name: Assert dist/index.html is self-contained
         run: |
           set -e
